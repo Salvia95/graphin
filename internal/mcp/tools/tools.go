@@ -145,7 +145,10 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		fmt.Fprintf(&sb, `<results semantic_ready="%t">`, semReady)
 		for _, r := range results {
-			display := ws.Sym.SimpleName(r.NodeID)
+			display := ws.DisplayName(r.NodeID)
+			if display == "" {
+				display = ws.Sym.SimpleName(r.NodeID)
+			}
 			sb.WriteString("\n  ")
 			fmt.Fprintf(&sb, `<node id="%s" display_name="%s" rank="%d" match_type="%s" />`,
 				mcp.EscapeAttr(r.NodeID), mcp.EscapeAttr(display), r.Rank, r.Match)
@@ -181,9 +184,34 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		var a args
 		_ = json.Unmarshal(raw, &a)
-		// Byte-accurate slicing arrives with the AST engine in Phase 2.
-		st := ws.FSM.Status()
-		return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+a.NodeID, &st), true
+
+		cb, err := ws.ReadCode(a.NodeID)
+		if err != nil {
+			st := ws.FSM.Status()
+			switch {
+			case errors.Is(err, workspace.ErrNodeGone):
+				return mcp.ErrorXML(mcp.ErrNodeGone, "node vanished after reparse: "+a.NodeID, &st), true
+			case errors.Is(err, workspace.ErrNodeNotFound):
+				return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+a.NodeID, &st), true
+			default:
+				return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+			}
+		}
+
+		var sb strings.Builder
+		if st := ws.FSM.Status(); st.State != "ready" {
+			sb.WriteString(st.XML())
+			sb.WriteString("\n")
+		}
+		fmt.Fprintf(&sb, `<code_block id="%s" file="%s" lines="%d-%d" reparsed="%t"`,
+			mcp.EscapeAttr(cb.ID), mcp.EscapeAttr(cb.RelPath), cb.StartLine, cb.EndLine, cb.Reparsed)
+		if cb.Partial {
+			sb.WriteString(` partial="true"`)
+		}
+		sb.WriteString(">\n")
+		mcp.WriteCDATA(&sb, cb.Code)
+		sb.WriteString("\n</code_block>")
+		return sb.String(), false
 	}
 }
 

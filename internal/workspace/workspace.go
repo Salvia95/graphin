@@ -1,6 +1,6 @@
 // Package workspace owns the index lifecycle: the bootstrap sequence, the
-// watcher pipeline, and (from Phase 2 on) the single-writer indexer that
-// serializes every state mutation.
+// watcher pipeline, and the single-writer indexer that serializes every
+// state mutation (§4 동시성 모델).
 package workspace
 
 import (
@@ -10,9 +10,11 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/llls2542/graphin/internal/ignore"
 	"github.com/llls2542/graphin/internal/lexical"
 	"github.com/llls2542/graphin/internal/lock"
 	"github.com/llls2542/graphin/internal/mcp"
+	"github.com/llls2542/graphin/internal/merkle"
 	"github.com/llls2542/graphin/internal/obs"
 	"github.com/llls2542/graphin/internal/search"
 	"github.com/llls2542/graphin/internal/watch"
@@ -48,6 +50,23 @@ type Workspace struct {
 
 	cfg Config
 
+	// indexMu serializes every index mutation (merkle, lexical, symtab,
+	// node metadata): the single-writer discipline with a synchronous
+	// escape hatch for read_code's inline reparse.
+	indexMu sync.Mutex
+	merkle  *merkle.Tree
+
+	nodesMu sync.RWMutex
+	nodes   map[string]NodeMeta
+
+	matcherMu sync.Mutex
+	matcher   *ignore.Matcher
+
+	// Track-B consumers; nil until the graph (P3) and semantic (P4) engines
+	// are wired in.
+	embedder merkle.Embedder
+	edgeSink merkle.EdgeSink
+
 	mu           sync.Mutex
 	bootstrapped bool
 	lk           *lock.Lock
@@ -69,6 +88,8 @@ func New(cfg Config) *Workspace {
 		Lex:    ix,
 		Router: &search.Router{Sym: sym, Lex: ix},
 		cfg:    cfg,
+		merkle: merkle.NewTree(),
+		nodes:  map[string]NodeMeta{},
 	}
 }
 
@@ -79,10 +100,9 @@ func (w *Workspace) Bootstrapped() bool {
 	return w.bootstrapped
 }
 
-// Bootstrap acquires the workspace lock, starts the watcher pipeline and
-// kicks off indexing in the background. It returns quickly (§3.1): progress
-// is reported through Status on subsequent tool calls. Calling it again is a
-// no-op returning current status.
+// Bootstrap acquires the workspace lock, restores persisted indexes, starts
+// the watcher pipeline and kicks off indexing in the background. It returns
+// quickly (§3.1); progress is reported through Status on later tool calls.
 func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline bool) (mcp.Status, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -99,6 +119,18 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	lk, err := lock.Acquire(filepath.Join(w.Dir, "lockfile"), lock.Options{}, w.Log)
 	if err != nil {
 		return w.FSM.Status(), err
+	}
+
+	// Restore prior state so the initial scan only pays for what changed.
+	// The lexical snapshot and merkle tree must move together: without the
+	// lexical docs, unchanged (OffsetOnly) nodes would never re-enter the
+	// symbol table, so a missing/corrupt snapshot forces a full re-index.
+	lex, sym, lerr := lexical.Load(filepath.Join(w.Dir, "search", "lexical.idx"))
+	mt, merr := merkle.Load(filepath.Join(w.Dir, "merkle.json"))
+	if lerr == nil && merr == nil && lex.Len() > 0 {
+		w.Lex, w.Sym = lex, sym
+		w.Router.Lex, w.Router.Sym = lex, sym
+		w.merkle = mt
 	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -126,25 +158,14 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	return w.FSM.Status(), nil
 }
 
-// initialScan performs the first full index pass. Phase 1 has no parser yet:
-// it only opens lexical availability; Phase 2+ fill in scanning, parsing,
-// merkle hashing and graph building.
-func (w *Workspace) initialScan(ctx context.Context) {
-	_ = ctx
-	w.FSM.SetProgress(100)
-	w.FSM.Set(PhaseLexicalReady)
-	w.Log.Event("initial_scan_done", map[string]any{"nodes": w.Sym.Len()})
-}
-
-// consumeBatches drains debounced watcher batches. Phase 2 wires this into
-// the indexer job queue; for now batches are only logged.
+// consumeBatches drains debounced watcher batches into the indexer.
 func (w *Workspace) consumeBatches(ctx context.Context, batches <-chan watch.Batch) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case b := <-batches:
-			w.Log.Event("watch_batch", map[string]any{"files": len(b)})
+			w.handleBatch(b)
 		}
 	}
 }
