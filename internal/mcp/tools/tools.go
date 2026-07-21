@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/llls2542/graphin/internal/graph"
 	"github.com/llls2542/graphin/internal/mcp"
 	"github.com/llls2542/graphin/internal/workspace"
 )
@@ -160,7 +161,10 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 
 func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
-		NodeID string `json:"node_id"`
+		NodeID        string   `json:"node_id"`
+		Direction     string   `json:"direction"`
+		Cursor        string   `json:"cursor"`
+		MinConfidence *float64 `json:"min_confidence"`
 	}
 	return func(_ context.Context, raw json.RawMessage) (string, bool) {
 		if !ws.Bootstrapped() {
@@ -168,10 +172,69 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		var a args
 		_ = json.Unmarshal(raw, &a)
-		// The graph engine arrives in Phase 3; until then every node is unknown.
-		st := ws.FSM.Status()
-		return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+a.NodeID, &st), true
+		switch a.Direction {
+		case "uses", "used_by", "both":
+		default:
+			a.Direction = "both"
+		}
+		minConf := float32(0.5) // §3.3 기본값
+		if a.MinConfidence != nil {
+			minConf = float32(*a.MinConfidence)
+		}
+
+		page, err := ws.Explore(a.NodeID, a.Direction, a.Cursor, minConf)
+		if err != nil {
+			st := ws.FSM.Status()
+			if errors.Is(err, workspace.ErrNodeNotFound) {
+				return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+a.NodeID, &st), true
+			}
+			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+		}
+
+		var sb strings.Builder
+		if st := ws.FSM.Status(); st.State != "ready" {
+			sb.WriteString(st.XML())
+			sb.WriteString("\n")
+		}
+		fmt.Fprintf(&sb, `<graph_context target="%s">`, mcp.EscapeAttr(page.Target))
+		writeEdges := func(tag string, edges []workspaceEdge) {
+			if len(edges) == 0 {
+				return
+			}
+			fmt.Fprintf(&sb, "\n  <%s>", tag)
+			for _, e := range edges {
+				fmt.Fprintf(&sb, "\n    <node id=\"%s\" type=\"%s\" confidence=\"%.2f\" />",
+					mcp.EscapeAttr(e.NodeID), e.Type, e.Confidence)
+			}
+			fmt.Fprintf(&sb, "\n  </%s>", tag)
+		}
+		if a.Direction != "used_by" {
+			writeEdges("uses", toEdges(page.Uses))
+		}
+		if a.Direction != "uses" {
+			writeEdges("used_by", toEdges(page.UsedBy))
+		}
+		if page.HasMore {
+			sb.WriteString("\n  <has_more>true</has_more>")
+			fmt.Fprintf(&sb, "\n  <next_cursor>%s</next_cursor>", mcp.EscapeText(page.NextCursor))
+		}
+		sb.WriteString("\n</graph_context>")
+		return sb.String(), false
 	}
+}
+
+type workspaceEdge struct {
+	NodeID     string
+	Type       string
+	Confidence float32
+}
+
+func toEdges(in []graph.EdgeOut) []workspaceEdge {
+	out := make([]workspaceEdge, len(in))
+	for i, e := range in {
+		out[i] = workspaceEdge{NodeID: e.NodeID, Type: e.Type, Confidence: e.Confidence}
+	}
+	return out
 }
 
 func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {

@@ -56,7 +56,10 @@ func (w *Workspace) DisplayName(id string) string {
 // Callers must hold w.indexMu.
 func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 	diff := merkle.Diff(w.merkle, res)
-	merkle.Apply(diff, w.embedder, w.edgeSink)
+	merkle.Apply(diff, w.embedder, nil)
+	if w.graph != nil {
+		w.graph.ApplyFile(res, diff)
+	}
 	w.merkle.Update(res)
 
 	fileHex := merkle.Hex(res.FileHash)
@@ -109,9 +112,9 @@ func (w *Workspace) removeFileLocked(rel string) {
 	for _, id := range ids {
 		w.Sym.Delete(id)
 		w.Lex.Delete(id)
-		if w.edgeSink != nil {
-			w.edgeSink.RemoveNode(id)
-		}
+	}
+	if w.graph != nil {
+		w.graph.RemoveNodes(ids)
 	}
 }
 
@@ -196,6 +199,11 @@ func (w *Workspace) initialScan(ctx context.Context) {
 			w.FSM.SetProgress(done * 100 / total)
 		}
 	}
+	if w.graph != nil {
+		w.indexMu.Lock()
+		w.graph.Flush()
+		w.indexMu.Unlock()
+	}
 	w.persistIndexes()
 	w.FSM.SetProgress(100)
 	w.FSM.Set(PhaseLexicalReady)
@@ -247,6 +255,9 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 		}
 	}
 	if touched > 0 {
+		if w.graph != nil {
+			w.graph.Flush()
+		}
 		w.persistIndexesLocked()
 		w.Log.Event("watch_batch", map[string]any{"events": len(b), "indexed": touched})
 	}
@@ -362,6 +373,9 @@ func (w *Workspace) ReadCode(id string) (*CodeBlock, error) {
 		}
 		w.indexMu.Lock()
 		w.applyFileResult(r)
+		if w.graph != nil {
+			w.graph.Flush()
+		}
 		w.indexMu.Unlock()
 		reparsed = true
 		if meta, ok = w.nodeMeta(id); !ok || meta.RelPath != r.RelPath {

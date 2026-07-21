@@ -5,11 +5,13 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 
+	"github.com/llls2542/graphin/internal/graph"
 	"github.com/llls2542/graphin/internal/ignore"
 	"github.com/llls2542/graphin/internal/lexical"
 	"github.com/llls2542/graphin/internal/lock"
@@ -51,10 +53,11 @@ type Workspace struct {
 	cfg Config
 
 	// indexMu serializes every index mutation (merkle, lexical, symtab,
-	// node metadata): the single-writer discipline with a synchronous
+	// node metadata, graph): the single-writer discipline with a synchronous
 	// escape hatch for read_code's inline reparse.
 	indexMu sync.Mutex
 	merkle  *merkle.Tree
+	graph   *graph.Engine
 
 	nodesMu sync.RWMutex
 	nodes   map[string]NodeMeta
@@ -132,6 +135,11 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 		w.Router.Lex, w.Router.Sym = lex, sym
 		w.merkle = mt
 	}
+	eng, err := graph.Open(filepath.Join(w.Dir, "graph"), w.Log)
+	if err != nil {
+		return w.FSM.Status(), err
+	}
+	w.graph = eng
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	deb := watch.NewDebouncer(0, 0) // spec defaults: 500ms quiet, 2s cap
@@ -178,8 +186,30 @@ func (w *Workspace) Close() {
 		w.cancel()
 		w.cancel = nil
 	}
+	if w.graph != nil {
+		w.graph.Close()
+		w.graph = nil
+	}
 	if w.lk != nil {
 		_ = w.lk.Release()
 		w.lk = nil
 	}
+}
+
+// Explore proxies to the graph engine (§3.3).
+func (w *Workspace) Explore(nodeID, direction, cursor string, minConf float32) (*graph.Page, error) {
+	w.mu.Lock()
+	eng := w.graph
+	w.mu.Unlock()
+	if eng == nil {
+		return nil, ErrNodeNotFound
+	}
+	page, err := eng.Explore(nodeID, direction, cursor, minConf)
+	if err != nil {
+		if errors.Is(err, graph.ErrNodeNotFound) {
+			return nil, ErrNodeNotFound
+		}
+		return nil, err
+	}
+	return page, nil
 }

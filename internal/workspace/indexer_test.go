@@ -183,3 +183,66 @@ func TestBootstrapIndexesFixtureTree(t *testing.T) {
 		t.Fatal("partial file (Broken.java) should still be indexed")
 	}
 }
+
+// TestExploreOverRealFixtures: the full pipeline (parse → confidence →
+// shards → reverse) reproduces §3.3's example edges.
+func TestExploreOverRealFixtures(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, javaFixtureDir, root)
+
+	w := New(Config{Root: root, Log: obs.Nop()})
+	defer w.Close()
+	if _, err := w.Bootstrap(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) && w.FSM.Phase() < PhaseLexicalReady {
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	// PgPaymentAdapter implements PaymentPort at confidence 1.0.
+	page, err := w.Explore("com.example.payment.adapter.PgPaymentAdapter", "uses", "", 0.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundImpl := false
+	for _, e := range page.Uses {
+		if e.NodeID == "com.example.payment.port.PaymentPort" && e.Type == "implements" && e.Confidence == 1.0 {
+			foundImpl = true
+		}
+	}
+	if !foundImpl {
+		t.Fatalf("implements edge missing: %+v", page.Uses)
+	}
+
+	// OrderService.process(ProcessRequest) is used_by OrderController.handle.
+	procID := "com.example.order.domain.OrderService.process(ProcessRequest)"
+	page, err = w.Explore(procID, "used_by", "", 0.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundCaller := false
+	for _, e := range page.UsedBy {
+		if e.NodeID == "com.example.order.adapter.in.web.OrderController.handle(ProcessRequest)" && e.Type == "call" {
+			foundCaller = true
+		}
+	}
+	if !foundCaller {
+		t.Fatalf("used_by missing controller (§3.3 예시 재현 실패): %+v", page.UsedBy)
+	}
+
+	// Self-call inside OrderService: process(1) → process(2) at 1.0.
+	page, err = w.Explore(procID, "uses", "", 0.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundSelf := false
+	for _, e := range page.Uses {
+		if e.NodeID == "com.example.order.domain.OrderService.process(ProcessRequest,boolean)" && e.Confidence == 1.0 {
+			foundSelf = true
+		}
+	}
+	if !foundSelf {
+		t.Fatalf("same-file overload call must be 1.0: %+v", page.Uses)
+	}
+}

@@ -1,0 +1,31 @@
+// Forward-graph shard schema (§6.2). Shards are mmapped and read zero-copy;
+// regenerate Go code with `make fbs` (flatc 25.12.19, see scripts/fetch-flatc.sh).
+namespace fbsgen;
+
+enum EdgeType : byte { Import, Extends, Implements, Call, Reference }
+
+table Edge {
+  target_id: string (required);
+  type: EdgeType;
+  confidence: float;      // 0.0 ~ 1.0
+}
+
+table Node {
+  id: string (required);  // §2.3 ID 규약
+  display_name: string;
+  kind: string;           // class | interface | method | function
+  file_path: string (required);
+  start_byte: uint32;
+  end_byte: uint32;
+  subtree_hash: [ubyte];  // BLAKE3-256 (32 bytes)
+  partial: bool;          // 파싱 에러 부분 트리 여부
+  uses: [Edge];
+}
+
+table Shard {
+  package_prefix: string (required);
+  generation: uint64;     // 원자적 교체 세대 번호
+  nodes: [Node];
+}
+
+root_type Shard;
