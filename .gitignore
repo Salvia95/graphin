@@ -1,0 +1,17 @@
+# build artifacts
+/bin/
+/dist/
+
+# graphin runtime data (never commit index/model data)
+.graphin/
+
+# provisioned models & onnxruntime shared libraries
+*.onnx
+*.ort
+libonnxruntime*
+
+# editor/OS noise
+.idea/
+.vscode/
+*.swp
+.DS_Store

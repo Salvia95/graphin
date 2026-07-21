@@ -1,0 +1,77 @@
+// graphin is a local MCP server that lets AI coding agents navigate a
+// codebase through progressive disclosure: search_hybrid → explore_graph →
+// read_code.
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+
+	"github.com/llls2542/graphin/internal/mcp"
+	"github.com/llls2542/graphin/internal/mcp/tools"
+	"github.com/llls2542/graphin/internal/obs"
+	"github.com/llls2542/graphin/internal/workspace"
+)
+
+const version = "0.1.0-dev"
+
+func main() {
+	var (
+		root      = flag.String("workspace", "", "path to the workspace to index (required)")
+		modelType = flag.String("model-type", "multilingual_cjk", "embedding model: english_optimal | multilingual_cjk")
+		offline   = flag.Bool("offline", false, "never download; use local runtime/ artifacts only")
+		modelDir  = flag.String("model-dir", "", "local directory containing the ONNX model")
+		ortLib    = flag.String("ort-lib", "", "path to the onnxruntime shared library")
+		workers   = flag.Int("workers", runtime.NumCPU(), "parser worker pool size")
+		verbose   = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
+	)
+	flag.Parse()
+
+	if *root == "" {
+		fatalf("--workspace is required")
+	}
+	abs, err := filepath.Abs(*root)
+	if err != nil {
+		fatalf("resolve workspace: %v", err)
+	}
+	fi, err := os.Stat(abs)
+	if err != nil || !fi.IsDir() {
+		fatalf("workspace is not a directory: %s", abs)
+	}
+
+	lg, err := obs.New(filepath.Join(abs, workspace.DataDirName, "agent-nav.log"), *verbose)
+	if err != nil {
+		fatalf("open log: %v", err)
+	}
+	defer lg.Close()
+
+	ws := workspace.New(workspace.Config{
+		Root:      abs,
+		Workers:   *workers,
+		ModelType: *modelType,
+		Offline:   *offline,
+		ModelDir:  *modelDir,
+		OrtLib:    *ortLib,
+		Log:       lg,
+	})
+	defer ws.Close()
+
+	reg := mcp.NewRegistry()
+	tools.Register(reg, ws)
+
+	srv := mcp.NewServer(os.Stdin, os.Stdout, reg, version, lg)
+	if err := srv.Serve(context.Background()); err != nil && err != context.Canceled {
+		lg.Event("serve_error", map[string]any{"error": err.Error()})
+		os.Exit(1)
+	}
+}
+
+// fatalf writes to stderr only — stdout belongs to the MCP transport.
+func fatalf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "graphin: "+format+"\n", args...)
+	os.Exit(2)
+}
