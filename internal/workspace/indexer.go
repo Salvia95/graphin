@@ -17,6 +17,7 @@ import (
 	"github.com/llls2542/graphin/internal/merkle"
 	"github.com/llls2542/graphin/internal/parse"
 	"github.com/llls2542/graphin/internal/scan"
+	"github.com/llls2542/graphin/internal/semantic"
 	"github.com/llls2542/graphin/internal/watch"
 )
 
@@ -56,9 +57,24 @@ func (w *Workspace) DisplayName(id string) string {
 // Callers must hold w.indexMu.
 func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 	diff := merkle.Diff(w.merkle, res)
-	merkle.Apply(diff, w.embedder, nil)
 	if w.graph != nil {
 		w.graph.ApplyFile(res, diff)
+	}
+	if w.semSink != nil { // Track B + crash-recovery force set (§2.2)
+		force := w.forceEmbed[res.RelPath]
+		changedIDs := make(map[string]bool, len(diff.Changed))
+		for _, n := range diff.Changed {
+			changedIDs[n.ID] = true
+		}
+		for _, n := range res.Nodes {
+			if force || changedIDs[n.ID] {
+				w.semSink.Enqueue(n.ID, semantic.Summarize(res.Package, n))
+			}
+		}
+		for _, id := range diff.Removed {
+			w.semSink.Remove(id)
+		}
+		delete(w.forceEmbed, res.RelPath)
 	}
 	w.merkle.Update(res)
 
@@ -112,6 +128,9 @@ func (w *Workspace) removeFileLocked(rel string) {
 	for _, id := range ids {
 		w.Sym.Delete(id)
 		w.Lex.Delete(id)
+		if w.semSink != nil {
+			w.semSink.Remove(id)
+		}
 	}
 	if w.graph != nil {
 		w.graph.RemoveNodes(ids)

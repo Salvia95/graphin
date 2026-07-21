@@ -4,6 +4,8 @@
 package search
 
 import (
+	"sort"
+
 	"github.com/llls2542/graphin/internal/lexical"
 )
 
@@ -41,8 +43,14 @@ type Router struct {
 // SemanticReady reports whether vector search is available.
 func (r *Router) SemanticReady() bool { return r.Sem != nil && r.Sem.Ready() }
 
+// rrfK is the reciprocal-rank-fusion constant (§2.1.1; §8 lists it as a
+// benchmark-tunable).
+const rrfK = 60
+
 // Search returns up to topK results. Tier-0 hits are pinned to the top with
-// match_type "exact"; the rest are filled from BM25 ranking.
+// match_type "exact"; remaining slots come from BM25 alone before semantic
+// warmup, or from the RRF merge of both rankings after (§2.1.1). Raw scores
+// never leave this function.
 func (r *Router) Search(query string, topK int) []Result {
 	if topK <= 0 {
 		topK = 5
@@ -57,11 +65,65 @@ func (r *Router) Search(query string, topK int) []Result {
 		out = append(out, Result{NodeID: id, Rank: len(out) + 1, Match: mt})
 	}
 
+	// Tier-0 short-circuit: exact matches never depend on ranking engines.
 	for _, id := range r.Sym.Lookup(query) {
 		add(id, MatchExact)
 	}
-	for _, h := range r.Lex.Search(lexical.Tokenize(query), topK+len(out)) {
-		add(h.DocID, MatchLexical)
+
+	if !r.SemanticReady() {
+		for _, h := range r.Lex.Search(lexical.Tokenize(query), topK+len(out)) {
+			add(h.DocID, MatchLexical)
+		}
+		return out
+	}
+
+	// RRF merge: Score(d) = Σ 1/(k + rank), rank 1-based per engine.
+	fetch := topK * 3
+	type fused struct {
+		score    float64
+		lex, sem bool
+	}
+	scores := map[string]*fused{}
+	at := func(id string) *fused {
+		f := scores[id]
+		if f == nil {
+			f = &fused{}
+			scores[id] = f
+		}
+		return f
+	}
+	for i, h := range r.Lex.Search(lexical.Tokenize(query), fetch) {
+		f := at(h.DocID)
+		f.score += 1.0 / float64(rrfK+i+1)
+		f.lex = true
+	}
+	for i, id := range r.Sem.Search(query, fetch) {
+		f := at(id)
+		f.score += 1.0 / float64(rrfK+i+1)
+		f.sem = true
+	}
+
+	ids := make([]string, 0, len(scores))
+	for id := range scores {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		a, b := scores[ids[i]], scores[ids[j]]
+		if a.score != b.score {
+			return a.score > b.score
+		}
+		return ids[i] < ids[j]
+	})
+	for _, id := range ids {
+		f := scores[id]
+		switch {
+		case f.lex && f.sem:
+			add(id, MatchBoth)
+		case f.sem:
+			add(id, MatchSemantic)
+		default:
+			add(id, MatchLexical)
+		}
 	}
 	return out
 }

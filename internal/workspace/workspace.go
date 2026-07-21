@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/llls2542/graphin/internal/graph"
 	"github.com/llls2542/graphin/internal/ignore"
@@ -18,7 +19,9 @@ import (
 	"github.com/llls2542/graphin/internal/mcp"
 	"github.com/llls2542/graphin/internal/merkle"
 	"github.com/llls2542/graphin/internal/obs"
+	"github.com/llls2542/graphin/internal/provision"
 	"github.com/llls2542/graphin/internal/search"
+	"github.com/llls2542/graphin/internal/semantic"
 	"github.com/llls2542/graphin/internal/watch"
 )
 
@@ -27,6 +30,13 @@ const DataDirName = ".graphin"
 
 // ErrLockHeld re-exports the lock error for tool handlers.
 var ErrLockHeld = lock.ErrHeld
+
+// SemanticSink receives Track-B embedding work (implemented by
+// *semantic.Engine; tests substitute recorders).
+type SemanticSink interface {
+	Enqueue(id, summary string)
+	Remove(id string)
+}
 
 // Config carries startup flags (§6.4) into the workspace.
 type Config struct {
@@ -65,15 +75,17 @@ type Workspace struct {
 	matcherMu sync.Mutex
 	matcher   *ignore.Matcher
 
-	// Track-B consumers; nil until the graph (P3) and semantic (P4) engines
-	// are wired in.
-	embedder merkle.Embedder
-	edgeSink merkle.EdgeSink
+	// Semantic engine (Track-B embedding consumer). semSink is the narrow
+	// interface applyFileResult talks to, so tests can substitute recorders.
+	sem        *semantic.Engine
+	semSink    SemanticSink
+	forceEmbed map[string]bool // files stale vs vectors.bin header (§2.2)
 
 	mu           sync.Mutex
 	bootstrapped bool
 	lk           *lock.Lock
 	cancel       context.CancelFunc
+	bg           sync.WaitGroup // goroutines touching engines; Close waits
 }
 
 func New(cfg Config) *Workspace {
@@ -141,6 +153,20 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	}
 	w.graph = eng
 
+	// Semantic engine: restore vectors.bin, then mark files whose hash moved
+	// since that export as force-embed — the crash-recovery diff (§2.2).
+	if err := os.MkdirAll(filepath.Join(w.Dir, "search"), 0o755); err != nil {
+		return w.FSM.Status(), err
+	}
+	w.sem = semantic.New(filepath.Join(w.Dir, "search", "vectors.bin"), w.merkleSnapshot, w.Log)
+	w.semSink = w.sem
+	w.Router.Sem = w.sem
+	current := make(map[string]string, len(w.merkle.Files))
+	for rel, fe := range w.merkle.Files {
+		current[rel] = fe.Hash
+	}
+	w.forceEmbed = w.sem.StaleFiles(current)
+
 	runCtx, cancel := context.WithCancel(context.Background())
 	deb := watch.NewDebouncer(0, 0) // spec defaults: 500ms quiet, 2s cap
 	watcher, err := watch.NewWatcher(w.Root, deb, w.Log)
@@ -154,7 +180,6 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	w.cancel = cancel
 	go deb.Run(runCtx)
 	go watcher.Run(runCtx)
-	go w.consumeBatches(runCtx, deb.Out())
 
 	w.FSM.Set(PhaseIndexing)
 	w.bootstrapped = true
@@ -162,8 +187,71 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 		"root": w.Root, "model_type": modelType, "offline": offline || w.cfg.Offline,
 	})
 
-	go w.initialScan(runCtx)
+	w.bg.Add(2)
+	go func() { defer w.bg.Done(); w.consumeBatches(runCtx, deb.Out()) }()
+	go func() { defer w.bg.Done(); w.initialScan(runCtx) }()
+	// warmup is not waited on (provisioning may be mid-download at shutdown);
+	// it works on captured pointers, never on torn-down fields.
+	go w.warmupSemantic(runCtx, w.sem, modelType, offline || w.cfg.Offline)
 	return w.FSM.Status(), nil
+}
+
+// merkleSnapshot feeds the vectors.bin export header (§2.2).
+func (w *Workspace) merkleSnapshot() (string, map[string]string) {
+	w.indexMu.Lock()
+	defer w.indexMu.Unlock()
+	files := make(map[string]string, len(w.merkle.Files))
+	for rel, fe := range w.merkle.Files {
+		files[rel] = fe.Hash
+	}
+	root := w.merkle.Root()
+	return merkle.Hex(root), files
+}
+
+// warmupSemantic provisions and loads the embedding stack in the background
+// (§2.1.1 단계적 가용성): failures leave the server on lexical fallback with
+// semantic_ready=false, never blocking tools.
+func (w *Workspace) warmupSemantic(ctx context.Context, sem *semantic.Engine, modelType string, offline bool) {
+	cacheDir := ""
+	if ucd, err := os.UserCacheDir(); err == nil {
+		cacheDir = filepath.Join(ucd, "graphin", "artifacts")
+	}
+	paths, err := provision.Resolve(modelType, provision.Options{
+		RuntimeDir: filepath.Join(w.Dir, "runtime"),
+		CacheDir:   cacheDir,
+		Offline:    offline,
+		ModelDir:   w.cfg.ModelDir,
+		OrtLib:     w.cfg.OrtLib,
+		Log:        w.Log,
+	})
+	if err != nil {
+		w.Log.Event("semantic_unavailable", map[string]any{"error": err.Error()})
+		return
+	}
+	if err := sem.Warmup(paths.OrtLib, paths.Model, paths.Tokenizer,
+		paths.Spec.ID, paths.Spec.Dim, paths.Spec.QueryPrefix, paths.Spec.PassagePrefix); err != nil {
+		w.Log.Event("semantic_unavailable", map[string]any{"error": err.Error()})
+		return
+	}
+	w.watchSemanticReady(ctx, sem)
+}
+
+// watchSemanticReady flips the FSM once both lexical indexing and the model
+// warmup are done.
+func (w *Workspace) watchSemanticReady(ctx context.Context, sem *semantic.Engine) {
+	t := time.NewTicker(100 * time.Millisecond)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if w.FSM.Phase() >= PhaseLexicalReady && sem.Ready() {
+				w.FSM.Set(PhaseSemanticReady)
+				return
+			}
+		}
+	}
 }
 
 // consumeBatches drains debounced watcher batches into the indexer.
@@ -185,6 +273,11 @@ func (w *Workspace) Close() {
 	if w.cancel != nil {
 		w.cancel()
 		w.cancel = nil
+	}
+	w.bg.Wait() // engines must outlive every background consumer
+	if w.sem != nil {
+		w.sem.Close()
+		w.sem = nil
 	}
 	if w.graph != nil {
 		w.graph.Close()

@@ -62,7 +62,7 @@ func tempWorkspaceWithOrderService(t *testing.T) *Workspace {
 	t.Helper()
 	root := t.TempDir()
 	copyTree(t, filepath.Join(javaFixtureDir, "src"), filepath.Join(root, "src"))
-	w := New(Config{Root: root, Log: obs.Nop()})
+	w := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
 	indexOneFile(t, w, orderServiceRel)
 	return w
 }
@@ -158,7 +158,7 @@ func TestBootstrapIndexesFixtureTree(t *testing.T) {
 	root := t.TempDir()
 	copyTree(t, javaFixtureDir, root)
 
-	w := New(Config{Root: root, Log: obs.Nop()})
+	w := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
 	defer w.Close()
 	if _, err := w.Bootstrap(context.Background(), "", false); err != nil {
 		t.Fatal(err)
@@ -190,7 +190,7 @@ func TestExploreOverRealFixtures(t *testing.T) {
 	root := t.TempDir()
 	copyTree(t, javaFixtureDir, root)
 
-	w := New(Config{Root: root, Log: obs.Nop()})
+	w := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
 	defer w.Close()
 	if _, err := w.Bootstrap(context.Background(), "", false); err != nil {
 		t.Fatal(err)

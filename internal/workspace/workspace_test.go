@@ -17,7 +17,7 @@ func TestBootstrapAcquiresLockAndOpensLexical(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ws := New(Config{Root: root, Log: obs.Nop()})
+	ws := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
 	defer ws.Close()
 
 	st, err := ws.Bootstrap(context.Background(), "", false)
@@ -46,13 +46,13 @@ func TestBootstrapAcquiresLockAndOpensLexical(t *testing.T) {
 func TestSecondBootstrapOnSameRootIsLockHeld(t *testing.T) {
 	root := t.TempDir()
 
-	first := New(Config{Root: root, Log: obs.Nop()})
+	first := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
 	defer first.Close()
 	if _, err := first.Bootstrap(context.Background(), "", false); err != nil {
 		t.Fatal(err)
 	}
 
-	second := New(Config{Root: root, Log: obs.Nop()})
+	second := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
 	defer second.Close()
 	_, err := second.Bootstrap(context.Background(), "", false)
 	if !errors.Is(err, ErrLockHeld) {
