@@ -22,6 +22,7 @@ const DefaultMaxFileSize = 1 << 20 // 1MB
 var DefaultExcludedDirs = map[string]bool{
 	"build": true, "out": true, "target": true, ".gradle": true,
 	"__pycache__": true, "venv": true, ".venv": true, "node_modules": true,
+	"dist": true, ".next": true, "coverage": true,
 	".git": true, ".graphin": true,
 }
 

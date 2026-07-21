@@ -161,10 +161,11 @@ func (e *Engine) loadShard(path string) error {
 }
 
 // shardKey groups nodes into shards: declared package for JVM languages,
-// parent package for Python modules, "_root" for the empty package.
+// parent package for file-scoped module languages (Python, JS/TS), "_root"
+// for the empty package.
 func shardKey(res *parse.FileResult) string {
 	pkg := res.Package
-	if res.Lang == parse.LangPython {
+	if res.Lang.FileScoped() {
 		if i := strings.LastIndexByte(pkg, '.'); i >= 0 {
 			pkg = pkg[:i]
 		}

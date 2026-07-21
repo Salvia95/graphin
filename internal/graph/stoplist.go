@@ -15,6 +15,15 @@ var stoplist = map[string]bool{
 	"tostring": true, "equals": true, "hashcode": true, "__init__": true,
 	"print": true, "println": true, "log": true, "debug": true, "error": true,
 	"warn": true, "format": true, "of": true, "valueof": true, "build": true,
+	// JS/TS 초빈출: 프로미스 체인, 배열/객체 내장, 이벤트 관용구
+	"then": true, "catch": true, "finally": true, "map": true, "filter": true,
+	"foreach": true, "reduce": true, "push": true, "pop": true, "slice": true,
+	"splice": true, "concat": true, "join": true, "split": true, "find": true,
+	"includes": true, "indexof": true, "keys": true, "values": true,
+	"entries": true, "assign": true, "stringify": true, "parse": true,
+	"require": true, "resolve": true, "reject": true, "fetch": true,
+	"on": true, "off": true, "emit": true, "send": true, "test": true,
+	"render": true, "settimeout": true, "setinterval": true,
 }
 
 // Stoplisted reports whether name is too common for global matching.

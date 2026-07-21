@@ -11,7 +11,15 @@ AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
 3. read_code(노드 ID)               → 해당 노드의 원본 코드만 정확히 슬라이싱
 ```
 
-지원 언어: **Java, Kotlin, Python** (tree-sitter). 대상 플랫폼: Linux/macOS.
+지원 언어: **Java, Kotlin, Python, JavaScript, TypeScript**(JSX/TSX 포함,
+tree-sitter). 대상 플랫폼: Linux/macOS.
+
+JS/TS는 파일 경로 기반 모듈 ID(`src/order/service.ts` →
+`src.order.service.OrderService`)를 사용하며, 상대 경로 import·re-export·
+`require()`는 파싱 시점에 같은 dotted 모듈 공간으로 정규화되어 스코프 랭킹에
+반영된다. tsconfig `paths` 별칭은 해석하지 않는다(전역 티어 0.80으로 폴백).
+`.d.ts`는 선언 시그니처를 인덱싱하고, TS 오버로드 시그니처는 구현부 하나로
+접힌다. `.min.js`·`dist/`·`.next/`·`coverage/`·`node_modules/`는 기본 제외.
 
 **탐색 커버리지**: 심볼 노드 외에도 ① 메서드/클래스 **본문 토큰**(문자열
 리터럴·주석·필드)이 lexical 인덱스에 포함되고, ② YAML/properties/SQL/MD/

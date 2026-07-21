@@ -53,7 +53,8 @@ func Class(pkg, name string) string {
 	return pkg + "." + name
 }
 
-// Python builds a Python node ID. ordinal is the 1-based definition index
+// Python builds a module-scoped node ID ("module.Container.name") shared by
+// Python and JS/TS. ordinal is the 1-based definition index
 // within the same scope; the "#n" suffix appears only from the second
 // definition on (§2.3).
 func Python(module, container, name string, ordinal int) string {

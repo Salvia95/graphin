@@ -12,7 +12,9 @@ import (
 	tskotlin "github.com/tree-sitter-grammars/tree-sitter-kotlin/bindings/go"
 	ts "github.com/tree-sitter/go-tree-sitter"
 	tsjava "github.com/tree-sitter/tree-sitter-java/bindings/go"
+	tsjs "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 	tspython "github.com/tree-sitter/tree-sitter-python/bindings/go"
+	tsts "github.com/tree-sitter/tree-sitter-typescript/bindings/go"
 	"github.com/zeebo/blake3"
 
 	"github.com/Salvia95/graphin/internal/lexical"
@@ -26,10 +28,23 @@ const (
 	LangJava
 	LangKotlin
 	LangPython
+	LangJavaScript // .js/.jsx/.mjs/.cjs — JSX is built into the JS grammar
+	LangTypeScript // .ts/.mts/.cts (including .d.ts)
+	LangTSX        // .tsx — separate tree-sitter grammar
 	// LangPlain marks indexable text files without a grammar (§보완 A):
 	// configs, SQL, docs. They become single file-kind nodes.
 	LangPlain
 )
+
+// FileScoped reports whether the language derives its package from the file
+// path (Python modules, JS/TS modules) rather than a declared package.
+func (l Language) FileScoped() bool {
+	switch l {
+	case LangPython, LangJavaScript, LangTypeScript, LangTSX:
+		return true
+	}
+	return false
+}
 
 // DetectLanguage maps a file path to its grammar (or the plaintext
 // fallback).
@@ -41,6 +56,17 @@ func DetectLanguage(path string) Language {
 		return LangKotlin
 	case strings.HasSuffix(path, ".py"):
 		return LangPython
+	case strings.HasSuffix(path, ".min.js"), strings.HasSuffix(path, ".min.mjs"),
+		strings.HasSuffix(path, ".min.cjs"):
+		return LangUnknown // minified = generated
+	case strings.HasSuffix(path, ".js"), strings.HasSuffix(path, ".jsx"),
+		strings.HasSuffix(path, ".mjs"), strings.HasSuffix(path, ".cjs"):
+		return LangJavaScript
+	case strings.HasSuffix(path, ".tsx"):
+		return LangTSX
+	case strings.HasSuffix(path, ".ts"), strings.HasSuffix(path, ".mts"),
+		strings.HasSuffix(path, ".cts"):
+		return LangTypeScript
 	}
 	base := pathpkg.Base(path)
 	if plainBasenames[base] {
@@ -105,6 +131,9 @@ var (
 	javaLang   = ts.NewLanguage(tsjava.Language())
 	kotlinLang = ts.NewLanguage(tskotlin.Language())
 	pythonLang = ts.NewLanguage(tspython.Language())
+	jsLang     = ts.NewLanguage(tsjs.Language())
+	tsLang     = ts.NewLanguage(tsts.LanguageTypescript())
+	tsxLang    = ts.NewLanguage(tsts.LanguageTSX())
 )
 
 func grammar(lang Language) *ts.Language {
@@ -115,15 +144,24 @@ func grammar(lang Language) *ts.Language {
 		return kotlinLang
 	case LangPython:
 		return pythonLang
+	case LangJavaScript:
+		return jsLang
+	case LangTypeScript:
+		return tsLang
+	case LangTSX:
+		return tsxLang
 	}
 	return nil
 }
 
 // Parsers are not goroutine-safe; pool one per language per worker.
 var parserPools = map[Language]*sync.Pool{
-	LangJava:   newPool(LangJava),
-	LangKotlin: newPool(LangKotlin),
-	LangPython: newPool(LangPython),
+	LangJava:       newPool(LangJava),
+	LangKotlin:     newPool(LangKotlin),
+	LangPython:     newPool(LangPython),
+	LangJavaScript: newPool(LangJavaScript),
+	LangTypeScript: newPool(LangTypeScript),
+	LangTSX:        newPool(LangTSX),
 }
 
 func newPool(lang Language) *sync.Pool {
@@ -175,6 +213,8 @@ func File(relPath string, src []byte) (*FileResult, error) {
 			extractKotlin(src, root, res)
 		case LangPython:
 			extractPython(src, root, res)
+		case LangJavaScript, LangTypeScript, LangTSX:
+			extractJS(src, root, res)
 		}
 	}
 
