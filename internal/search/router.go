@@ -6,7 +6,7 @@ package search
 import (
 	"sort"
 
-	"github.com/llls2542/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/lexical"
 )
 
 // MatchType tags how a result matched. Raw scores are never exposed.

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/llls2542/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/nodeid"
 )
 
 const fixtures = "../../testdata/fixtures"

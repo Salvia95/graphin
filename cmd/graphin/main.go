@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/llls2542/graphin/internal/mcp"
-	"github.com/llls2542/graphin/internal/mcp/tools"
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/workspace"
+	"github.com/Salvia95/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/mcp/tools"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/workspace"
 )
 
 const version = "0.1.0-dev"

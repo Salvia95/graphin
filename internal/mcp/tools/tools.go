@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/llls2542/graphin/internal/bench"
-	"github.com/llls2542/graphin/internal/graph"
-	"github.com/llls2542/graphin/internal/mcp"
-	"github.com/llls2542/graphin/internal/workspace"
+	"github.com/Salvia95/graphin/internal/bench"
+	"github.com/Salvia95/graphin/internal/graph"
+	"github.com/Salvia95/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/workspace"
 )
 
 // Register wires all tools into the registry.

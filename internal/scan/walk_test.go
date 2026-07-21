@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/llls2542/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/obs"
 )
 
 func write(t *testing.T, root, rel, content string) {

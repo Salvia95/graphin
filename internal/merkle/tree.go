@@ -12,8 +12,8 @@ import (
 
 	"github.com/zeebo/blake3"
 
-	"github.com/llls2542/graphin/internal/parse"
-	"github.com/llls2542/graphin/internal/store"
+	"github.com/Salvia95/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/store"
 )
 
 // Sum is the project-wide content hash.

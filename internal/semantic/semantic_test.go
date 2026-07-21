@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/llls2542/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/obs"
 )
 
 // bowVec is a deterministic bag-of-words vectorizer: similar texts embed

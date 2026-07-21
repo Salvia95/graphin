@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/llls2542/graphin/internal/store"
+	"github.com/Salvia95/graphin/internal/store"
 )
 
 const snapshotVersion = 1

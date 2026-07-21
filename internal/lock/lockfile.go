@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/llls2542/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/obs"
 )
 
 // ErrHeld is returned when another live process owns the lock.

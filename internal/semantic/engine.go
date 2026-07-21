@@ -12,9 +12,9 @@ import (
 
 	chromem "github.com/philippgille/chromem-go"
 
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/semantic/onnx"
-	"github.com/llls2542/graphin/internal/tokenizer"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/semantic/onnx"
+	"github.com/Salvia95/graphin/internal/tokenizer"
 )
 
 const (

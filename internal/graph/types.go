@@ -4,7 +4,7 @@
 package graph
 
 import (
-	"github.com/llls2542/graphin/internal/graph/fbsgen"
+	"github.com/Salvia95/graphin/internal/graph/fbsgen"
 )
 
 // EdgeType mirrors fbsgen.EdgeType.

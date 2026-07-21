@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/llls2542/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/nodeid"
 )
 
 // Scope-weighted confidence tiers (§2.1.3): 1.0 syntactically certain,

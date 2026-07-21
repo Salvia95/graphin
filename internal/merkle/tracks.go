@@ -3,7 +3,7 @@ package merkle
 import (
 	"sort"
 
-	"github.com/llls2542/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 // FileDiff classifies each node of a freshly reparsed file (§2.1.2 2-Track):

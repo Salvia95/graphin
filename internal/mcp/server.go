@@ -12,7 +12,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/llls2542/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/obs"
 )
 
 // ProtocolVersion is the MCP revision this server speaks.

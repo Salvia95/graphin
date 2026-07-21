@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/llls2542/graphin/internal/graph/fbsgen"
+	"github.com/Salvia95/graphin/internal/graph/fbsgen"
 )
 
 // ErrNodeNotFound: the explored node is not on the read path.

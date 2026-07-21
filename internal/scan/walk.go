@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/llls2542/graphin/internal/ignore"
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/ignore"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 // DefaultMaxFileSize: larger single sources are treated as generated code.

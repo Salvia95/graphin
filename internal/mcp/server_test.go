@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/llls2542/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/obs"
 )
 
 // TestInitializeUnder100ms proves §7-P1-①: initialize answers immediately

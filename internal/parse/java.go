@@ -5,7 +5,7 @@ import (
 
 	ts "github.com/tree-sitter/go-tree-sitter"
 
-	"github.com/llls2542/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/nodeid"
 )
 
 func extractJava(src []byte, root *ts.Node, res *FileResult) {

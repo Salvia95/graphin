@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/llls2542/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/obs"
 )
 
 func TestCompactionRewritesBaseAndEmptiesLog(t *testing.T) {

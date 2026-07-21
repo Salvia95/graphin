@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/provision"
-	"github.com/llls2542/graphin/internal/semantic"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/provision"
+	"github.com/Salvia95/graphin/internal/semantic"
 )
 
 // TestRealONNXPipeline is the full provision → tokenize → infer → search

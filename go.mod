@@ -1,4 +1,4 @@
-module github.com/llls2542/graphin
+module github.com/Salvia95/graphin
 
 go 1.26.5
 

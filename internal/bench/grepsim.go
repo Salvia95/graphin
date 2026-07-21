@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/llls2542/graphin/internal/lexical"
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/scan"
+	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/scan"
 )
 
 // Terms derives case-insensitive match terms from a query: the raw query

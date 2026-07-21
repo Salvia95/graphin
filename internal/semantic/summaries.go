@@ -3,8 +3,8 @@ package semantic
 import (
 	"strings"
 
-	"github.com/llls2542/graphin/internal/lexical"
-	"github.com/llls2542/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 const maxSummaryCalls = 8

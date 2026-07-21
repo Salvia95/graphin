@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/llls2542/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/lexical"
 )
 
 const (

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 const javaFixtureDir = "../../testdata/fixtures/java"

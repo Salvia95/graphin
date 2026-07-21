@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/llls2542/graphin/internal/ignore"
-	"github.com/llls2542/graphin/internal/lexical"
-	"github.com/llls2542/graphin/internal/merkle"
-	"github.com/llls2542/graphin/internal/parse"
-	"github.com/llls2542/graphin/internal/scan"
-	"github.com/llls2542/graphin/internal/semantic"
-	"github.com/llls2542/graphin/internal/watch"
+	"github.com/Salvia95/graphin/internal/ignore"
+	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/merkle"
+	"github.com/Salvia95/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/scan"
+	"github.com/Salvia95/graphin/internal/semantic"
+	"github.com/Salvia95/graphin/internal/watch"
 )
 
 // Sentinel errors surfaced as §3.0 tool error codes.

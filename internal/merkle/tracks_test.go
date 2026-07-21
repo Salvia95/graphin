@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/llls2542/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 const javaFixture = "../../testdata/fixtures/java/src/main/java/com/example/order/domain/OrderService.java"

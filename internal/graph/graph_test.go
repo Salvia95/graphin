@@ -3,10 +3,10 @@ package graph
 import (
 	"testing"
 
-	"github.com/llls2542/graphin/internal/merkle"
-	"github.com/llls2542/graphin/internal/nodeid"
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/parse"
+	"github.com/Salvia95/graphin/internal/merkle"
+	"github.com/Salvia95/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 // ---- synthetic parse-result helpers (no tree-sitter needed) ----

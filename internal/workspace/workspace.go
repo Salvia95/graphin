@@ -13,17 +13,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/llls2542/graphin/internal/graph"
-	"github.com/llls2542/graphin/internal/ignore"
-	"github.com/llls2542/graphin/internal/lexical"
-	"github.com/llls2542/graphin/internal/lock"
-	"github.com/llls2542/graphin/internal/mcp"
-	"github.com/llls2542/graphin/internal/merkle"
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/provision"
-	"github.com/llls2542/graphin/internal/search"
-	"github.com/llls2542/graphin/internal/semantic"
-	"github.com/llls2542/graphin/internal/watch"
+	"github.com/Salvia95/graphin/internal/graph"
+	"github.com/Salvia95/graphin/internal/ignore"
+	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/lock"
+	"github.com/Salvia95/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/merkle"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/provision"
+	"github.com/Salvia95/graphin/internal/search"
+	"github.com/Salvia95/graphin/internal/semantic"
+	"github.com/Salvia95/graphin/internal/watch"
 )
 
 // DataDirName is the per-workspace data directory (§2.5).

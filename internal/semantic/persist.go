@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/llls2542/graphin/internal/store"
+	"github.com/Salvia95/graphin/internal/store"
 )
 
 // vectors.bin framing (§2.2): [magic][u32 hdrLen][header JSON][chromem

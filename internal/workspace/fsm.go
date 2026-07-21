@@ -3,7 +3,7 @@ package workspace
 import (
 	"sync/atomic"
 
-	"github.com/llls2542/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/mcp"
 )
 
 // Phase models staged availability (§2.1.1): lexical search opens before the

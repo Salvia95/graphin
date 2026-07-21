@@ -6,8 +6,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/llls2542/graphin/internal/obs"
-	"github.com/llls2542/graphin/internal/store"
+	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/store"
 )
 
 // Compaction triggers (§2.1.3).
