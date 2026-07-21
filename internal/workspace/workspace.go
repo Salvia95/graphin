@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/llls2542/graphin/internal/graph"
@@ -86,6 +87,8 @@ type Workspace struct {
 	lk           *lock.Lock
 	cancel       context.CancelFunc
 	bg           sync.WaitGroup // goroutines touching engines; Close waits
+
+	semErr atomic.Pointer[string] // permanent semantic warmup failure
 }
 
 func New(cfg Config) *Workspace {
@@ -226,11 +229,15 @@ func (w *Workspace) warmupSemantic(ctx context.Context, sem *semantic.Engine, mo
 	})
 	if err != nil {
 		w.Log.Event("semantic_unavailable", map[string]any{"error": err.Error()})
+		msg := err.Error()
+		w.semErr.Store(&msg)
 		return
 	}
 	if err := sem.Warmup(paths.OrtLib, paths.Model, paths.Tokenizer,
 		paths.Spec.ID, paths.Spec.Dim, paths.Spec.QueryPrefix, paths.Spec.PassagePrefix); err != nil {
 		w.Log.Event("semantic_unavailable", map[string]any{"error": err.Error()})
+		msg := err.Error()
+		w.semErr.Store(&msg)
 		return
 	}
 	w.watchSemanticReady(ctx, sem)
@@ -305,4 +312,13 @@ func (w *Workspace) Explore(nodeID, direction, cursor string, minConf float32) (
 		return nil, err
 	}
 	return page, nil
+}
+
+// SemUnavailable reports a permanent semantic warmup failure ("" if none):
+// surfaced as MODEL_UNAVAILABLE with a lexical-fallback hint (§3.0).
+func (w *Workspace) SemUnavailable() string {
+	if p := w.semErr.Load(); p != nil {
+		return *p
+	}
+	return ""
 }

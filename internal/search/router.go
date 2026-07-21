@@ -52,6 +52,12 @@ const rrfK = 60
 // warmup, or from the RRF merge of both rankings after (§2.1.1). Raw scores
 // never leave this function.
 func (r *Router) Search(query string, topK int) []Result {
+	return r.SearchK(query, topK, rrfK)
+}
+
+// SearchK runs Search with an explicit RRF constant — the §8 benchmark
+// sweeps k ∈ {20, 60, 100}.
+func (r *Router) SearchK(query string, topK, k int) []Result {
 	if topK <= 0 {
 		topK = 5
 	}
@@ -94,12 +100,12 @@ func (r *Router) Search(query string, topK int) []Result {
 	}
 	for i, h := range r.Lex.Search(lexical.Tokenize(query), fetch) {
 		f := at(h.DocID)
-		f.score += 1.0 / float64(rrfK+i+1)
+		f.score += 1.0 / float64(k+i+1)
 		f.lex = true
 	}
 	for i, id := range r.Sem.Search(query, fetch) {
 		f := at(id)
-		f.score += 1.0 / float64(rrfK+i+1)
+		f.score += 1.0 / float64(k+i+1)
 		f.sem = true
 	}
 

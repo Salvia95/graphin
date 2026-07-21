@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/llls2542/graphin/internal/bench"
 	"github.com/llls2542/graphin/internal/graph"
 	"github.com/llls2542/graphin/internal/mcp"
 	"github.com/llls2542/graphin/internal/workspace"
@@ -145,6 +147,10 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			sb.WriteString("\n")
 		}
 		fmt.Fprintf(&sb, `<results semantic_ready="%t">`, semReady)
+		if msg := ws.SemUnavailable(); msg != "" {
+			fmt.Fprintf(&sb, "\n  <model_status code=%q hint=\"semantic search unavailable; lexical fallback active\" />",
+				mcp.ErrModelUnavailable)
+		}
 		for _, r := range results {
 			display := ws.DisplayName(r.NodeID)
 			if display == "" {
@@ -278,12 +284,135 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	}
 }
 
+// benchmarkHandler runs the §3.5 three-scenario comparison. Scenario C
+// measures the true tool responses (post-truncation) by invoking the sibling
+// handlers, so the report is falsifiable against real payloads.
 func benchmarkHandler(ws *workspace.Workspace) mcp.ToolHandler {
-	return func(_ context.Context, _ json.RawMessage) (string, bool) {
+	type args struct {
+		TargetQuery  string `json:"target_query"`
+		ExpectedNode string `json:"expected_node"`
+	}
+	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		if !ws.Bootstrapped() {
 			return notBootstrapped(ws), true
 		}
-		st := ws.FSM.Status()
-		return mcp.ErrorXML(mcp.ErrInternal, "benchmark is implemented in Phase 5", &st), true
+		var a args
+		if err := json.Unmarshal(raw, &a); err != nil || strings.TrimSpace(a.TargetQuery) == "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, "target_query is required", &st), true
+		}
+
+		// Scenario 1: grep full-file bytes.
+		t0 := time.Now()
+		fullBytes, files, err := bench.GrepFull(ws.Root, a.TargetQuery)
+		if err != nil {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+		}
+		fullMs := time.Since(t0).Milliseconds()
+
+		// Scenario 2: grep -C 20 context bytes.
+		t1 := time.Now()
+		ctxBytes, err := bench.GrepContext(ws.Root, a.TargetQuery, 20)
+		if err != nil {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+		}
+		ctxMs := time.Since(t1).Milliseconds()
+
+		// Scenario 3: graphin roundtrip — measure the actual tool payloads.
+		t2 := time.Now()
+		results := ws.Router.Search(a.TargetQuery, 5)
+		searchXML, _ := searchHandler(ws)(ctx, mustJSON(map[string]any{
+			"query": a.TargetQuery, "top_k": 5,
+		}))
+		hitRank := 0
+		for _, r := range results {
+			if r.NodeID == a.ExpectedNode {
+				hitRank = r.Rank
+			}
+		}
+		target := a.ExpectedNode
+		if hitRank == 0 && len(results) > 0 {
+			target = results[0].NodeID
+		}
+		exploreXML, _ := exploreHandler(ws)(ctx, mustJSON(map[string]any{
+			"node_id": target, "direction": "both",
+		}))
+		readXML, _ := readCodeHandler(ws)(ctx, mustJSON(map[string]any{
+			"node_id": target,
+		}))
+		navBytes := len(mcp.Truncate(searchXML)) + len(mcp.Truncate(exploreXML)) + len(mcp.Truncate(readXML))
+		navMs := time.Since(t2).Milliseconds()
+
+		md := buildBenchMarkdown(a, files, fullBytes, fullMs, ctxBytes, ctxMs, navBytes, navMs, hitRank, ws)
+
+		var sb strings.Builder
+		if st := ws.FSM.Status(); st.State != "ready" {
+			sb.WriteString(st.XML())
+			sb.WriteString("\n")
+		}
+		fmt.Fprintf(&sb,
+			"<benchmark_report grep_full_bytes=\"%d\" grep_c20_bytes=\"%d\" graphin_bytes=\"%d\" hit=\"%t\" hit_rank=\"%d\">\n",
+			fullBytes, ctxBytes, navBytes, hitRank > 0, hitRank)
+		mcp.WriteCDATA(&sb, md)
+		sb.WriteString("\n</benchmark_report>")
+		return sb.String(), false
 	}
+}
+
+func buildBenchMarkdown(a struct {
+	TargetQuery  string `json:"target_query"`
+	ExpectedNode string `json:"expected_node"`
+}, files, fullBytes int, fullMs int64, ctxBytes int, ctxMs int64, navBytes int, navMs int64, hitRank int, ws *workspace.Workspace) string {
+	saving := func(base int) string {
+		if base <= 0 {
+			return "n/a"
+		}
+		return fmt.Sprintf("%.1f%%", 100*(1-float64(navBytes)/float64(base)))
+	}
+	var md strings.Builder
+	md.WriteString("## graphin local benchmark\n\n")
+	fmt.Fprintf(&md, "- query: `%s`\n- expected node: `%s`\n", a.TargetQuery, a.ExpectedNode)
+	if hitRank > 0 {
+		fmt.Fprintf(&md, "- **expected node HIT at rank %d** (top_k=5)\n", hitRank)
+	} else {
+		md.WriteString("- **expected node MISS** in top_k=5 — 리포트 반증 가능성 확보를 위해 명기\n")
+	}
+	md.WriteString("\n시뮬레이션 가설: ① Grep Full = 매칭 파일 전체 바이트, ② Grep -C 20 = 매치 ±20라인, ③ graphin = search+explore+read 실제 응답 바이트.\n\n")
+	md.WriteString("| scenario | bytes | est. tokens (÷4) | ms | savings vs scenario |\n")
+	md.WriteString("|---|---:|---:|---:|---|\n")
+	fmt.Fprintf(&md, "| Grep Full (%d files) | %d | %d | %d | baseline |\n", files, fullBytes, fullBytes/4, fullMs)
+	fmt.Fprintf(&md, "| Grep -C 20 | %d | %d | %d | %s vs Full |\n", ctxBytes, ctxBytes/4, ctxMs, func() string {
+		if fullBytes <= 0 {
+			return "n/a"
+		}
+		return fmt.Sprintf("%.1f%%", 100*(1-float64(ctxBytes)/float64(fullBytes)))
+	}())
+	fmt.Fprintf(&md, "| graphin (search→explore→read) | %d | %d | %d | %s vs Full, %s vs -C20 |\n",
+		navBytes, navBytes/4, navMs, saving(fullBytes), saving(ctxBytes))
+
+	// §8: RRF k sweep, meaningful only once the vector engine is warm.
+	if ws.Router.SemanticReady() && a.ExpectedNode != "" {
+		md.WriteString("\n### RRF k sweep (expected-node rank)\n\n| k | rank |\n|---:|---:|\n")
+		for _, k := range []int{20, 60, 100} {
+			rank := 0
+			for _, r := range ws.Router.SearchK(a.TargetQuery, 5, k) {
+				if r.NodeID == a.ExpectedNode {
+					rank = r.Rank
+				}
+			}
+			if rank > 0 {
+				fmt.Fprintf(&md, "| %d | %d |\n", k, rank)
+			} else {
+				fmt.Fprintf(&md, "| %d | miss |\n", k)
+			}
+		}
+	}
+	return md.String()
+}
+
+func mustJSON(v any) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return b
 }
