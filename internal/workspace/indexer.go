@@ -98,7 +98,8 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 
 	for _, n := range diff.Changed { // Track B consumers: content changed only
 		w.Sym.Put(n.ID, n.SimpleName)
-		w.Lex.Upsert(n.ID, lexical.BuildDocTokens(n.SimpleName, n.ID, signatureText(n)))
+		tokens := lexical.BuildDocTokens(n.SimpleName, n.ID, signatureText(n))
+		w.Lex.Upsert(n.ID, append(tokens, n.BodyTokens...)) // §보완 B
 	}
 	for _, id := range diff.Removed {
 		w.Sym.Delete(id)

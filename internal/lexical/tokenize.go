@@ -44,6 +44,16 @@ func SplitIdentifier(s string) []string {
 	return parts
 }
 
+// TokenizeCapped tokenizes text and truncates the result to max tokens —
+// used for node-body indexing (§보완 B) to bound index memory.
+func TokenizeCapped(text string, max int) []string {
+	toks := Tokenize(text)
+	if len(toks) > max {
+		toks = toks[:max:max]
+	}
+	return toks
+}
+
 // Tokenize produces BM25 terms from free text or code fragments: words are
 // split on non-identifier runes, each word contributes its identifier parts,
 // and composite words also contribute their joined lowercase form so that

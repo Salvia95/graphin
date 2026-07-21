@@ -200,6 +200,37 @@ func TestE2EFixtureRoundtripByteSavings(t *testing.T) {
 	}
 }
 
+// TestPlainFileRoundtrip (§보완 A+B): an anchor-less config file is
+// discoverable by content through the real tools and readable in full.
+func TestPlainFileRoundtrip(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, javaFixtures, root)
+	yml := "spring:\n  datasource:\n    url: jdbc:postgresql://localhost/kinder\n"
+	if err := os.MkdirAll(filepath.Join(root, "config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "config", "application.yml"), []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("search_hybrid", map[string]any{"query": "datasource"})
+	if isErr || !strings.Contains(text, `id="config/application.yml"`) {
+		t.Fatalf("config not searchable by content: %s", text)
+	}
+	text, isErr = c.tool("read_code", map[string]any{"node_id": "config/application.yml"})
+	if isErr || !strings.Contains(text, "jdbc:postgresql://localhost/kinder") {
+		t.Fatalf("read_code on file node: %s", text)
+	}
+	// Body literal inside a parsed method is searchable too (§보완 B).
+	text, isErr = c.tool("search_hybrid", map[string]any{"query": "processing"})
+	if isErr || !strings.Contains(text, "OrderService.process(ProcessRequest,boolean)") {
+		t.Fatalf("body literal search: %s", text)
+	}
+}
+
 // TestResponseTruncatedAt12KB proves §7-P5-②.
 func TestResponseTruncatedAt12KB(t *testing.T) {
 	root := t.TempDir()

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/nodeid"
 	"github.com/Salvia95/graphin/internal/parse"
 )
 
@@ -30,6 +31,13 @@ func Summarize(pkg string, n parse.Node) string {
 	if len(n.Supers) > 0 {
 		sb.WriteString("; extends ")
 		sb.WriteString(strings.Join(n.Supers, " "))
+	}
+	// File nodes have no signature; their content tokens carry the meaning
+	// (§보완 A: config keys, doc headings).
+	if n.Kind == nodeid.KindFile && len(n.BodyTokens) > 0 {
+		k := min(40, len(n.BodyTokens))
+		sb.WriteString("; content ")
+		sb.WriteString(strings.Join(n.BodyTokens[:k], " "))
 	}
 	if len(n.Calls) > 0 {
 		seen := map[string]bool{}

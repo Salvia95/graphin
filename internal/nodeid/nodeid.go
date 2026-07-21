@@ -18,6 +18,9 @@ const (
 	KindInterface = "interface"
 	KindMethod    = "method"
 	KindFunction  = "function"
+	// KindFile is the fallback node for text files without parseable
+	// symbols (configs, SQL, docs): whole file = one node, ID = rel path.
+	KindFile = "file"
 )
 
 // UnboundedArity marks an open maximum (Python *args/**kwargs, Java varargs).

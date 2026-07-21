@@ -13,6 +13,12 @@ AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
 
 지원 언어: **Java, Kotlin, Python** (tree-sitter). 대상 플랫폼: Linux/macOS.
 
+**탐색 커버리지**: 심볼 노드 외에도 ① 메서드/클래스 **본문 토큰**(문자열
+리터럴·주석·필드)이 lexical 인덱스에 포함되고, ② YAML/properties/SQL/MD/
+Gradle/Dockerfile 등 **앵커 없는 텍스트 파일은 파일 단위 노드**(ID = 상대
+경로)로 승격되어 검색·`read_code`가 가능하다. 파일 노드는 그래프 엣지를
+만들지 않으며, 락파일(package-lock.json 등)은 기본 제외된다.
+
 ## 빌드 & 등록
 
 ```sh

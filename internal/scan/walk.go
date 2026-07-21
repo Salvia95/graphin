@@ -25,6 +25,14 @@ var DefaultExcludedDirs = map[string]bool{
 	".git": true, ".graphin": true,
 }
 
+// ExcludedBasenames are machine-generated lock files: text by extension but
+// pure noise for navigation.
+var ExcludedBasenames = map[string]bool{
+	"package-lock.json": true, "yarn.lock": true, "pnpm-lock.yaml": true,
+	"go.sum": true, "Cargo.lock": true, "poetry.lock": true, "uv.lock": true,
+	"gradle.lockfile": true, "composer.lock": true, "Gemfile.lock": true,
+}
+
 // FileInfo is one indexable source file.
 type FileInfo struct {
 	RelPath string // "/"-separated, relative to root
@@ -73,7 +81,7 @@ func Walk(root string, lg *obs.Logger) (*Result, error) {
 				}
 				continue
 			}
-			if parse.DetectLanguage(name) == parse.LangUnknown {
+			if parse.DetectLanguage(name) == parse.LangUnknown || ExcludedBasenames[name] {
 				continue
 			}
 			if m.Ignored(rel, false) {
@@ -111,6 +119,9 @@ func Indexable(root, relPath string, m *ignore.Matcher) bool {
 		}
 	}
 	if parse.DetectLanguage(relPath) == parse.LangUnknown {
+		return false
+	}
+	if len(segs) > 0 && ExcludedBasenames[segs[len(segs)-1]] {
 		return false
 	}
 	if m != nil && m.Ignored(relPath, false) {

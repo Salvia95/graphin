@@ -32,7 +32,9 @@ func TestWalkFilters(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "src/A.java", "class A {}")
 	write(t, root, "src/b.py", "x = 1")
-	write(t, root, "src/readme.md", "not source")
+	write(t, root, "src/readme.md", "docs are plain-indexable") // §보완 A
+	write(t, root, "src/logo.png", "binary-ish")               // still excluded
+	write(t, root, "package-lock.json", "{}")                  // lock-file noise
 	write(t, root, "build/Gen.java", "class Gen {}")           // default exclude
 	write(t, root, "node_modules/x/y.py", "x")                 // default exclude
 	write(t, root, ".graphin/tmp.py", "x")                     // hard exclude
@@ -49,7 +51,7 @@ func TestWalkFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := rels(res)
-	want := []string{"src/A.java", "src/b.py"}
+	want := []string{"src/A.java", "src/b.py", "src/readme.md"}
 	if len(got) != len(want) {
 		t.Fatalf("files = %v, want %v", got, want)
 	}
@@ -81,8 +83,14 @@ func TestIndexableForWatcherEvents(t *testing.T) {
 	if Indexable(root, "build/Gen.java", nil) {
 		t.Error("build/ must be rejected")
 	}
-	if Indexable(root, "src/readme.md", nil) {
-		t.Error("non-source must be rejected")
+	if !Indexable(root, "src/readme.md", nil) {
+		t.Error("plaintext docs are indexable (§보완 A)")
+	}
+	if Indexable(root, "src/logo.png", nil) {
+		t.Error("non-text must be rejected")
+	}
+	if Indexable(root, "sub/package-lock.json", nil) {
+		t.Error("lock files must be rejected")
 	}
 	if !Indexable(root, "src/A.java", nil) {
 		t.Error("plain source must pass")

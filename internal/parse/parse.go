@@ -5,6 +5,7 @@ package parse
 
 import (
 	"fmt"
+	pathpkg "path"
 	"strings"
 	"sync"
 
@@ -13,6 +14,8 @@ import (
 	tsjava "github.com/tree-sitter/tree-sitter-java/bindings/go"
 	tspython "github.com/tree-sitter/tree-sitter-python/bindings/go"
 	"github.com/zeebo/blake3"
+
+	"github.com/Salvia95/graphin/internal/lexical"
 )
 
 // Language identifies a supported grammar.
@@ -23,9 +26,13 @@ const (
 	LangJava
 	LangKotlin
 	LangPython
+	// LangPlain marks indexable text files without a grammar (§보완 A):
+	// configs, SQL, docs. They become single file-kind nodes.
+	LangPlain
 )
 
-// DetectLanguage maps a file path to its grammar.
+// DetectLanguage maps a file path to its grammar (or the plaintext
+// fallback).
 func DetectLanguage(path string) Language {
 	switch {
 	case strings.HasSuffix(path, ".java"):
@@ -34,9 +41,28 @@ func DetectLanguage(path string) Language {
 		return LangKotlin
 	case strings.HasSuffix(path, ".py"):
 		return LangPython
-	default:
-		return LangUnknown
 	}
+	base := pathpkg.Base(path)
+	if plainBasenames[base] {
+		return LangPlain
+	}
+	if i := strings.LastIndexByte(base, '.'); i >= 0 && plainExtensions[base[i:]] {
+		return LangPlain
+	}
+	return LangUnknown
+}
+
+// plainExtensions/plainBasenames define the anchor-less text files indexed
+// as whole-file nodes so agents can still discover and read them.
+var plainExtensions = map[string]bool{
+	".yml": true, ".yaml": true, ".properties": true, ".json": true,
+	".xml": true, ".sql": true, ".md": true, ".markdown": true,
+	".toml": true, ".txt": true, ".conf": true, ".ini": true, ".cfg": true,
+	".gradle": true, ".sh": true,
+}
+
+var plainBasenames = map[string]bool{
+	"Dockerfile": true, "Makefile": true, "makefile": true, "Jenkinsfile": true,
 }
 
 // Call is one call site found inside a node body.
@@ -61,6 +87,7 @@ type Node struct {
 	Params      []string // parameter type texts as written
 	Supers      []string // extends/implements names as written (class kinds)
 	Calls       []Call
+	BodyTokens  []string // capped lexical tokens of the node's source slice
 }
 
 // FileResult is the full extraction of one file.
@@ -109,37 +136,55 @@ func newPool(lang Language) *sync.Pool {
 	}}
 }
 
+// maxBodyTokens caps the per-node body token contribution (§보완 B) so the
+// lexical index stays within the memory budget.
+const maxBodyTokens = 256
+
 // File parses one source file and extracts its nodes. The tree-sitter tree is
-// released before returning.
+// released before returning; plaintext files skip tree-sitter entirely.
 func File(relPath string, src []byte) (*FileResult, error) {
 	lang := DetectLanguage(relPath)
 	if lang == LangUnknown {
 		return nil, fmt.Errorf("unsupported language: %s", relPath)
 	}
-	pool := parserPools[lang]
-	parser := pool.Get().(*ts.Parser)
-	defer pool.Put(parser)
-
-	tree := parser.Parse(src, nil)
-	if tree == nil {
-		return nil, fmt.Errorf("parse failed: %s", relPath)
-	}
-	defer tree.Close()
-
-	root := tree.RootNode()
 	res := &FileResult{
 		RelPath:  relPath,
 		Lang:     lang,
-		Partial:  root.HasError(),
 		FileHash: blake3.Sum256(src),
 	}
-	switch lang {
-	case LangJava:
-		extractJava(src, root, res)
-	case LangKotlin:
-		extractKotlin(src, root, res)
-	case LangPython:
-		extractPython(src, root, res)
+
+	if lang == LangPlain {
+		extractPlain(src, res)
+	} else {
+		pool := parserPools[lang]
+		parser := pool.Get().(*ts.Parser)
+		defer pool.Put(parser)
+
+		tree := parser.Parse(src, nil)
+		if tree == nil {
+			return nil, fmt.Errorf("parse failed: %s", relPath)
+		}
+		defer tree.Close()
+
+		root := tree.RootNode()
+		res.Partial = root.HasError()
+		switch lang {
+		case LangJava:
+			extractJava(src, root, res)
+		case LangKotlin:
+			extractKotlin(src, root, res)
+		case LangPython:
+			extractPython(src, root, res)
+		}
+	}
+
+	// §보완 B: node bodies (literals, comments, fields) become lexical
+	// tokens so search_hybrid reaches sub-symbol content.
+	for i := range res.Nodes {
+		n := &res.Nodes[i]
+		if n.StartByte < n.EndByte && int(n.EndByte) <= len(src) {
+			n.BodyTokens = lexical.TokenizeCapped(string(src[n.StartByte:n.EndByte]), maxBodyTokens)
+		}
 	}
 	return res, nil
 }

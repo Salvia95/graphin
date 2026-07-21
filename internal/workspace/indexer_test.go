@@ -184,6 +184,74 @@ func TestBootstrapIndexesFixtureTree(t *testing.T) {
 	}
 }
 
+// TestSearchFindsBodyLiteral proves §보완 B end-to-end: a token that exists
+// only inside a string literal ranks the containing method.
+func TestSearchFindsBodyLiteral(t *testing.T) {
+	w := tempWorkspaceWithOrderService(t)
+	res := w.Router.Search("processing", 5)
+	want := "com.example.order.domain.OrderService.process(ProcessRequest,boolean)"
+	for _, r := range res {
+		if r.NodeID == want {
+			return
+		}
+	}
+	t.Fatalf("literal-only token did not surface the method: %+v", res)
+}
+
+// TestPlainFileSearchAndRead proves §보완 A end-to-end: an anchor-less yml is
+// discoverable by content and filename, readable, and explorable (no edges,
+// but no NODE_NOT_FOUND either).
+func TestPlainFileSearchAndRead(t *testing.T) {
+	root := t.TempDir()
+	yml := "spring:\n  datasource:\n    url: jdbc:postgresql://localhost/kinder\n"
+	if err := os.MkdirAll(filepath.Join(root, "config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "config", "application.yml"), []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	w := New(Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
+	defer w.Close()
+	if _, err := w.Bootstrap(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) && w.FSM.Phase() < PhaseLexicalReady {
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	const fileID = "config/application.yml"
+	// Content search reaches the config.
+	found := false
+	for _, r := range w.Router.Search("datasource", 5) {
+		if r.NodeID == fileID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("content search missed the yml: %+v", w.Router.Search("datasource", 5))
+	}
+	// Filename is a Tier-0 exact match.
+	res := w.Router.Search("application.yml", 5)
+	if len(res) == 0 || res[0].NodeID != fileID || res[0].Match != "exact" {
+		t.Fatalf("filename Tier-0 failed: %+v", res)
+	}
+	// read_code returns the whole file.
+	cb, err := w.ReadCode(fileID)
+	if err != nil || cb.Code != yml {
+		t.Fatalf("read_code: %v %+v", err, cb)
+	}
+	// explore is edge-less but must not report NODE_NOT_FOUND.
+	page, err := w.Explore(fileID, "both", "", 0.5)
+	if err != nil {
+		t.Fatalf("explore on file node: %v", err)
+	}
+	if len(page.Uses) != 0 || len(page.UsedBy) != 0 {
+		t.Fatalf("file nodes must not grow edges: %+v", page)
+	}
+}
+
 // TestExploreOverRealFixtures: the full pipeline (parse → confidence →
 // shards → reverse) reproduces §3.3's example edges.
 func TestExploreOverRealFixtures(t *testing.T) {
