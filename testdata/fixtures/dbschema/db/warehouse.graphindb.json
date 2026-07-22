@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "datasource": "warehouse",
+    "engine": "sqlite",
+    "synced_at": "2026-07-22T00:00:00Z",
+    "source": "manual",
+    "generator": "hand-written fixture"
+  },
+  "schemas": {
+    "main": {
+      "tables": {
+        "fact_job_daily": {
+          "comment": "일별 공고 지표 집계(운영 DB에서 ETL)",
+          "columns": [
+            { "name": "day", "type": "text", "nullable": false, "constraints": ["PK"] },
+            { "name": "job_posting_id", "type": "integer", "nullable": false, "constraints": ["PK"] },
+            { "name": "view_count", "type": "integer", "nullable": false, "default": "0" },
+            { "name": "apply_count", "type": "integer", "nullable": false, "default": "0" }
+          ],
+          "foreign_keys": [
+            { "column": "job_posting_id", "references": "db.main.public.job_posting.id", "enforced": false, "note": "크로스 데이터소스 논리 참조 — ETL 적재, 물리 FK 없음" }
+          ]
+        },
+        "dim_date": {
+          "comment": "날짜 차원",
+          "columns": [
+            { "name": "day", "type": "text", "nullable": false, "constraints": ["PK"] },
+            { "name": "is_holiday", "type": "integer", "nullable": false, "default": "0" }
+          ]
+        }
+      }
+    }
+  }
+}

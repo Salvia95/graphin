@@ -34,6 +34,10 @@ const (
 	// LangPlain marks indexable text files without a grammar (§보완 A):
 	// configs, SQL, docs. They become single file-kind nodes.
 	LangPlain
+	// LangDBSchema marks graphindb RDB snapshot files (*.graphindb.json —
+	// schema/graphindb.md). Tables/views/functions/RLS/triggers become
+	// individual nodes; columns and constraints fold into the table node.
+	LangDBSchema
 )
 
 // FileScoped reports whether the language derives its package from the file
@@ -67,6 +71,8 @@ func DetectLanguage(path string) Language {
 	case strings.HasSuffix(path, ".ts"), strings.HasSuffix(path, ".mts"),
 		strings.HasSuffix(path, ".cts"):
 		return LangTypeScript
+	case strings.HasSuffix(path, graphindbSuffix):
+		return LangDBSchema
 	}
 	base := pathpkg.Base(path)
 	if plainBasenames[base] {
@@ -85,6 +91,8 @@ var plainExtensions = map[string]bool{
 	".xml": true, ".sql": true, ".md": true, ".markdown": true,
 	".toml": true, ".txt": true, ".conf": true, ".ini": true, ".cfg": true,
 	".gradle": true, ".sh": true,
+	// .prisma: 매니페스트로 라우팅되면 DB 노드, 아니면 plain 파일 노드.
+	".prisma": true,
 }
 
 var plainBasenames = map[string]bool{
@@ -110,8 +118,9 @@ type Node struct {
 	Hash        [32]byte // BLAKE3 of the subtree source slice
 	ArityMin    int
 	ArityMax    int      // nodeid.UnboundedArity when open
-	Params      []string // parameter type texts as written
-	Supers      []string // extends/implements names as written (class kinds)
+	Params      []string // parameter type texts as written; DB 노드는 컬럼 "name type"
+	Supers      []string // extends/implements names as written (class kinds); DB 노드는 참조 FQN
+	LogicalRefs []string // graphindb 전용: enforced:false 논리/다형성 참조 대상 FQN
 	Calls       []Call
 	BodyTokens  []string // capped lexical tokens of the node's source slice
 }
@@ -181,6 +190,20 @@ const maxBodyTokens = 256
 // File parses one source file and extracts its nodes. The tree-sitter tree is
 // released before returning; plaintext files skip tree-sitter entirely.
 func File(relPath string, src []byte) (*FileResult, error) {
+	return FileWithRoute(relPath, src, nil)
+}
+
+// FileWithRoute parses one file, optionally under a graphindb manifest route:
+// a routed SSOT file (schema.sql, schema.prisma, project JSON) extracts DB
+// nodes per the route's format instead of its surface syntax. route == nil is
+// exactly File().
+func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, error) {
+	if route != nil {
+		res := &FileResult{RelPath: relPath, Lang: LangDBSchema, FileHash: blake3.Sum256(src)}
+		extractDBRouted(src, route, res)
+		attachBodyTokens(res, src)
+		return res, nil
+	}
 	lang := DetectLanguage(relPath)
 	if lang == LangUnknown {
 		return nil, fmt.Errorf("unsupported language: %s", relPath)
@@ -193,6 +216,8 @@ func File(relPath string, src []byte) (*FileResult, error) {
 
 	if lang == LangPlain {
 		extractPlain(src, res)
+	} else if lang == LangDBSchema {
+		extractDBSchema(src, res)
 	} else {
 		pool := parserPools[lang]
 		parser := pool.Get().(*ts.Parser)
@@ -218,15 +243,19 @@ func File(relPath string, src []byte) (*FileResult, error) {
 		}
 	}
 
-	// §보완 B: node bodies (literals, comments, fields) become lexical
-	// tokens so search_hybrid reaches sub-symbol content.
+	attachBodyTokens(res, src)
+	return res, nil
+}
+
+// attachBodyTokens (§보완 B): node bodies (literals, comments, fields) become
+// lexical tokens so search_hybrid reaches sub-symbol content.
+func attachBodyTokens(res *FileResult, src []byte) {
 	for i := range res.Nodes {
 		n := &res.Nodes[i]
 		if n.StartByte < n.EndByte && int(n.EndByte) <= len(src) {
 			n.BodyTokens = lexical.TokenizeCapped(string(src[n.StartByte:n.EndByte]), maxBodyTokens)
 		}
 	}
-	return res, nil
 }
 
 // ---- shared tree helpers ----

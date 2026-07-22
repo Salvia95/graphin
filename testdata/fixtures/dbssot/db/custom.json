@@ -1,0 +1,21 @@
+{
+  "_note": "프로젝트 고유 JSON SSOT (nklcbdt 스타일) — 매니페스트 mapping DSL로 파싱",
+  "tables": {
+    "company": {
+      "columns": [
+        { "name": "id", "type": "bigint" },
+        { "name": "display_name", "type": "varchar(100)" }
+      ]
+    },
+    "job_posting": {
+      "columns": [
+        { "name": "id", "type": "bigint" },
+        { "name": "company_id", "type": "bigint" }
+      ],
+      "fks": [
+        { "references": "public.company.id" },
+        { "references": "public.resume.id", "enforced": false, "note": "polymorphic" }
+      ]
+    }
+  }
+}

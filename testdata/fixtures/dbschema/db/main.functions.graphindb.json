@@ -1,0 +1,38 @@
+{
+  "_meta": {
+    "datasource": "main",
+    "engine": "postgresql",
+    "synced_at": "2026-07-22T00:00:00Z",
+    "source": "manual"
+  },
+  "schemas": {
+    "public": {
+      "functions": {
+        "fn_company_job_count": {
+          "args": "p_company_id bigint",
+          "returns": "integer",
+          "language": "sql",
+          "comment": "회사별 활성 공고 수",
+          "references": ["public.job_posting"],
+          "definition": "SELECT count(*)::integer FROM job_posting WHERE company_id = p_company_id AND status = 'open'"
+        },
+        "tg_job_posting_set_updated_at": {
+          "args": "",
+          "returns": "trigger",
+          "language": "plpgsql",
+          "security": "definer",
+          "comment": "updated_at 자동 갱신 트리거 함수",
+          "definition": "BEGIN NEW.updated_at := now(); RETURN NEW; END"
+        }
+      },
+      "procedures": {
+        "prc_archive_job_posting": {
+          "args": "p_before date",
+          "language": "plpgsql",
+          "comment": "오래된 공고를 closed로 일괄 전환",
+          "definition": "BEGIN UPDATE job_posting SET status = 'closed' WHERE status = 'open' AND updated_at < p_before; END"
+        }
+      }
+    }
+  }
+}

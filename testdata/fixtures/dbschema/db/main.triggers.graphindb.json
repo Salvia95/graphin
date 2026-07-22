@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "datasource": "main",
+    "engine": "postgresql",
+    "synced_at": "2026-07-22T00:00:00Z",
+    "source": "manual"
+  },
+  "schemas": {
+    "public": {
+      "job_posting": [
+        {
+          "name": "trg_job_posting_updated_at",
+          "timing": "BEFORE",
+          "events": ["UPDATE"],
+          "level": "ROW",
+          "function": "public.tg_job_posting_set_updated_at",
+          "definition": "CREATE TRIGGER trg_job_posting_updated_at BEFORE UPDATE ON public.job_posting FOR EACH ROW EXECUTE FUNCTION public.tg_job_posting_set_updated_at()"
+        }
+      ]
+    }
+  }
+}

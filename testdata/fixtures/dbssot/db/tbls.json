@@ -1,0 +1,60 @@
+{
+  "name": "legacydb",
+  "driver": { "name": "postgres" },
+  "tables": [
+    {
+      "name": "public.users",
+      "type": "BASE TABLE",
+      "columns": [
+        { "name": "id", "type": "bigint", "nullable": false },
+        { "name": "email", "type": "varchar(255)", "nullable": false }
+      ],
+      "triggers": [
+        {
+          "name": "trg_users_updated",
+          "def": "CREATE TRIGGER trg_users_updated BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "public.posts",
+      "type": "BASE TABLE",
+      "columns": [
+        { "name": "id", "type": "bigint", "nullable": false },
+        { "name": "user_id", "type": "bigint", "nullable": false },
+        { "name": "category_id", "type": "bigint", "nullable": true }
+      ]
+    },
+    {
+      "name": "public.categories",
+      "type": "BASE TABLE",
+      "columns": [{ "name": "id", "type": "bigint", "nullable": false }]
+    },
+    {
+      "name": "public.v_posts",
+      "type": "VIEW",
+      "def": "SELECT p.id, u.email FROM posts p JOIN users u ON u.id = p.user_id"
+    }
+  ],
+  "relations": [
+    {
+      "table": "public.posts",
+      "columns": ["user_id"],
+      "parent_table": "public.users",
+      "parent_columns": ["id"],
+      "def": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "public.posts",
+      "columns": ["category_id"],
+      "parent_table": "public.categories",
+      "parent_columns": ["id"],
+      "def": "posts.category_id -> categories.id",
+      "virtual": true
+    }
+  ],
+  "functions": [
+    { "name": "set_updated_at", "return_type": "trigger", "arguments": "", "type": "FUNCTION" },
+    { "name": "archive_posts", "return_type": "void", "arguments": "before date", "type": "PROCEDURE" }
+  ]
+}

@@ -16,6 +16,7 @@ const (
 	EdgeImplements = fbsgen.EdgeTypeImplements
 	EdgeCall       = fbsgen.EdgeTypeCall
 	EdgeReference  = fbsgen.EdgeTypeReference
+	EdgeForeignKey = fbsgen.EdgeTypeForeignKey // graphindb: 테이블 → 참조 테이블
 )
 
 // EdgeTypeName renders the §3.3 type attribute.
@@ -29,6 +30,8 @@ func EdgeTypeName(t EdgeType) string {
 		return "implements"
 	case EdgeCall:
 		return "call"
+	case EdgeForeignKey:
+		return "foreign_key"
 	default:
 		return "reference"
 	}

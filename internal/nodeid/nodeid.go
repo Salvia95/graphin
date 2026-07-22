@@ -23,6 +23,26 @@ const (
 	KindFile = "file"
 )
 
+// DB-domain kinds for graphindb snapshot nodes (schema/graphindb.md).
+const (
+	KindTable      = "table"
+	KindView       = "view"
+	KindDBFunction = "db_function"
+	KindProcedure  = "procedure"
+	KindRLSPolicy  = "rls_policy"
+	KindTrigger    = "trigger"
+)
+
+// IsDBKind reports whether kind belongs to the graphindb RDB domain: those
+// nodes resolve edges by FQN, not by simple-name scope ranking.
+func IsDBKind(kind string) bool {
+	switch kind {
+	case KindTable, KindView, KindDBFunction, KindProcedure, KindRLSPolicy, KindTrigger:
+		return true
+	}
+	return false
+}
+
 // UnboundedArity marks an open maximum (Python *args/**kwargs, Java varargs).
 const UnboundedArity = -1
 
@@ -67,6 +87,20 @@ func Python(module, container, name string, ordinal int) string {
 		id += "#" + itoa(ordinal)
 	}
 	return id
+}
+
+// DBNode builds a graphindb node ID: "db.<datasource>.<schema>.<name>". The
+// "db." prefix namespaces DB nodes away from code packages. Sub-object IDs
+// (RLS bundle, trigger) append their own segment at the call site.
+func DBNode(datasource, schema, name string) string {
+	return "db." + datasource + "." + schema + "." + name
+}
+
+// DBDisplay builds the DB-node display_name "<datasource>.<schema>.<name>":
+// unlike Display, it keeps the datasource so same-named tables in different
+// databases stay distinguishable in search results.
+func DBDisplay(datasource, schema, name string) string {
+	return datasource + "." + schema + "." + name
 }
 
 // FileClassKotlin derives the synthetic container for top-level Kotlin

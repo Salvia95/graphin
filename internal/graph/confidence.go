@@ -20,6 +20,13 @@ const (
 // maxGlobalCandidates bounds global same-name fan-out.
 const maxGlobalCandidates = 5
 
+// graphindb confidence tiers (schema/graphindb.md): FQN refs are exact (1.0),
+// enforced:false logical refs 0.9, definition-token matches 0.8.
+const (
+	confDBLogical   = 0.9
+	confDBHeuristic = 0.8
+)
+
 // DefInfo is one known definition, fed by the indexer as files parse.
 type DefInfo struct {
 	ID       string
@@ -100,6 +107,12 @@ func (r *resolver) candidates(simple string) []*DefInfo {
 	return out
 }
 
+func (r *resolver) defByID(id string) *DefInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.byID[id]
+}
+
 func (r *resolver) classByFQN(fqn string) *DefInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -136,6 +149,9 @@ func imported(imports []string, def *DefInfo) bool {
 // resolveEdges computes the uses list for one node record (§2.1.3).
 // sameFileDefs maps simple name → defs declared in the same source file.
 func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInfo) []Edge {
+	if nodeid.IsDBKind(rec.Kind) {
+		return e.resolveDBEdges(rec)
+	}
 	best := map[string]Edge{} // targetID → strongest edge
 	put := func(target string, t EdgeType, conf float32) {
 		if target == rec.ID {
@@ -224,6 +240,69 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 		}
 	}
 
+	return sortEdges(best)
+}
+
+// resolveDBEdges is the graphindb branch: refs arrive as exact node FQNs, so
+// scope ranking is unnecessary. Targets outside the snapshot (예: supabase
+// auth.users) stay as dangling edges — 정직한 표현이며 스텁은 만들지 않는다.
+func (e *Engine) resolveDBEdges(rec *nodeRecord) []Edge {
+	best := map[string]Edge{}
+	put := func(target string, t EdgeType, conf float32) {
+		if target == rec.ID {
+			return
+		}
+		if cur, ok := best[target]; !ok || conf > cur.Confidence {
+			best[target] = Edge{TargetID: target, Type: t, Confidence: conf}
+		}
+	}
+
+	// 1) Exact FQN refs: table FKs, explicit view/routine references, the
+	//    RLS/trigger table anchor and the trigger function.
+	for _, fqn := range rec.Supers {
+		put(fqn, dbEdgeType(rec.Kind, e.res.defByID(fqn)), confCertain)
+	}
+	// 2) enforced:false logical refs (다형성, 크로스 데이터소스 ETL 등).
+	for _, fqn := range rec.LogicalRefs {
+		t := EdgeReference
+		if rec.Kind == nodeid.KindTable {
+			t = EdgeForeignKey
+		}
+		put(fqn, t, confDBLogical)
+	}
+	// 3) Definition-token heuristics: same-datasource tables/views only.
+	for _, call := range rec.RawCalls {
+		cands := e.res.candidates(call.Name)
+		if len(cands) == 0 { // 스냅샷이 대문자 식별자(Oracle 등)를 쓰는 경우
+			cands = e.res.candidates(strings.ToUpper(call.Name))
+		}
+		for _, c := range cands {
+			if c.Pkg != rec.Pkg {
+				continue
+			}
+			if c.Kind != nodeid.KindTable && c.Kind != nodeid.KindView {
+				continue
+			}
+			put(c.ID, EdgeReference, confDBHeuristic)
+		}
+	}
+	return sortEdges(best)
+}
+
+// dbEdgeType picks the edge type for an exact FQN ref: tables emit FKs,
+// refs resolving to a routine are calls (trigger→function), the rest are
+// references (dangling targets included).
+func dbEdgeType(srcKind string, target *DefInfo) EdgeType {
+	if srcKind == nodeid.KindTable {
+		return EdgeForeignKey
+	}
+	if target != nil && (target.Kind == nodeid.KindDBFunction || target.Kind == nodeid.KindProcedure) {
+		return EdgeCall
+	}
+	return EdgeReference
+}
+
+func sortEdges(best map[string]Edge) []Edge {
 	out := make([]Edge, 0, len(best))
 	for _, e := range best {
 		out = append(out, e)

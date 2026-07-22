@@ -2,7 +2,9 @@
 // regenerate Go code with `make fbs` (flatc 25.12.19, see scripts/fetch-flatc.sh).
 namespace fbsgen;
 
-enum EdgeType : byte { Import, Extends, Implements, Call, Reference }
+// ForeignKey는 graphindb RDB 노드 전용(테이블→참조 테이블). 기존 샤드와의
+// 하위호환을 위해 끝에만 추가한다.
+enum EdgeType : byte { Import, Extends, Implements, Call, Reference, ForeignKey }
 
 table Edge {
   target_id: string (required);

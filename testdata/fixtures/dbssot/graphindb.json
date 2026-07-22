@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "datasources": {
+    "app": {
+      "engine": "postgresql",
+      "sources": [{ "path": "prisma/schema.prisma" }]
+    },
+    "custom": {
+      "engine": "postgresql",
+      "sources": [{ "path": "db/custom.json", "format": "json" }],
+      "json": {
+        "mapping": {
+          "tables": "tables.*",
+          "columns": "columns[]",
+          "foreign_keys": "fks[]",
+          "fk_enforced": "field:enforced"
+        }
+      }
+    },
+    "legacy": {
+      "engine": "postgresql",
+      "sources": [{ "path": "db/tbls.json", "format": "json" }],
+      "json": { "preset": "tbls" }
+    },
+    "main": {
+      "engine": "postgresql",
+      "sources": [{ "path": "db/schema.sql" }]
+    }
+  }
+}

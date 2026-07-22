@@ -12,6 +12,7 @@ const (
 	EdgeTypeImplements EdgeType = 2
 	EdgeTypeCall       EdgeType = 3
 	EdgeTypeReference  EdgeType = 4
+	EdgeTypeForeignKey EdgeType = 5
 )
 
 var EnumNamesEdgeType = map[EdgeType]string{
@@ -20,6 +21,7 @@ var EnumNamesEdgeType = map[EdgeType]string{
 	EdgeTypeImplements: "Implements",
 	EdgeTypeCall:       "Call",
 	EdgeTypeReference:  "Reference",
+	EdgeTypeForeignKey: "ForeignKey",
 }
 
 var EnumValuesEdgeType = map[string]EdgeType{
@@ -28,6 +30,7 @@ var EnumValuesEdgeType = map[string]EdgeType{
 	"Implements": EdgeTypeImplements,
 	"Call":       EdgeTypeCall,
 	"Reference":  EdgeTypeReference,
+	"ForeignKey": EdgeTypeForeignKey,
 }
 
 func (v EdgeType) String() string {

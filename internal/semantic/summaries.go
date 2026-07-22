@@ -13,6 +13,9 @@ const maxSummaryCalls = 8
 // Summarize builds the synthetic passage for one node (§2.1.1: 식별자 분해
 // 토큰과 시그니처를 결합한 합성 요약문).
 func Summarize(pkg string, n parse.Node) string {
+	if nodeid.IsDBKind(n.Kind) {
+		return summarizeDB(pkg, n)
+	}
 	var sb strings.Builder
 	sb.WriteString(n.Kind)
 	sb.WriteString(" ")
@@ -53,6 +56,44 @@ func Summarize(pkg string, n parse.Node) string {
 			sb.WriteString("; calls ")
 			sb.WriteString(strings.Join(names, ", "))
 		}
+	}
+	return sb.String()
+}
+
+// summarizeDB renders graphindb nodes with domain wording: 테이블은 컬럼,
+// 루틴은 인자, RLS는 정책 목록. 참조 FQN과 스냅샷 블록 토큰(주석 포함)이
+// 벡터 매칭의 의미를 채운다.
+func summarizeDB(pkg string, n parse.Node) string {
+	var sb strings.Builder
+	sb.WriteString(n.Kind)
+	sb.WriteString(" ")
+	sb.WriteString(n.DisplayName)
+	if pkg != "" {
+		sb.WriteString(" in ")
+		sb.WriteString(pkg)
+	}
+	sb.WriteString(": ")
+	sb.WriteString(strings.Join(lexical.SplitIdentifier(n.SimpleName), " "))
+
+	if len(n.Params) > 0 {
+		label := "; columns "
+		switch n.Kind {
+		case nodeid.KindDBFunction, nodeid.KindProcedure:
+			label = "; args "
+		case nodeid.KindRLSPolicy:
+			label = "; policies "
+		}
+		sb.WriteString(label)
+		sb.WriteString(strings.Join(n.Params, ", "))
+	}
+	if refs := append(append([]string{}, n.Supers...), n.LogicalRefs...); len(refs) > 0 {
+		sb.WriteString("; references ")
+		sb.WriteString(strings.Join(refs, ", "))
+	}
+	if len(n.BodyTokens) > 0 {
+		k := min(40, len(n.BodyTokens))
+		sb.WriteString("; content ")
+		sb.WriteString(strings.Join(n.BodyTokens[:k], " "))
 	}
 	return sb.String()
 }

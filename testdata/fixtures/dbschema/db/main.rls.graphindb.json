@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "datasource": "main",
+    "engine": "postgresql",
+    "synced_at": "2026-07-22T00:00:00Z",
+    "source": "manual"
+  },
+  "schemas": {
+    "public": {
+      "company": {
+        "enabled": false,
+        "policies": []
+      },
+      "job_posting": {
+        "enabled": true,
+        "policies": [
+          { "name": "job_posting_public_read", "command": "SELECT", "roles": ["anon", "authenticated"], "using": "status = 'open'" }
+        ]
+      },
+      "resume": {
+        "enabled": true,
+        "policies": [
+          { "name": "resume_self_read", "command": "SELECT", "roles": ["authenticated"], "using": "auth.uid() = user_id" },
+          { "name": "resume_self_insert", "command": "INSERT", "roles": ["authenticated"], "with_check": "auth.uid() = user_id" },
+          { "name": "resume_self_update", "command": "UPDATE", "roles": ["authenticated"], "using": "auth.uid() = user_id", "with_check": "auth.uid() = user_id" },
+          { "name": "resume_self_delete", "command": "DELETE", "roles": ["authenticated"], "using": "auth.uid() = user_id" }
+        ]
+      }
+    }
+  }
+}
