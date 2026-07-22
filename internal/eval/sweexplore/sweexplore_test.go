@@ -92,13 +92,16 @@ func TestLoadBenchMetaFallbackAndProblems(t *testing.T) {
 func TestExploreRepoDeterministicRegions(t *testing.T) {
 	root := copyFixtureRepo(t)
 	o := Defaults()
-	r1, err := ExploreRepo(context.Background(), root, demoIssue, o)
+	r1, st1, err := ExploreRepo(context.Background(), root, demoIssue, o)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r2, err := ExploreRepo(context.Background(), root, demoIssue, o)
+	r2, _, err := ExploreRepo(context.Background(), root, demoIssue, o)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if st1.EmbedDropped != 0 {
+		t.Fatalf("lexical-only run must not report embed drops: %+v", st1)
 	}
 	if !reflect.DeepEqual(r1, r2) {
 		t.Fatalf("policy must be deterministic:\n%v\n%v", r1, r2)

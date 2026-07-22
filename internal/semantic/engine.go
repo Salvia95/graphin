@@ -65,6 +65,8 @@ type Engine struct {
 	queue    chan op
 	dirty    atomic.Bool
 	lastTick atomic.Int64 // unix nanos of last mutation
+	pending  atomic.Int64 // queued + in-flight ops (drain signal, Phase 7c 후속)
+	droppedN atomic.Int64 // backpressure drops since start (coverage caveat)
 
 	// snapshot provides the current merkle state for the export header.
 	snapshot func() (root string, files map[string]string)
@@ -159,7 +161,9 @@ func (e *Engine) Ready() bool { return e.ready.Load() }
 func (e *Engine) Enqueue(id, summary string) {
 	select {
 	case e.queue <- op{id: id, summary: summary}:
+		e.pending.Add(1)
 	default:
+		e.droppedN.Add(1)
 		e.log.Event("embed_queue_full", map[string]any{"dropped": id})
 	}
 }
@@ -168,10 +172,22 @@ func (e *Engine) Enqueue(id, summary string) {
 func (e *Engine) Remove(id string) {
 	select {
 	case e.queue <- op{remove: true, id: id}:
+		e.pending.Add(1)
 	default:
+		e.droppedN.Add(1)
 		e.log.Event("embed_queue_full", map[string]any{"dropped": id})
 	}
 }
+
+// Drained reports an idle embedding pipeline: no queued or in-flight ops.
+// Meaningful once Ready() — before warmup the worker parks on the first
+// non-remove op, so pending stays high by design.
+func (e *Engine) Drained() bool { return e.pending.Load() == 0 }
+
+// Dropped counts backpressure drops since start: a non-zero value means the
+// vector index is missing that many (re-)embeds until the affected files
+// next change — eval runs must disclose it as a coverage caveat.
+func (e *Engine) Dropped() int64 { return e.droppedN.Load() }
 
 // worker drains the queue once the model is warm.
 func (e *Engine) worker() {
@@ -189,6 +205,7 @@ func (e *Engine) worker() {
 				}
 			}
 			e.apply(o)
+			e.pending.Add(-1)
 		}
 	}
 }

@@ -90,11 +90,11 @@ func Run(ctx context.Context, o RunOptions, progress io.Writer) error {
 		defer f.Close()
 	}
 
-	var taskErrs []string
+	var taskErrs, caveats []string
 	start := time.Now()
 	for i, task := range tasks {
 		fmt.Fprintf(progress, "[%d/%d] %s\n", i+1, len(tasks), task.InstanceID)
-		if err := runTask(ctx, task, o, configs, files); err != nil {
+		if err := runTask(ctx, task, o, configs, files, &caveats); err != nil {
 			taskErrs = append(taskErrs, task.InstanceID+": "+err.Error())
 		}
 		if ctx.Err() != nil {
@@ -102,10 +102,10 @@ func Run(ctx context.Context, o RunOptions, progress io.Writer) error {
 		}
 	}
 
-	return writeSummary(o, len(tasks), configs, problems, taskErrs, time.Since(start))
+	return writeSummary(o, len(tasks), configs, problems, taskErrs, caveats, time.Since(start))
 }
 
-func runTask(ctx context.Context, task Task, o RunOptions, configs []SweepConfig, files map[string]*os.File) error {
+func runTask(ctx context.Context, task Task, o RunOptions, configs []SweepConfig, files map[string]*os.File, caveats *[]string) error {
 	emit := func(name string, regions []Region) error {
 		b, err := json.Marshal(submissionLine{InstanceID: task.InstanceID, Regions: regions})
 		if err != nil {
@@ -134,15 +134,22 @@ func runTask(ctx context.Context, task Task, o RunOptions, configs []SweepConfig
 	base := o.Base
 	base.KeepIndex = true // config 루프 동안 유지, 아래에서 정리
 	var firstErr error
+	caveatDone := false
 	for _, c := range configs {
 		cfg := base
 		cfg.TopK, cfg.RRFK, cfg.MinConf = c.TopK, c.RRFK, c.MinConf
-		regions, err := ExploreRepo(ctx, task.RepoDir, task.Issue, cfg)
+		regions, stats, err := ExploreRepo(ctx, task.RepoDir, task.Issue, cfg)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
 			}
 			regions = nil
+		}
+		if stats.EmbedDropped > 0 && !caveatDone {
+			caveatDone = true
+			*caveats = append(*caveats, fmt.Sprintf(
+				"%s: %d embeds dropped (vector index incomplete for this task)",
+				task.InstanceID, stats.EmbedDropped))
 		}
 		if err := emit(c.Name, regions); err != nil {
 			return err
@@ -154,7 +161,7 @@ func runTask(ctx context.Context, task Task, o RunOptions, configs []SweepConfig
 	return firstErr
 }
 
-func writeSummary(o RunOptions, taskCount int, configs []SweepConfig, problems, taskErrs []string, elapsed time.Duration) error {
+func writeSummary(o RunOptions, taskCount int, configs []SweepConfig, problems, taskErrs, caveats []string, elapsed time.Duration) error {
 	var md strings.Builder
 	md.WriteString("# SWE-Explore harness run\n\n")
 	fmt.Fprintf(&md, "- bench: `%s`\n- policy: `%s`\n- tasks: %d\n- configs: %d\n- elapsed: %s\n",
@@ -181,6 +188,7 @@ func writeSummary(o RunOptions, taskCount int, configs []SweepConfig, problems, 
 	}
 	writeList("skipped instances", problems)
 	writeList("task errors", taskErrs)
+	writeList("coverage caveats", caveats)
 	md.WriteString("\n채점: SWE-Explore-Bench의 `eval.py`/`ExploreEvaluator`에 위 JSONL을 투입한다 — 하니스는 제출만 생성하고 점수는 공식 스코어러가 낸다.\n")
 	return os.WriteFile(filepath.Join(o.OutDir, "summary.md"), []byte(md.String()), 0o644)
 }

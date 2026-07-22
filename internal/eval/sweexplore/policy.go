@@ -43,11 +43,20 @@ func Defaults() Options {
 	}
 }
 
+// ExploreStats carries per-task measurement caveats.
+type ExploreStats struct {
+	// EmbedDropped: 임베딩 큐 백프레셔 드랍 수 — 0이 아니면 벡터 인덱스가
+	// 그만큼 비어 있는 채 측정된 것이다 (semantic 모드 커버리지 캐비앳).
+	EmbedDropped int64
+}
+
 // ExploreRepo runs the graphin policy over one task repo: bootstrap →
 // derived queries → SearchK seeds → one-hop explore expansion → node spans
 // as ranked regions. Every step is deterministic (engine tie-breaks are
-// lexicographic), so identical inputs yield identical submissions.
-func ExploreRepo(ctx context.Context, repoDir, issue string, o Options) ([]Region, error) {
+// lexicographic), so identical inputs yield identical submissions. Semantic
+// mode additionally waits for the embedding queue to drain — SemanticReady
+// alone would measure a near-empty vector index.
+func ExploreRepo(ctx context.Context, repoDir, issue string, o Options) ([]Region, ExploreStats, error) {
 	ortLib := o.OrtLib
 	if !o.Semantic && ortLib == "" {
 		// lexical-only: poison the ORT path so no provisioning/download runs.
@@ -66,29 +75,37 @@ func ExploreRepo(ctx context.Context, repoDir, issue string, o Options) ([]Regio
 		defer os.RemoveAll(filepath.Join(repoDir, workspace.DataDirName))
 	}
 
+	var stats ExploreStats
 	if _, err := w.Bootstrap(ctx, o.ModelType, o.Offline); err != nil {
-		return nil, err
+		return nil, stats, err
 	}
 	deadline := time.Now().Add(o.WaitTimeout)
 	for {
 		st := w.FSM.Status()
-		if st.LexicalReady && (!o.Semantic || st.SemanticReady) {
+		if st.LexicalReady && (!o.Semantic || (st.SemanticReady && w.SemanticDrained())) {
 			break
 		}
-		if time.Now().After(deadline) {
-			if o.Semantic && w.FSM.Status().LexicalReady {
-				return nil, fmt.Errorf("semantic engine never became ready (model unavailable?)")
+		if o.Semantic {
+			if msg := w.SemUnavailable(); msg != "" {
+				return nil, stats, fmt.Errorf("semantic engine unavailable: %s", msg)
 			}
-			return nil, fmt.Errorf("indexing did not finish within %s", o.WaitTimeout)
+		}
+		if time.Now().After(deadline) {
+			if o.Semantic && st.LexicalReady {
+				return nil, stats, fmt.Errorf("semantic warmup/drain did not finish within %s (ready=%t drained=%t)",
+					o.WaitTimeout, st.SemanticReady, w.SemanticDrained())
+			}
+			return nil, stats, fmt.Errorf("indexing did not finish within %s", o.WaitTimeout)
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, stats, ctx.Err()
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+	stats.EmbedDropped = w.SemanticEmbedDropped()
 
-	return collectRegions(w, issue, o), nil
+	return collectRegions(w, issue, o), stats, nil
 }
 
 func collectRegions(w *workspace.Workspace, issue string, o Options) []Region {

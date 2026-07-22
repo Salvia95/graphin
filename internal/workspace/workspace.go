@@ -336,6 +336,26 @@ func (w *Workspace) Explore(nodeID, direction, cursor string, minConf float32) (
 	return page, nil
 }
 
+// SemanticDrained reports whether the background embedding queue is idle
+// (no queued or in-flight ops). True when no semantic engine is running.
+// H1 하이브리드 측정의 선행 조건: SemanticReady만으로는 벡터 인덱스가
+// 채워졌음을 보장하지 않는다 (Phase 7c 후속 ①).
+func (w *Workspace) SemanticDrained() bool {
+	if w.sem == nil {
+		return true
+	}
+	return w.sem.Drained()
+}
+
+// SemanticEmbedDropped returns the embedding backpressure drop count (0
+// when no semantic engine): eval runs disclose it as a coverage caveat.
+func (w *Workspace) SemanticEmbedDropped() int64 {
+	if w.sem == nil {
+		return 0
+	}
+	return w.sem.Dropped()
+}
+
 // SemUnavailable reports a permanent semantic warmup failure ("" if none):
 // surfaced as MODEL_UNAVAILABLE with a lexical-fallback hint (§3.0).
 func (w *Workspace) SemUnavailable() string {

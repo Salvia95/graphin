@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Salvia95/graphin/internal/eval/sweexplore"
 )
@@ -35,7 +36,8 @@ func runEval(args []string) int {
 		maxTasks       = fs.Int("tasks", 0, "limit task count (0 = all)")
 		sweep          = fs.Bool("sweep", false, "run the spec §3.3 config matrix instead of one config")
 
-		semantic  = fs.Bool("semantic", false, "hybrid mode: wait for the vector engine per task")
+		semantic  = fs.Bool("semantic", false, "hybrid mode: wait for warmup + embedding-queue drain per task")
+		waitMin   = fs.Int("wait-minutes", 10, "per-task indexing/drain wait budget")
 		modelType = fs.String("model-type", "multilingual_cjk", "embedding model (semantic mode)")
 		modelDir  = fs.String("model-dir", "", "local ONNX model directory")
 		ortLib    = fs.String("ort-lib", "", "onnxruntime shared library path")
@@ -56,6 +58,7 @@ func runEval(args []string) int {
 	base.MaxRegions, base.MaxRegionLines = *maxRegions, *maxRegionLines
 	base.Semantic, base.ModelType, base.ModelDir = *semantic, *modelType, *modelDir
 	base.OrtLib, base.Offline, base.KeepIndex = *ortLib, *offline, *keepIndex
+	base.WaitTimeout = time.Duration(*waitMin) * time.Minute
 
 	ro := sweexplore.RunOptions{
 		BenchPath:   *bench,
