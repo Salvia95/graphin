@@ -144,6 +144,28 @@ func TestXrefConventionNeverDangles(t *testing.T) {
 	}
 }
 
+func TestXrefSQLTier(t *testing.T) {
+	e := newEngine(t)
+	m := methodNode("com.acme", "Dao", "find", []string{"long"}, 1, 1)
+	m.DBRefs = []parse.DBRef{
+		{Name: "job_posting", Source: parse.DBRefSQL},
+		{Name: "many", Source: parse.DBRefSQL}, // 게이트를 통과한 잡음 — 레지스트리 미스
+	}
+	applyAll(e,
+		dbFixture(t, "main.graphindb.json"),
+		fileRes(parse.LangJava, "src/Dao.java", "com.acme", nil, m))
+
+	uses := usesOf(t, e, m.ID)
+	if !hasEdge(uses, "db.main.public.job_posting", "reference", 0.9) {
+		t.Fatalf("SQL-literal xref missing: %+v", uses)
+	}
+	for _, u := range uses {
+		if u.NodeID != "db.main.public.job_posting" {
+			t.Fatalf("SQL refs must never dangle: %+v", uses)
+		}
+	}
+}
+
 func TestSnakeCase(t *testing.T) {
 	for in, want := range map[string]string{
 		"JobPosting": "job_posting",

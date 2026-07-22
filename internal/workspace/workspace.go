@@ -75,6 +75,11 @@ type Workspace struct {
 	nodesMu sync.RWMutex
 	nodes   map[string]NodeMeta
 
+	// xrefDelta collects DB-registry movement during one watcher batch for
+	// cross-domain edge invalidation (Phase 7b). Non-nil only while
+	// handleBatch runs; guarded by indexMu.
+	xrefDelta *dbXrefDelta
+
 	matcherMu sync.Mutex
 	matcher   *ignore.Matcher
 

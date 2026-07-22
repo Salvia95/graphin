@@ -61,6 +61,7 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 	if w.graph != nil {
 		w.graph.ApplyFile(res, diff)
 	}
+	w.collectDBXrefDelta(res, diff)
 	if w.semSink != nil { // Track B + crash-recovery force set (§2.2)
 		force := w.forceEmbed[res.RelPath]
 		changedIDs := make(map[string]bool, len(diff.Changed))
@@ -129,6 +130,7 @@ func (w *Workspace) removeFileLocked(rel string) {
 	if len(ids) == 0 {
 		return
 	}
+	w.collectDBXrefRemovals(ids)
 	w.nodesMu.Lock()
 	for _, id := range ids {
 		delete(w.nodes, id)
@@ -250,6 +252,8 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 
 	w.indexMu.Lock()
 	defer w.indexMu.Unlock()
+	w.xrefDelta = newDBXrefDelta()
+	defer func() { w.xrefDelta = nil }()
 	touched := 0
 	manifestEvent := false
 	for abs, ch := range b {
@@ -289,6 +293,10 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 	// 매니페스트 변경: 라우팅 diff → 영향받은 SSOT 파일 강제 재인덱싱
 	if manifestEvent {
 		touched += w.reloadDBRoutesLocked(matcher)
+	}
+	// DB 레지스트리가 움직였으면 크로스 도메인 엣지 재해석 (Phase 7b)
+	if !w.xrefDelta.empty() {
+		touched += w.invalidateDBXrefsLocked()
 	}
 	if touched > 0 {
 		if w.graph != nil {

@@ -51,11 +51,14 @@ graphin dbimport --init main            # 수기 작성용 빈 뼈대
 
 **코드↔DB 크로스 도메인 엣지**: JPA `@Table(name=)`/`@Entity`, SQLAlchemy
 `__tablename__`, Django `Meta.db_table`, TypeORM `@Entity("x")`, Prisma
-client 멤버 접근(`prisma.<model>.`)이 감지되면 코드 노드 → 테이블 노드
-`reference` 엣지가 생성된다(명시 물리명 1.0 / client 0.9 / 클래스명 관례
-0.8, 레지스트리 실존 대상 한정 — 명시 매핑만 단일 데이터소스에서 dangling
-허용). 테이블 노드의 `used_by` 한 번으로 "이 테이블을 건드리는 코드"에
-도달한다. 설계: [`docs/phase7-spec.md`](docs/phase7-spec.md).
+client 멤버 접근(`prisma.<model>.`), 그리고 SQL 문맥이 확실한 문자열 리터럴
+(`SELECT…FROM`/`JOIN`/`INSERT INTO`/`UPDATE…SET`, `@Query` 포함)이 감지되면
+코드 노드 → 테이블 노드 `reference` 엣지가 생성된다(명시 물리명 1.0 /
+client·SQL 0.9 / 클래스명 관례 0.8, 레지스트리 실존 대상 한정 — 명시
+매핑만 단일 데이터소스에서 dangling 허용). 테이블 노드의 `used_by` 한 번으로
+"이 테이블을 건드리는 코드"에 도달한다. 부트스트랩 이후 스냅샷이 추가·삭제
+되면 영향받는 코드 파일만 재해석되어 엣지가 따라 움직인다(재임베딩 없음).
+설계: [`docs/phase7-spec.md`](docs/phase7-spec.md).
 
 부트스트랩 시 DB 흔적(마이그레이션 디렉터리·prisma·docker-compose 등)은
 있는데 스냅샷도 매니페스트도 없으면 `bootstrap_workspace` 응답에

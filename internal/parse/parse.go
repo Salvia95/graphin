@@ -120,6 +120,9 @@ const (
 	// DBRefConvention is an entity class name without a physical mapping;
 	// resolution also tries the snake_case form, registry-bound.
 	DBRefConvention
+	// DBRefSQL is a table identifier found in a string literal with SQL
+	// keyword context (Phase 7b); registry-bound, never dangles.
+	DBRefSQL
 )
 
 // DBRef is one code→DB table reference emitted by an extractor. The name is

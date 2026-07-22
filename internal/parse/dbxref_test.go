@@ -181,6 +181,98 @@ func TestTSNonPrismaReceiverIgnored(t *testing.T) {
 	wantDBRefs(t, nodeByID(res, "src.svc.f"))
 }
 
+// --- SQL literals (Phase 7b) ---
+
+func TestSQLTableNames(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{`SELECT jp.id FROM job_posting jp JOIN company c ON c.id = jp.company_id`,
+			[]string{"job_posting", "company"}},
+		{`INSERT INTO orders (id) VALUES (1)`, []string{"orders"}},
+		{`UPDATE public.orders SET status = 'done' WHERE id = ?`, []string{"orders"}},
+		{`DELETE FROM sessions WHERE expired`, []string{"sessions"}},
+		{`select * from (select 1) t`, nil},                           // 서브쿼리 여는 괄호는 식별자가 아니다
+		{`please update settings from the menu`, nil},                 // SET 게이트 불충족
+		{`The registry-bound guard eats stray captures`, nil},         // 키워드 없음
+		{`we select the best from many candidates`, []string{"many"}}, // 게이트 한계 — 레지스트리가 방어
+	}
+	for _, c := range cases {
+		got := sqlTableNames(c.in)
+		if len(got) != len(c.want) {
+			t.Errorf("sqlTableNames(%q) = %v, want %v", c.in, got, c.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != c.want[i] {
+				t.Errorf("sqlTableNames(%q) = %v, want %v", c.in, got, c.want)
+				break
+			}
+		}
+	}
+}
+
+func TestJavaSQLLiteralInMethodAndQueryAnnotation(t *testing.T) {
+	res := parseInline(t, "src/Dao.java", `package com.acme;
+public class Dao {
+  @Query(value = "SELECT p FROM job_posting p WHERE p.id = :id", nativeQuery = true)
+  public Object find(long id) {
+    return jdbc.query("SELECT id FROM company WHERE active = true");
+  }
+}
+`)
+	wantDBRefs(t, nodeByID(res, "com.acme.Dao.find(long)"),
+		DBRef{Name: "job_posting", Source: DBRefSQL},
+		DBRef{Name: "company", Source: DBRefSQL})
+}
+
+func TestJavaSQLConstantFieldAttachesToClass(t *testing.T) {
+	res := parseInline(t, "src/Q.java", `package com.acme;
+public class Q {
+  static final String ARCHIVE = "DELETE FROM job_posting WHERE closed_at < ?";
+}
+`)
+	wantDBRefs(t, nodeByID(res, "com.acme.Q"),
+		DBRef{Name: "job_posting", Source: DBRefSQL})
+}
+
+func TestKotlinSQLLiteral(t *testing.T) {
+	res := parseInline(t, "src/Dao.kt", `package com.acme
+
+class Dao {
+  fun count(): Int = jdbc.queryForObject("SELECT count(*) FROM job_posting")
+}
+`)
+	wantDBRefs(t, nodeByID(res, "com.acme.Dao.count()"),
+		DBRef{Name: "job_posting", Source: DBRefSQL})
+}
+
+func TestPythonSQLLiteral(t *testing.T) {
+	res := parseInline(t, "src/report.py", `def load(db):
+    return db.execute("SELECT id, title FROM job_posting WHERE status = 'open'")
+`)
+	wantDBRefs(t, nodeByID(res, "src.report.load"),
+		DBRef{Name: "job_posting", Source: DBRefSQL})
+}
+
+func TestTSTemplateSQLLiteral(t *testing.T) {
+	res := parseInline(t, "src/db.ts", "export async function open(id: string) {\n"+
+		"  return sql`SELECT * FROM orders WHERE id = ${id}`;\n"+
+		"}\n")
+	wantDBRefs(t, nodeByID(res, "src.db.open"),
+		DBRef{Name: "orders", Source: DBRefSQL})
+}
+
+func TestSQLRefsDedupAcrossLiterals(t *testing.T) {
+	res := parseInline(t, "src/r.py", `def twice(db):
+    db.execute("SELECT 1 FROM orders")
+    db.execute("SELECT 2 FROM orders")
+`)
+	wantDBRefs(t, nodeByID(res, "src.r.twice"),
+		DBRef{Name: "orders", Source: DBRefSQL})
+}
+
 // --- Prisma SSOT aliases ---
 
 func TestPrismaModelAliases(t *testing.T) {

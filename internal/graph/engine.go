@@ -497,6 +497,17 @@ func buildShard(pkg string, gen uint64, recs map[string]*nodeRecord) []byte {
 	return b.FinishedBytes()
 }
 
+// UsedBySources lists the current used_by source IDs of one node,
+// unpaginated — Phase 7b invalidation internal, not an MCP surface.
+func (e *Engine) UsedBySources(id string) []string {
+	edges := e.rev.Query(id, 0)
+	out := make([]string, 0, len(edges))
+	for _, r := range edges {
+		out = append(out, r.SourceID)
+	}
+	return out
+}
+
 // HasNode reports whether id is currently visible on the read path.
 func (e *Engine) HasNode(id string) bool {
 	e.mu.RLock()

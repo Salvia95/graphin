@@ -303,6 +303,7 @@ func (ex *jsExtractor) fnNode(spanN, fn *ts.Node, name, container, kind string) 
 	if body := fn.ChildByFieldName("body"); body != nil {
 		node.Calls = jsCalls(ex.src, body)
 		node.DBRefs = jsClientRefs(node.Calls)
+		node.DBRefs = appendSQLRefs(node.DBRefs, ex.res.Lang, ex.src, body)
 		if body.Kind() == "statement_block" {
 			chain := joinContainer(container, name)
 			eachNamed(body, func(m *ts.Node) {

@@ -63,6 +63,7 @@ func javaType(src []byte, n *ts.Node, outer string, res *FileResult) {
 		}
 	}
 	res.Nodes = append(res.Nodes, node)
+	idx := len(res.Nodes) - 1
 
 	body := n.ChildByFieldName("body")
 	if body == nil {
@@ -74,6 +75,10 @@ func javaType(src []byte, n *ts.Node, outer string, res *FileResult) {
 			javaMethod(src, m, chain, res)
 		case "class_declaration", "interface_declaration", "enum_declaration", "record_declaration":
 			javaType(src, m, chain, res)
+		case "field_declaration":
+			// SQL 상수 필드(static final String Q = "SELECT …")는 클래스
+			// 노드에 귀속된다 — 메서드 스팬 밖의 유일한 리터럴 자리.
+			res.Nodes[idx].DBRefs = appendSQLRefs(res.Nodes[idx].DBRefs, LangJava, src, m)
 		}
 	})
 }
@@ -168,6 +173,8 @@ func javaMethod(src []byte, m *ts.Node, container string, res *FileResult) {
 	if body := m.ChildByFieldName("body"); body != nil {
 		node.Calls = javaCalls(src, body)
 	}
+	// 메서드 노드 전체(어노테이션 포함) 스캔 — @Query(nativeQuery) 커버.
+	node.DBRefs = appendSQLRefs(node.DBRefs, LangJava, src, m)
 	res.Nodes = append(res.Nodes, node)
 }
 

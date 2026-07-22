@@ -133,10 +133,11 @@ parse.Node                nodeRecord              resolveEdges (코드 분기)
   0.9로 해석(§1.2) — 자유 문자열발(發) dangling은 만들지 않는다.
 - **무효화**: §1.6 설계 구현 + E2E(부트스트랩 후 스냅샷 추가 → 크로스 엣지
   출현 확인).
-- **db-trace 벤치 시나리오**: `run_local_benchmark`에 DB 시나리오 추가 —
-  `target_query`가 테이블 관련 질의일 때 grep 베이스라인(마이그레이션·엔티티
-  ·SQL 전부 히트) 대비 graphin 3-step(검색 → 테이블 used_by → read_code)
-  바이트를 비교. `e2e/dbxref_test.go`로 회귀 고정.
+- **db-trace 벤치 시나리오**: 구현 결과 `run_local_benchmark`의 제네릭
+  3-step 경로(검색 → explore both → read_code)가 테이블 기대 노드를 그대로
+  처리하므로 도구 변경 없이 E2E(`TestDBTraceBenchmark`)로 회귀만 고정했다 —
+  테이블 노드의 explore가 크로스 엣지를 동봉하므로 grep 베이스라인
+  (마이그레이션·엔티티·SQL 전부 히트) 대비 절감이 리포트에 잡힌다.
 
 ## 3. Phase 7c — SWE-Explore 평가 하니스
 

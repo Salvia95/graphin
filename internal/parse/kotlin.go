@@ -216,6 +216,7 @@ func kotlinFunction(src []byte, fn *ts.Node, container, kind string, res *FileRe
 			node.Calls = kotlinCalls(src, c)
 		}
 	})
+	node.DBRefs = appendSQLRefs(node.DBRefs, LangKotlin, src, fn)
 	res.Nodes = append(res.Nodes, node)
 }
 

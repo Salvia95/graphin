@@ -195,6 +195,7 @@ func (ex *pyExtractor) function(n *ts.Node, container string) {
 	node.StartByte, node.EndByte = span(n)
 	if body := n.ChildByFieldName("body"); body != nil {
 		node.Calls = pyCalls(src, body)
+		node.DBRefs = appendSQLRefs(node.DBRefs, LangPython, src, body)
 		// nested defs/classes become children of this scope
 		chain := joinContainer(container, name)
 		eachNamed(body, func(m *ts.Node) {

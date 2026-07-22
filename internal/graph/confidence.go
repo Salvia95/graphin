@@ -344,9 +344,10 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 }
 
 // resolveDBXrefs matches a code node's DBRefs against indexed table/view
-// definitions. Tiers: 1.0 explicit physical name / 0.9 client access / 0.8
-// convention or multi-datasource ambiguity. Registry-bound except the
-// explicit-mapping dangling case (sole datasource only).
+// definitions. Tiers: 1.0 explicit physical name / 0.9 client access or
+// SQL-literal context / 0.8 convention or multi-datasource ambiguity.
+// Registry-bound except the explicit-mapping dangling case (sole datasource
+// only).
 func (e *Engine) resolveDBXrefs(rec *nodeRecord, put func(target string, t EdgeType, conf float32)) {
 	if len(rec.DBRefs) == 0 || !e.res.dbActive() {
 		return
@@ -386,7 +387,7 @@ func (e *Engine) resolveDBXrefs(rec *nodeRecord, put func(target string, t EdgeT
 			switch ref.Source {
 			case parse.DBRefExplicit:
 				conf = confCertain
-			case parse.DBRefClient:
+			case parse.DBRefClient, parse.DBRefSQL:
 				conf = confDBLogical
 			}
 		}
