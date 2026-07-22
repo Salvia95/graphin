@@ -20,7 +20,9 @@ import (
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/merkle"
 	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/parse"
 	"github.com/Salvia95/graphin/internal/provision"
+	"github.com/Salvia95/graphin/internal/scan"
 	"github.com/Salvia95/graphin/internal/search"
 	"github.com/Salvia95/graphin/internal/semantic"
 	"github.com/Salvia95/graphin/internal/watch"
@@ -76,6 +78,15 @@ type Workspace struct {
 	matcherMu sync.Mutex
 	matcher   *ignore.Matcher
 
+	// graphindb state (schema/graphindb.md): trace heuristic + manifest
+	// routing. dbMu guards it because parse workers read routes while the
+	// watcher may reload the manifest.
+	dbMu           sync.RWMutex
+	dbInfo         DBInfo
+	dbRoutes       map[string]*parse.DBRoute
+	dbManifest     string   // active manifest rel path ("" = none)
+	dbManifestErrs []string // agent-facing validation errors
+
 	// Semantic engine (Track-B embedding consumer). semSink is the narrow
 	// interface applyFileResult talks to, so tests can substitute recorders.
 	sem        *semantic.Engine
@@ -125,7 +136,7 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.bootstrapped {
-		return w.FSM.Status(), nil
+		return w.statusWithDB(), nil
 	}
 	if modelType == "" {
 		modelType = w.cfg.ModelType
@@ -190,13 +201,19 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 		"root": w.Root, "model_type": modelType, "offline": offline || w.cfg.Offline,
 	})
 
+	// graphindb: 흔적 감지 + 매니페스트 라우팅. initialScan이 라우팅된 SSOT를
+	// DB 노드로 파싱해야 하므로 반드시 워커 기동 전에 로드한다.
+	if res, err := scan.Walk(w.Root, w.Log); err == nil {
+		w.setDBStateFromScan(res.Files)
+	}
+
 	w.bg.Add(2)
 	go func() { defer w.bg.Done(); w.consumeBatches(runCtx, deb.Out()) }()
 	go func() { defer w.bg.Done(); w.initialScan(runCtx) }()
 	// warmup is not waited on (provisioning may be mid-download at shutdown);
 	// it works on captured pointers, never on torn-down fields.
 	go w.warmupSemantic(runCtx, w.sem, modelType, offline || w.cfg.Offline)
-	return w.FSM.Status(), nil
+	return w.statusWithDB(), nil
 }
 
 // merkleSnapshot feeds the vectors.bin export header (§2.2).

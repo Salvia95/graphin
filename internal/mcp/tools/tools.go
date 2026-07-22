@@ -21,7 +21,7 @@ import (
 func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 	reg.Register(&mcp.Tool{
 		Name:        "bootstrap_workspace",
-		Description: "Index the workspace and start the file watcher. Returns immediately; progress is embedded in every subsequent tool response.",
+		Description: "Index the workspace and start the file watcher. Returns immediately; progress is embedded in every subsequent tool response. Also detects RDB schema snapshots (*.graphindb.json, see schema/graphindb.md): tables/views/functions and their foreign keys index as graph nodes. When database traces exist without a snapshot, the response carries a <hint> explaining how to generate one.",
 		InputSchema: objSchema(map[string]any{
 			"model_type": map[string]any{
 				"type": "string", "enum": []string{"english_optimal", "multilingual_cjk"},

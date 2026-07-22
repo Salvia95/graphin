@@ -15,6 +15,7 @@ import (
 	"github.com/Salvia95/graphin/internal/ignore"
 	"github.com/Salvia95/graphin/internal/lexical"
 	"github.com/Salvia95/graphin/internal/merkle"
+	"github.com/Salvia95/graphin/internal/nodeid"
 	"github.com/Salvia95/graphin/internal/parse"
 	"github.com/Salvia95/graphin/internal/scan"
 	"github.com/Salvia95/graphin/internal/semantic"
@@ -81,6 +82,13 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 	fileHex := merkle.Hex(res.FileHash)
 	w.nodesMu.Lock()
 	for _, n := range res.Nodes { // Track A: offsets refresh unconditionally
+		// graphindb 가드: 스키마별 파일 분할은 합법이지만 같은 테이블 FQN이
+		// 두 파일에서 오면 last-writer-wins로 조용히 덮이므로 경고만 남긴다.
+		if old, ok := w.nodes[n.ID]; ok && old.RelPath != res.RelPath && nodeid.IsDBKind(n.Kind) {
+			w.Log.Event("db_duplicate_fqn", map[string]any{
+				"node": n.ID, "kept": res.RelPath, "previous": old.RelPath,
+			})
+		}
 		w.nodes[n.ID] = NodeMeta{
 			RelPath:     res.RelPath,
 			StartByte:   n.StartByte,
@@ -179,7 +187,7 @@ func (w *Workspace) initialScan(ctx context.Context) {
 				if err != nil {
 					continue
 				}
-				r, err := parse.File(f.RelPath, src)
+				r, err := w.parseFile(f.RelPath, src)
 				if err != nil {
 					w.Log.Event("parse_error", map[string]any{"path": f.RelPath, "error": err.Error()})
 					continue
@@ -243,6 +251,7 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 	w.indexMu.Lock()
 	defer w.indexMu.Unlock()
 	touched := 0
+	manifestEvent := false
 	for abs, ch := range b {
 		rel, err := filepath.Rel(w.Root, abs)
 		if err != nil {
@@ -251,6 +260,9 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 		rel = filepath.ToSlash(rel)
 		if rel == "." || strings.HasPrefix(rel, "..") || strings.HasPrefix(rel, watch.GraphinDirName) {
 			continue
+		}
+		if parse.IsDBManifest(rel) {
+			manifestEvent = true
 		}
 
 		if ch.Kind == watch.Removed {
@@ -273,6 +285,10 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 		if w.indexPathLocked(rel, abs, fi.Size(), matcher) {
 			touched++
 		}
+	}
+	// 매니페스트 변경: 라우팅 diff → 영향받은 SSOT 파일 강제 재인덱싱
+	if manifestEvent {
+		touched += w.reloadDBRoutesLocked(matcher)
 	}
 	if touched > 0 {
 		if w.graph != nil {
@@ -300,7 +316,7 @@ func (w *Workspace) indexPathLocked(rel, abs string, size int64, m *ignore.Match
 	if w.merkle.FileHash(rel) == merkle.Hex(merkle.Sum(src)) {
 		return false // editor touch without content change
 	}
-	r, err := parse.File(rel, src)
+	r, err := w.parseFile(rel, src)
 	if err != nil {
 		return false
 	}
@@ -387,7 +403,7 @@ func (w *Workspace) ReadCode(id string) (*CodeBlock, error) {
 
 	reparsed := false
 	if merkle.Hex(merkle.Sum(src)) != meta.FileHash {
-		r, perr := parse.File(meta.RelPath, src)
+		r, perr := w.parseFile(meta.RelPath, src)
 		if perr != nil {
 			return nil, ErrNodeGone
 		}
