@@ -185,7 +185,21 @@ line recall. 저장소는 SWE-bench 계열 Python — graphin의 Python 파싱�
 결과 수치는 `docs/eval/`에 리포트로 커밋하고, 기본값 변경은 이 리포트를
 근거로만 수행한다.
 
-### 3.5 비고
+### 3.5 구현 노트 (7c 확정 사항)
+
+- CLI: `graphin eval swe-explore --bench <jsonl> --repos <dir> --out <dir>`
+  (+ `--sweep`/`--policy grep`/`--semantic`/`--tasks N`). 구현:
+  `internal/eval/sweexplore/`, 진입 분기: `cmd/graphin/eval.go`.
+- 데이터셋 필드: `instance_id`·`repo_dir`(상대면 `--repos` 기준, 없으면
+  `<repos>/<instance_id>` 폴백)·이슈 텍스트는
+  `problem_statement|issue|meta.*` 순으로 탐색.
+- 제출 포맷: 라인당 `{"instance_id": …, "regions": [{"path","start","end"}…]}`
+  — 스코어러의 `list[(path,start,end)]` 입력으로 바로 변환 가능.
+- 태스크당 인덱싱 1회, 스윕 설정은 영속 인덱스 복원 경로로 리플레이.
+  whole-file 노드(`kind=file`)와 `--max-region-lines` 초과 스팬은 라인 예산
+  보호를 위해 제외.
+
+### 3.6 비고
 
 SWE-Explore는 코드 탐색 품질만 측정한다 — DB 크로스 엣지의 가치는 §2의
 db-trace 시나리오가 담당한다(공개 벤치에 DB 스키마 저장소가 없으므로

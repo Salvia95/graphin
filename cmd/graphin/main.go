@@ -26,6 +26,11 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "dbimport" {
 		os.Exit(dbimport.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
+	// Subcommand: `graphin eval swe-explore …` runs the Phase 7c exploration
+	// benchmark harness and exits.
+	if len(os.Args) > 1 && os.Args[1] == "eval" {
+		os.Exit(runEval(os.Args[2:]))
+	}
 
 	var (
 		root      = flag.String("workspace", "", "path to the workspace to index (required)")

@@ -109,6 +109,25 @@ SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts
 └── agent-nav.log                       # JSONL 구조화 로그
 ```
 
+## 평가 (SWE-Explore 하니스)
+
+탐색 품질을 반증 가능하게 재는 결정론(LLM 불개입) 하니스.
+[SWE-Explore-Bench](https://github.com/Qiushao-E/SWE-Explore-Bench)의 벤치
+JSONL과 저장소 스냅샷을 준비한 뒤:
+
+```sh
+graphin eval swe-explore --bench bench.jsonl --repos ./repos --out eval-out
+graphin eval swe-explore ... --sweep          # top_k × RRF k × min_confidence 27점 매트릭스
+graphin eval swe-explore ... --policy grep    # Grep -C20 베이스라인 (같은 질의 유도)
+graphin eval swe-explore ... --semantic       # 하이브리드 모드 (모델 워밍업 대기)
+```
+
+이슈 텍스트에서 질의를 결정론적으로 유도(제목 → 백틱 스팬 → 식별자 빈도)해
+search → explore 1-hop → read_code 스팬을 ranked `(path,start,end)` JSONL로
+출력한다. 태스크당 인덱싱 1회, 스윕 설정은 영속 인덱스를 재사용한다. 채점은
+벤치 공식 스코어러(`eval.py`) 몫이며, 하니스는 제출 파일과 `summary.md`만
+만든다. 설계·가설: [`docs/phase7-spec.md`](docs/phase7-spec.md) §3.
+
 ## 개발
 
 ```sh

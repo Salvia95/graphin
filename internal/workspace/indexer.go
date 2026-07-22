@@ -53,6 +53,13 @@ func (w *Workspace) DisplayName(id string) string {
 	return m.DisplayName
 }
 
+// NodeKind returns the indexed node's kind ("" if unknown) — used by the
+// Phase 7c eval harness to filter whole-file nodes out of region lists.
+func (w *Workspace) NodeKind(id string) string {
+	m, _ := w.nodeMeta(id)
+	return m.Kind
+}
+
 // applyFileResult is the single-writer application of one parsed file: 2-Track
 // classification, merkle update, metadata/symbol/lexical maintenance.
 // Callers must hold w.indexMu.
