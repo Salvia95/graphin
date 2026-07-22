@@ -49,6 +49,7 @@ func javaType(src []byte, n *ts.Node, outer string, res *FileResult) {
 		Hash:        subtreeHash(n, src),
 	}
 	node.StartByte, node.EndByte = span(n)
+	node.DBRefs = javaJPARefs(src, n, name)
 	if sc := n.ChildByFieldName("superclass"); sc != nil { // (superclass (type))
 		if t := sc.NamedChild(0); t != nil {
 			node.Supers = append(node.Supers, text(t, src))
@@ -75,6 +76,74 @@ func javaType(src []byte, n *ts.Node, outer string, res *FileResult) {
 			javaType(src, m, chain, res)
 		}
 	})
+}
+
+// javaJPARefs reads JPA table mappings off a type's annotations (Phase 7a):
+// @Table(name="x") is an explicit physical name; a bare @Entity falls back to
+// the class-name convention. Annotation names match on the simple segment so
+// qualified forms (@jakarta.persistence.Table) work.
+func javaJPARefs(src []byte, n *ts.Node, className string) []DBRef {
+	var mods *ts.Node
+	eachNamed(n, func(c *ts.Node) {
+		if c.Kind() == "modifiers" && mods == nil {
+			mods = c
+		}
+	})
+	if mods == nil {
+		return nil
+	}
+	entity, table := false, ""
+	eachNamed(mods, func(a *ts.Node) {
+		kind := a.Kind()
+		if kind != "annotation" && kind != "marker_annotation" {
+			return
+		}
+		name := annSimpleName(text(a.ChildByFieldName("name"), src))
+		switch name {
+		case "Entity":
+			entity = true
+		case "Table":
+			if args := a.ChildByFieldName("arguments"); args != nil {
+				eachNamed(args, func(p *ts.Node) {
+					if p.Kind() != "element_value_pair" {
+						return
+					}
+					if text(p.ChildByFieldName("key"), src) == "name" {
+						table = javaStringFragment(p.ChildByFieldName("value"), src)
+					}
+				})
+			}
+		}
+	})
+	if table != "" {
+		return []DBRef{{Name: table, Source: DBRefExplicit}}
+	}
+	if entity {
+		return []DBRef{{Name: className, Source: DBRefConvention}}
+	}
+	return nil
+}
+
+// annSimpleName strips a qualified annotation name to its last segment.
+func annSimpleName(s string) string {
+	if i := strings.LastIndexByte(s, '.'); i >= 0 {
+		return s[i+1:]
+	}
+	return s
+}
+
+// javaStringFragment reads the content of a string_literal node.
+func javaStringFragment(n *ts.Node, src []byte) string {
+	if n == nil || n.Kind() != "string_literal" {
+		return ""
+	}
+	var sb strings.Builder
+	eachNamed(n, func(c *ts.Node) {
+		if c.Kind() == "string_fragment" {
+			sb.WriteString(text(c, src))
+		}
+	})
+	return sb.String()
 }
 
 func javaMethod(src []byte, m *ts.Node, container string, res *FileResult) {

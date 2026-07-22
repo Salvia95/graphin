@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "datasource": "main",
+    "engine": "postgresql",
+    "source": "manual"
+  },
+  "schemas": {
+    "public": {
+      "tables": {
+        "company": {
+          "comment": "회사",
+          "columns": [
+            { "name": "id", "type": "bigint", "nullable": false, "constraints": ["PK"] },
+            { "name": "name", "type": "varchar(120)", "nullable": false }
+          ]
+        },
+        "job_posting": {
+          "comment": "채용 공고",
+          "columns": [
+            { "name": "id", "type": "bigint", "nullable": false, "constraints": ["PK"] },
+            { "name": "company_id", "type": "bigint", "nullable": false },
+            { "name": "title", "type": "varchar(200)", "nullable": false }
+          ],
+          "foreign_keys": [
+            { "column": "company_id", "references": "public.company.id", "on_delete": "CASCADE" }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/Salvia95/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/parse"
 )
 
 // Scope-weighted confidence tiers (§2.1.3): 1.0 syntactically certain,
@@ -35,8 +36,24 @@ type DefInfo struct {
 	Simple   string
 	Kind     string
 	FilePath string
+	Aliases  []string // extra lookup names (prisma model name — Phase 7a)
 	ArityMin int
 	ArityMax int // nodeid.UnboundedArity when open
+}
+
+// lookupNames yields every name the def is registered under.
+func (d *DefInfo) lookupNames() []string {
+	if len(d.Aliases) == 0 {
+		return []string{d.Simple}
+	}
+	names := make([]string, 0, 1+len(d.Aliases))
+	names = append(names, d.Simple)
+	for _, a := range d.Aliases {
+		if a != "" && a != d.Simple {
+			names = append(names, a)
+		}
+	}
+	return names
 }
 
 func (d *DefInfo) isCallable() bool {
@@ -56,27 +73,45 @@ func (d *DefInfo) arityAccepts(args int) bool {
 // resolver is the cross-file symbol table used for scope-weighted matching.
 type resolver struct {
 	mu     sync.RWMutex
-	byName map[string]map[string]*DefInfo // simple name → id → def
+	byName map[string]map[string]*DefInfo // lookup name → id → def
 	byID   map[string]*DefInfo
+	// dbSchemas counts table/view defs per datasource → schema; it answers
+	// "is the DB domain active" and synthesizes dangling xref targets
+	// (Phase 7a §1.5).
+	dbSchemas map[string]map[string]int
 }
 
 func newResolver() *resolver {
-	return &resolver{byName: map[string]map[string]*DefInfo{}, byID: map[string]*DefInfo{}}
+	return &resolver{
+		byName:    map[string]map[string]*DefInfo{},
+		byID:      map[string]*DefInfo{},
+		dbSchemas: map[string]map[string]int{},
+	}
 }
 
 func (r *resolver) register(d *DefInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if old, ok := r.byID[d.ID]; ok {
-		delete(r.byName[old.Simple], d.ID)
+		r.removeNamesLocked(old)
 	}
 	r.byID[d.ID] = d
-	set := r.byName[d.Simple]
-	if set == nil {
-		set = map[string]*DefInfo{}
-		r.byName[d.Simple] = set
+	for _, name := range d.lookupNames() {
+		set := r.byName[name]
+		if set == nil {
+			set = map[string]*DefInfo{}
+			r.byName[name] = set
+		}
+		set[d.ID] = d
 	}
-	set[d.ID] = d
+	if ds, schema, ok := dbTableLoc(d); ok {
+		m := r.dbSchemas[ds]
+		if m == nil {
+			m = map[string]int{}
+			r.dbSchemas[ds] = m
+		}
+		m[schema]++
+	}
 }
 
 func (r *resolver) unregister(id string) {
@@ -87,12 +122,74 @@ func (r *resolver) unregister(id string) {
 		return
 	}
 	delete(r.byID, id)
-	if set := r.byName[d.Simple]; set != nil {
-		delete(set, id)
-		if len(set) == 0 {
-			delete(r.byName, d.Simple)
+	r.removeNamesLocked(d)
+	if ds, schema, ok := dbTableLoc(d); ok {
+		if m := r.dbSchemas[ds]; m != nil {
+			m[schema]--
+			if m[schema] <= 0 {
+				delete(m, schema)
+			}
+			if len(m) == 0 {
+				delete(r.dbSchemas, ds)
+			}
 		}
 	}
+}
+
+// removeNamesLocked drops a def from every name bucket it occupies.
+func (r *resolver) removeNamesLocked(d *DefInfo) {
+	for _, name := range d.lookupNames() {
+		if set := r.byName[name]; set != nil {
+			delete(set, d.ID)
+			if len(set) == 0 {
+				delete(r.byName, name)
+			}
+		}
+	}
+}
+
+// dbTableLoc parses "db.<ds>.<schema>.<name>" off a table/view def.
+func dbTableLoc(d *DefInfo) (ds, schema string, ok bool) {
+	if d.Kind != nodeid.KindTable && d.Kind != nodeid.KindView {
+		return "", "", false
+	}
+	rest, found := strings.CutPrefix(d.ID, "db.")
+	if !found {
+		return "", "", false
+	}
+	parts := strings.SplitN(rest, ".", 3)
+	if len(parts) != 3 {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+// dbActive reports whether any table/view definitions are indexed.
+func (r *resolver) dbActive() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.dbSchemas) > 0
+}
+
+// dbSole returns the only datasource and its dominant schema (count desc,
+// then lexicographic) — the dangling-xref synthesis anchor. ok is false when
+// zero or multiple datasources are indexed.
+func (r *resolver) dbSole() (ds, schema string, ok bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if len(r.dbSchemas) != 1 {
+		return "", "", false
+	}
+	for d, schemas := range r.dbSchemas {
+		ds = d
+		best := -1
+		for s, cnt := range schemas {
+			if cnt > best || (cnt == best && s < schema) {
+				best, schema = cnt, s
+			}
+		}
+	}
+	return ds, schema, schema != ""
 }
 
 func (r *resolver) candidates(simple string) []*DefInfo {
@@ -240,7 +337,96 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 		}
 	}
 
+	// 4) Code→DB cross-domain refs (Phase 7a, docs/phase7-spec.md §1).
+	e.resolveDBXrefs(rec, put)
+
 	return sortEdges(best)
+}
+
+// resolveDBXrefs matches a code node's DBRefs against indexed table/view
+// definitions. Tiers: 1.0 explicit physical name / 0.9 client access / 0.8
+// convention or multi-datasource ambiguity. Registry-bound except the
+// explicit-mapping dangling case (sole datasource only).
+func (e *Engine) resolveDBXrefs(rec *nodeRecord, put func(target string, t EdgeType, conf float32)) {
+	if len(rec.DBRefs) == 0 || !e.res.dbActive() {
+		return
+	}
+	for _, ref := range rec.DBRefs {
+		names := []string{ref.Name, strings.ToUpper(ref.Name)}
+		if ref.Source == parse.DBRefConvention {
+			names = append(names, snakeCase(ref.Name), strings.ToLower(ref.Name))
+		}
+		found := map[string]*DefInfo{}
+		seenName := map[string]bool{}
+		for _, nm := range names {
+			if nm == "" || seenName[nm] {
+				continue
+			}
+			seenName[nm] = true
+			for _, c := range e.res.candidates(nm) {
+				if c.Kind == nodeid.KindTable || c.Kind == nodeid.KindView {
+					found[c.ID] = c
+				}
+			}
+		}
+		if len(found) == 0 {
+			// 명시 매핑만 dangling을 허용한다 — 스냅샷 누락의 정직한 표현.
+			if ref.Source == parse.DBRefExplicit {
+				if ds, schema, ok := e.res.dbSole(); ok {
+					put(nodeid.DBNode(ds, schema, ref.Name), EdgeReference, confCertain)
+				}
+			}
+			continue
+		}
+		if len(found) > maxGlobalCandidates {
+			continue
+		}
+		conf := float32(confDBHeuristic)
+		if !multiDatasource(found) {
+			switch ref.Source {
+			case parse.DBRefExplicit:
+				conf = confCertain
+			case parse.DBRefClient:
+				conf = confDBLogical
+			}
+		}
+		for id := range found {
+			put(id, EdgeReference, conf)
+		}
+	}
+}
+
+// multiDatasource reports whether defs span more than one datasource shard.
+func multiDatasource(defs map[string]*DefInfo) bool {
+	first := ""
+	for _, d := range defs {
+		if first == "" {
+			first = d.Pkg
+		} else if d.Pkg != first {
+			return true
+		}
+	}
+	return false
+}
+
+// snakeCase lowers a CamelCase entity name into the snake_case table
+// convention: "JobPosting" → "job_posting", "HTTPRoute" → "http_route".
+func snakeCase(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			prevLower := i > 0 && (s[i-1] >= 'a' && s[i-1] <= 'z' || s[i-1] >= '0' && s[i-1] <= '9')
+			nextLower := i+1 < len(s) && s[i+1] >= 'a' && s[i+1] <= 'z'
+			if i > 0 && (prevLower || nextLower) {
+				b.WriteByte('_')
+			}
+			b.WriteByte(c + ('a' - 'A'))
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // resolveDBEdges is the graphindb branch: refs arrive as exact node FQNs, so

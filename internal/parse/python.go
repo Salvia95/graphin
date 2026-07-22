@@ -98,11 +98,75 @@ func (ex *pyExtractor) class(n *ts.Node, outer string) {
 			}
 		})
 	}
+	body := n.ChildByFieldName("body")
+	if body != nil {
+		node.DBRefs = pyDBRefs(src, body)
+	}
 	ex.res.Nodes = append(ex.res.Nodes, node)
 
-	if body := n.ChildByFieldName("body"); body != nil {
+	if body != nil {
 		eachNamed(body, func(m *ts.Node) { ex.visit(m, chain) })
 	}
+}
+
+// pyDBRefs reads explicit table mappings from a class body (Phase 7a):
+// SQLAlchemy `__tablename__ = "x"` and Django `class Meta: db_table = "x"`.
+// Convention synthesis (Django app_label prefixing) is out of scope.
+func pyDBRefs(src []byte, body *ts.Node) []DBRef {
+	var refs []DBRef
+	add := func(name string) {
+		if name == "" {
+			return
+		}
+		for _, r := range refs {
+			if r.Name == name {
+				return
+			}
+		}
+		refs = append(refs, DBRef{Name: name, Source: DBRefExplicit})
+	}
+	eachNamed(body, func(stmt *ts.Node) {
+		switch stmt.Kind() {
+		case "expression_statement":
+			add(pyStringAssign(src, stmt, "__tablename__"))
+		case "class_definition":
+			if text(stmt.ChildByFieldName("name"), src) != "Meta" {
+				return
+			}
+			if meta := stmt.ChildByFieldName("body"); meta != nil {
+				eachNamed(meta, func(m *ts.Node) {
+					if m.Kind() == "expression_statement" {
+						add(pyStringAssign(src, m, "db_table"))
+					}
+				})
+			}
+		}
+	})
+	return refs
+}
+
+// pyStringAssign returns the string value of `<name> = "..."` inside an
+// expression_statement ("" when the shape doesn't match).
+func pyStringAssign(src []byte, stmt *ts.Node, name string) string {
+	a := stmt.NamedChild(0)
+	if a == nil || a.Kind() != "assignment" {
+		return ""
+	}
+	left := a.ChildByFieldName("left")
+	if left == nil || left.Kind() != "identifier" || text(left, src) != name {
+		return ""
+	}
+	right := a.ChildByFieldName("right")
+	if right == nil || right.Kind() != "string" {
+		return ""
+	}
+	var sb strings.Builder
+	eachNamed(right, func(c *ts.Node) {
+		if c.Kind() == "string_content" {
+			sb.WriteString(text(c, src))
+		}
+	})
+	return sb.String()
 }
 
 func (ex *pyExtractor) function(n *ts.Node, container string) {

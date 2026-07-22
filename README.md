@@ -49,6 +49,14 @@ graphin dbimport --init main            # 수기 작성용 빈 뼈대
 `read_code`가 실제 CREATE TABLE·model 블록을 반환한다. 매니페스트 오류는
 `db_manifest_errors` 속성으로 에이전트에게 피드백된다.
 
+**코드↔DB 크로스 도메인 엣지**: JPA `@Table(name=)`/`@Entity`, SQLAlchemy
+`__tablename__`, Django `Meta.db_table`, TypeORM `@Entity("x")`, Prisma
+client 멤버 접근(`prisma.<model>.`)이 감지되면 코드 노드 → 테이블 노드
+`reference` 엣지가 생성된다(명시 물리명 1.0 / client 0.9 / 클래스명 관례
+0.8, 레지스트리 실존 대상 한정 — 명시 매핑만 단일 데이터소스에서 dangling
+허용). 테이블 노드의 `used_by` 한 번으로 "이 테이블을 건드리는 코드"에
+도달한다. 설계: [`docs/phase7-spec.md`](docs/phase7-spec.md).
+
 부트스트랩 시 DB 흔적(마이그레이션 디렉터리·prisma·docker-compose 등)은
 있는데 스냅샷도 매니페스트도 없으면 `bootstrap_workspace` 응답에
 `db_sources_detected`/`db_snapshots` 속성과 안내 `<hint>`가 동봉된다.

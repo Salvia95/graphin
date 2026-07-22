@@ -51,6 +51,7 @@ func kotlinType(src []byte, n *ts.Node, outer string, res *FileResult) {
 		Hash:        subtreeHash(n, src),
 	}
 	node.StartByte, node.EndByte = span(n)
+	node.DBRefs = kotlinJPARefs(src, n, name)
 	eachNamed(n, func(c *ts.Node) {
 		if c.Kind() == "delegation_specifiers" {
 			eachNamed(c, func(d *ts.Node) { // (delegation_specifier (user_type|constructor_invocation))
@@ -73,6 +74,81 @@ func kotlinType(src []byte, n *ts.Node, outer string, res *FileResult) {
 			}
 		})
 	})
+}
+
+// kotlinJPARefs reads JPA table mappings off a class's annotations (Phase
+// 7a), mirroring javaJPARefs. Grammar shapes: marker `annotation > user_type`,
+// with-args `annotation > constructor_invocation(user_type, value_arguments)`.
+func kotlinJPARefs(src []byte, n *ts.Node, className string) []DBRef {
+	entity, table := false, ""
+	eachNamed(n, func(c *ts.Node) {
+		if c.Kind() != "modifiers" {
+			return
+		}
+		eachNamed(c, func(a *ts.Node) {
+			if a.Kind() != "annotation" {
+				return
+			}
+			inner := a.NamedChild(0)
+			if inner == nil {
+				return
+			}
+			switch inner.Kind() {
+			case "user_type":
+				if annSimpleName(text(inner, src)) == "Entity" {
+					entity = true
+				}
+			case "constructor_invocation":
+				typ := (*ts.Node)(nil)
+				args := (*ts.Node)(nil)
+				eachNamed(inner, func(p *ts.Node) {
+					switch p.Kind() {
+					case "user_type":
+						typ = p
+					case "value_arguments":
+						args = p
+					}
+				})
+				switch annSimpleName(text(typ, src)) {
+				case "Entity":
+					entity = true
+				case "Table":
+					if args != nil {
+						eachNamed(args, func(v *ts.Node) {
+							if v.Kind() != "value_argument" {
+								return
+							}
+							if v.NamedChildCount() >= 2 &&
+								text(v.NamedChild(0), src) == "name" {
+								table = kotlinStringContent(v.NamedChild(1), src)
+							}
+						})
+					}
+				}
+			}
+		})
+	})
+	if table != "" {
+		return []DBRef{{Name: table, Source: DBRefExplicit}}
+	}
+	if entity {
+		return []DBRef{{Name: className, Source: DBRefConvention}}
+	}
+	return nil
+}
+
+// kotlinStringContent reads the content of a string_literal node.
+func kotlinStringContent(n *ts.Node, src []byte) string {
+	if n == nil || n.Kind() != "string_literal" {
+		return ""
+	}
+	var sb strings.Builder
+	eachNamed(n, func(c *ts.Node) {
+		if c.Kind() == "string_content" {
+			sb.WriteString(text(c, src))
+		}
+	})
+	return sb.String()
 }
 
 // kotlinSuperName extracts the supertype name from a delegation_specifier,

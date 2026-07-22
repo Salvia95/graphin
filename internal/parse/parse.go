@@ -106,6 +106,30 @@ type Call struct {
 	Recv string // receiver expression text ("" for bare calls)
 }
 
+// DBRefSource classifies how a code node referenced a DB table (Phase 7a,
+// docs/phase7-spec.md §1).
+type DBRefSource uint8
+
+const (
+	// DBRefExplicit is a written physical name: JPA @Table(name=...),
+	// SQLAlchemy __tablename__, Django Meta.db_table, TypeORM @Entity("x").
+	DBRefExplicit DBRefSource = iota
+	// DBRefClient is an ORM client member access (prisma.<model>.<op>);
+	// resolves through DB-node aliases, registry-bound.
+	DBRefClient
+	// DBRefConvention is an entity class name without a physical mapping;
+	// resolution also tries the snake_case form, registry-bound.
+	DBRefConvention
+)
+
+// DBRef is one code→DB table reference emitted by an extractor. The name is
+// recorded as written — datasource/schema are unknowable in code and are
+// judged at edge resolution.
+type DBRef struct {
+	Name   string
+	Source DBRefSource
+}
+
 // Node is one indexable semantic subtree (class/interface/method/function).
 type Node struct {
 	ID          string
@@ -123,6 +147,8 @@ type Node struct {
 	LogicalRefs []string // graphindb 전용: enforced:false 논리/다형성 참조 대상 FQN
 	Calls       []Call
 	BodyTokens  []string // capped lexical tokens of the node's source slice
+	DBRefs      []DBRef  // 코드 노드 전용: 코드→DB 테이블 참조 (Phase 7a)
+	Aliases     []string // DB 노드 전용: 추가 조회명 (prisma 모델명 등)
 }
 
 // FileResult is the full extraction of one file.

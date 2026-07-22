@@ -38,6 +38,9 @@ type jsExtractor struct {
 	res      *FileResult
 	dts      bool           // .d.ts: bodyless signatures are definitions
 	ordinals map[string]int // container+"\x00"+name → definitions seen
+	// pendingDecorators carries decorators that sit on an export_statement
+	// (siblings of the exported class in the grammar) down to ex.class.
+	pendingDecorators []*ts.Node
 }
 
 func extractJS(src []byte, root *ts.Node, res *FileResult) {
@@ -218,7 +221,13 @@ func (ex *jsExtractor) export(n *ts.Node, container string) {
 		return
 	}
 	if d := n.ChildByFieldName("declaration"); d != nil {
+		eachNamed(n, func(c *ts.Node) {
+			if c.Kind() == "decorator" {
+				ex.pendingDecorators = append(ex.pendingDecorators, c)
+			}
+		})
 		ex.visit(d, container)
+		ex.pendingDecorators = nil
 		return
 	}
 	// `export default <expr>`: anonymous functions/classes become "default"
@@ -293,6 +302,7 @@ func (ex *jsExtractor) fnNode(spanN, fn *ts.Node, name, container, kind string) 
 	node.StartByte, node.EndByte = span(spanN)
 	if body := fn.ChildByFieldName("body"); body != nil {
 		node.Calls = jsCalls(ex.src, body)
+		node.DBRefs = jsClientRefs(node.Calls)
 		if body.Kind() == "statement_block" {
 			chain := joinContainer(container, name)
 			eachNamed(body, func(m *ts.Node) {
@@ -319,6 +329,13 @@ func (ex *jsExtractor) class(n *ts.Node, nameOverride, outer string) {
 	}
 	chain := joinContainer(outer, name)
 	ord := ex.ordinal(outer, name)
+	decorators := ex.pendingDecorators
+	ex.pendingDecorators = nil
+	eachNamed(n, func(c *ts.Node) {
+		if c.Kind() == "decorator" {
+			decorators = append(decorators, c)
+		}
+	})
 
 	node := Node{
 		ID:          nodeid.Python(ex.res.Package, outer, name, ord),
@@ -327,6 +344,7 @@ func (ex *jsExtractor) class(n *ts.Node, nameOverride, outer string) {
 		Kind:        nodeid.KindClass,
 		Container:   outer,
 		Hash:        subtreeHash(n, src),
+		DBRefs:      jsEntityRefs(src, decorators, name),
 	}
 	node.StartByte, node.EndByte = span(n)
 	eachNamed(n, func(c *ts.Node) {
@@ -548,6 +566,88 @@ func jsCalls(src []byte, body *ts.Node) []Call {
 	}
 	walk(body)
 	return calls
+}
+
+// jsEntityRefs reads TypeORM-style @Entity decorators (Phase 7a): a string
+// argument (or an options object with a name property) is an explicit
+// physical table name; a bare @Entity falls back to the class-name
+// convention.
+func jsEntityRefs(src []byte, decorators []*ts.Node, className string) []DBRef {
+	entity, table := false, ""
+	for _, d := range decorators {
+		inner := d.NamedChild(0)
+		if inner == nil {
+			continue
+		}
+		var nameNode, args *ts.Node
+		switch inner.Kind() {
+		case "call_expression":
+			nameNode = inner.ChildByFieldName("function")
+			args = inner.ChildByFieldName("arguments")
+		case "identifier":
+			nameNode = inner
+		default:
+			continue
+		}
+		if nameNode == nil || annSimpleName(text(nameNode, src)) != "Entity" {
+			continue
+		}
+		entity = true
+		if args == nil {
+			continue
+		}
+		eachNamed(args, func(a *ts.Node) {
+			if table != "" {
+				return
+			}
+			switch a.Kind() {
+			case "string":
+				table = stringLiteral(a, src)
+			case "object": // @Entity({ name: "x" })
+				eachNamed(a, func(p *ts.Node) {
+					if p.Kind() != "pair" {
+						return
+					}
+					if text(p.ChildByFieldName("key"), src) == "name" {
+						if v := p.ChildByFieldName("value"); v != nil && v.Kind() == "string" {
+							table = stringLiteral(v, src)
+						}
+					}
+				})
+			}
+		})
+	}
+	if table != "" {
+		return []DBRef{{Name: table, Source: DBRefExplicit}}
+	}
+	if entity {
+		return []DBRef{{Name: className, Source: DBRefConvention}}
+	}
+	return nil
+}
+
+// jsClientRefs derives prisma-client table refs from call receivers:
+// `prisma.<model>.<op>()` / `this.prisma.<model>.<op>()` (Phase 7a). The
+// model member resolves through the alias names registered by the prisma
+// SSOT parser; $-prefixed members are client API, not models.
+func jsClientRefs(calls []Call) []DBRef {
+	var refs []DBRef
+	seen := map[string]bool{}
+	for _, c := range calls {
+		recv := strings.TrimPrefix(c.Recv, "this.")
+		dot := strings.IndexByte(recv, '.')
+		if dot < 0 || recv[:dot] != "prisma" {
+			continue
+		}
+		member := recv[dot+1:]
+		if member == "" || strings.ContainsAny(member, ".([") ||
+			strings.HasPrefix(member, "$") || seen[member] {
+			continue
+		}
+		seen[member] = true
+		refs = append(refs, DBRef{Name: member, Source: DBRefClient})
+	}
+	return refs
 }
 
 // stringLiteral concatenates the fragments of a string node ("./m" → ./m).

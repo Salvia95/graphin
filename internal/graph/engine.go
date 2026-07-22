@@ -21,23 +21,24 @@ import (
 // nodeRecord is the engine's canonical per-node state. Records are owned by
 // the single-writer indexer; shards are their read-optimized projection.
 type nodeRecord struct {
-	ID          string
-	DisplayName string
-	SimpleName  string
-	Kind        string
-	Container   string
-	FilePath    string
-	Start, End  uint32
-	Hash        []byte
-	Partial     bool
-	Pkg         string   // shard key
-	ArityMin    int
-	ArityMax    int      // nodeid.UnboundedArity when open
-	Supers      []string // for changed nodes; DB 노드는 확정 참조 FQN
-	LogicalRefs []string // graphindb: enforced:false 논리 참조 FQN
-	RawCalls    []parse.Call
-	Imports     []string
-	Uses        []Edge // current resolved edges (loaded or computed)
+	ID           string
+	DisplayName  string
+	SimpleName   string
+	Kind         string
+	Container    string
+	FilePath     string
+	Start, End   uint32
+	Hash         []byte
+	Partial      bool
+	Pkg          string // shard key
+	ArityMin     int
+	ArityMax     int      // nodeid.UnboundedArity when open
+	Supers       []string // for changed nodes; DB 노드는 확정 참조 FQN
+	LogicalRefs  []string // graphindb: enforced:false 논리 참조 FQN
+	RawCalls     []parse.Call
+	DBRefs       []parse.DBRef // 코드→DB 크로스 도메인 참조 (Phase 7a)
+	Imports      []string
+	Uses         []Edge // current resolved edges (loaded or computed)
 	needsResolve bool
 }
 
@@ -221,6 +222,7 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 			rec.Supers = n.Supers
 			rec.LogicalRefs = n.LogicalRefs
 			rec.RawCalls = n.Calls
+			rec.DBRefs = n.DBRefs
 			rec.Imports = res.Imports
 			rec.needsResolve = true
 		}
@@ -228,7 +230,7 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 		classFQN := nodeid.Class(res.Package, firstSegmentChain(n))
 		e.res.register(&DefInfo{
 			ID: n.ID, Pkg: pkg, ClassFQN: classFQN, Simple: n.SimpleName,
-			Kind: n.Kind, FilePath: res.RelPath,
+			Kind: n.Kind, FilePath: res.RelPath, Aliases: n.Aliases,
 			ArityMin: n.ArityMin, ArityMax: n.ArityMax,
 		})
 	}

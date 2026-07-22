@@ -56,6 +56,7 @@ func extractDBPrisma(src []byte, route *DBRoute, res *FileResult) bool {
 			StartByte:   b.start,
 			EndByte:     b.end,
 			Hash:        blake3.Sum256(src[b.start:b.end]),
+			Aliases:     prismaAliases(b.name, mi.table),
 		}
 		for _, line := range strings.Split(string(b.body), "\n") {
 			line = strings.TrimSpace(line)
@@ -86,6 +87,27 @@ func extractDBPrisma(src []byte, route *DBRoute, res *FileResult) bool {
 		res.Nodes = append(res.Nodes, n)
 	}
 	return len(res.Nodes) > 0
+}
+
+// prismaAliases exposes the model name and its client-property (lcfirst)
+// form as extra resolver lookup names so `prisma.<member>` client refs land
+// on the table node (Phase 7a).
+func prismaAliases(model, table string) []string {
+	var out []string
+	if model != table {
+		out = append(out, model)
+	}
+	if lc := lcFirst(model); lc != model && lc != table {
+		out = append(out, lc)
+	}
+	return out
+}
+
+func lcFirst(s string) string {
+	if s == "" || (s[0] < 'A' || s[0] > 'Z') {
+		return s
+	}
+	return string(s[0]+('a'-'A')) + s[1:]
 }
 
 type prismaBlock struct {
