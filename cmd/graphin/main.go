@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Salvia95/graphin/internal/dbimport"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/mcp/tools"
 	"github.com/Salvia95/graphin/internal/obs"
@@ -20,6 +21,12 @@ import (
 const version = "0.1.0-dev"
 
 func main() {
+	// Subcommand: `graphin dbimport …` converts/scaffolds graphindb snapshot
+	// files and exits — no MCP transport involved, stdout is safe to use.
+	if len(os.Args) > 1 && os.Args[1] == "dbimport" {
+		os.Exit(dbimport.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+
 	var (
 		root      = flag.String("workspace", "", "path to the workspace to index (required)")
 		modelType = flag.String("model-type", "multilingual_cjk", "embedding model: english_optimal | multilingual_cjk")
