@@ -10,8 +10,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/Salvia95/graphin/internal/workspace"
 )
 
 // SweepConfig is one point on the §3.3 sweep matrix. Name becomes the
@@ -128,37 +126,33 @@ func runTask(ctx context.Context, task Task, o RunOptions, configs []SweepConfig
 		return nil
 	}
 
-	// graphin policy: 태스크당 1회 인덱싱, 설정별 리플레이 — 스윕 27점이
-	// 재파싱 27회가 되지 않게 한다(두 번째 config부터 부트스트랩은 영속
-	// 인덱스 복원 경로를 탄다).
-	base := o.Base
-	base.KeepIndex = true // config 루프 동안 유지, 아래에서 정리
-	var firstErr error
-	caveatDone := false
-	for _, c := range configs {
-		cfg := base
-		cfg.TopK, cfg.RRFK, cfg.MinConf = c.TopK, c.RRFK, c.MinConf
-		regions, stats, err := ExploreRepo(ctx, task.RepoDir, task.Issue, cfg)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
+	// graphin policy: 태스크당 인덱싱 1회, 설정별 인메모리 리플레이. 설정은
+	// 검색·탐색 파라미터만 다르므로 재부트스트랩이 필요 없고, 반복
+	// 부트스트랩이 유발하던 ORT 세션 누적도 사라진다.
+	sess, err := Open(ctx, task.RepoDir, o.Base)
+	if err != nil {
+		for _, c := range configs { // 인덱싱 실패: 빈 제출로 정렬을 맞춘다
+			if emitErr := emit(c.Name, nil); emitErr != nil {
+				return emitErr
 			}
-			regions = nil
 		}
-		if stats.EmbedDropped > 0 && !caveatDone {
-			caveatDone = true
-			*caveats = append(*caveats, fmt.Sprintf(
-				"%s: %d embeds dropped (vector index incomplete for this task)",
-				task.InstanceID, stats.EmbedDropped))
-		}
-		if err := emit(c.Name, regions); err != nil {
+		return err
+	}
+	defer sess.Close()
+
+	if sess.Stats.EmbedDropped > 0 {
+		*caveats = append(*caveats, fmt.Sprintf(
+			"%s: %d embeds dropped (vector index incomplete for this task)",
+			task.InstanceID, sess.Stats.EmbedDropped))
+	}
+	for _, c := range configs {
+		cfg := o.Base
+		cfg.TopK, cfg.RRFK, cfg.MinConf = c.TopK, c.RRFK, c.MinConf
+		if err := emit(c.Name, sess.Explore(task.Issue, cfg)); err != nil {
 			return err
 		}
 	}
-	if !o.Base.KeepIndex {
-		os.RemoveAll(filepath.Join(task.RepoDir, workspace.DataDirName))
-	}
-	return firstErr
+	return nil
 }
 
 func writeSummary(o RunOptions, taskCount int, configs []SweepConfig, problems, taskErrs, caveats []string, elapsed time.Duration) error {

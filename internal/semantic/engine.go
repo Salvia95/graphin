@@ -24,10 +24,15 @@ const (
 )
 
 // Vectorizer turns text into an embedding. The ONNX pipeline implements it;
-// tests substitute deterministic fakes.
+// tests substitute deterministic fakes. A Vectorizer holding native
+// resources also implements closableVectorizer so Close/Abandon can free
+// them — without that, every Engine leaks a full ORT session (model weights
+// + inference arena), which repeated bootstraps turn into an OOM.
 type Vectorizer interface {
 	Embed(text string) ([]float32, error)
 }
+
+type closableVectorizer interface{ Close() }
 
 // ortVectorizer is the production tokenizer+ONNX pipeline.
 type ortVectorizer struct {
@@ -39,6 +44,9 @@ func (v *ortVectorizer) Embed(text string) ([]float32, error) {
 	ids, mask := v.tok.Encode(text)
 	return v.sess.Embed(ids, mask)
 }
+
+// Close releases the ONNX session's native memory.
+func (v *ortVectorizer) Close() { v.sess.Close() }
 
 type op struct {
 	remove  bool
@@ -216,6 +224,9 @@ func (e *Engine) apply(o op) {
 	if o.remove {
 		_ = e.col.Delete(context.Background(), nil, nil, o.id)
 	} else {
+		if e.vec == nil { // released mid-shutdown
+			return
+		}
 		vec, err := e.vec.Embed(e.passagePrefix + o.summary)
 		if err != nil {
 			e.log.Event("embed_error", map[string]any{"id": o.id, "error": err.Error()})
@@ -240,7 +251,7 @@ func (e *Engine) Search(query string, topK int) []string {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.col.Count() == 0 {
+	if e.vec == nil || e.col.Count() == 0 { // vec nil: closed engine
 		return nil
 	}
 	vec, err := e.vec.Embed(e.queryPrefix + query)
@@ -298,6 +309,20 @@ func (e *Engine) Close() {
 			e.log.Event("vectors_export_error", map[string]any{"error": err.Error()})
 		}
 	}
+	e.releaseVectorizer()
+}
+
+// releaseVectorizer frees the vectorizer's native resources and clears the
+// field, so a post-Close Search degrades to "no results" instead of using a
+// destroyed ORT session. Workers are already stopped by both callers.
+func (e *Engine) releaseVectorizer() {
+	e.mu.Lock()
+	v := e.vec
+	e.vec = nil
+	e.mu.Unlock()
+	if c, ok := v.(closableVectorizer); ok {
+		c.Close()
+	}
 }
 
 // Abandon stops workers WITHOUT exporting — kill -9 simulation for the
@@ -306,4 +331,5 @@ func (e *Engine) Abandon() {
 	e.dirty.Store(false)
 	e.stopOnce.Do(func() { close(e.stop) })
 	e.stopped.Wait()
+	e.releaseVectorizer()
 }

@@ -5,6 +5,7 @@ package semantic
 
 import (
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +18,38 @@ type gateVec struct{ gate chan struct{} }
 func (g *gateVec) Embed(string) ([]float32, error) {
 	<-g.gate
 	return make([]float32, 4), nil
+}
+
+// closeVec records whether the engine released it on shutdown.
+type closeVec struct{ closed atomic.Bool }
+
+func (c *closeVec) Embed(string) ([]float32, error) { return make([]float32, 4), nil }
+func (c *closeVec) Close()                          { c.closed.Store(true) }
+
+// TestShutdownReleasesVectorizer: 종료 시 vectorizer의 네이티브 자원(ORT
+// 세션)이 해제되어야 한다. 해제 누락은 부트스트랩 반복 시 세션당 수백 MB가
+// 새어 VM 전체를 OOM으로 몰고 간다.
+func TestShutdownReleasesVectorizer(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		stop func(*Engine)
+	}{
+		{"Close", func(e *Engine) { e.Close() }},
+		{"Abandon", func(e *Engine) { e.Abandon() }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := New(filepath.Join(t.TempDir(), "vectors.bin"), nil, obs.Nop())
+			v := &closeVec{}
+			e.WarmupWith(v, "m", "q: ", "p: ")
+			tc.stop(e)
+			if !v.closed.Load() {
+				t.Fatal("vectorizer must be closed on shutdown")
+			}
+			if got := e.Search("anything", 3); got != nil {
+				t.Fatalf("search after shutdown must be inert, got %v", got)
+			}
+		})
+	}
 }
 
 func TestDrainedTracksInFlightOps(t *testing.T) {

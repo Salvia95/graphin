@@ -123,6 +123,45 @@ func TestExploreRepoDeterministicRegions(t *testing.T) {
 	}
 }
 
+// TestSessionReplayMatchesFreshBootstrap: 스윕은 세션 하나를 여러 config로
+// 리플레이한다 — 결과가 config별 재부트스트랩과 동일해야 최적화가 정당하다.
+func TestSessionReplayMatchesFreshBootstrap(t *testing.T) {
+	root := copyFixtureRepo(t)
+	cfgs := []Options{}
+	for _, tk := range []int{5, 20} {
+		o := Defaults()
+		o.TopK = tk
+		cfgs = append(cfgs, o)
+	}
+
+	sess, err := Open(context.Background(), root, Defaults())
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayed := make([][]Region, len(cfgs))
+	for i, o := range cfgs {
+		replayed[i] = sess.Explore(demoIssue, o)
+	}
+	sess.Close()
+
+	for i, o := range cfgs {
+		fresh, _, err := ExploreRepo(context.Background(), root, demoIssue, o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(replayed[i], fresh) {
+			t.Fatalf("config %d (top_k=%d): replay differs from fresh bootstrap\nreplay=%v\nfresh=%v",
+				i, o.TopK, replayed[i], fresh)
+		}
+	}
+	if len(replayed[0]) == len(replayed[1]) && len(replayed[0]) == 0 {
+		t.Fatal("both configs produced nothing — test is vacuous")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".graphin")); !os.IsNotExist(err) {
+		t.Fatal("session close must remove the index without --keep-index")
+	}
+}
+
 func TestGrepRegionsBaseline(t *testing.T) {
 	root := copyFixtureRepo(t)
 	regions, err := GrepRegions(root, demoIssue, Defaults(), 20)

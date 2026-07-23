@@ -50,62 +50,100 @@ type ExploreStats struct {
 	EmbedDropped int64
 }
 
-// ExploreRepo runs the graphin policy over one task repo: bootstrap →
-// derived queries → SearchK seeds → one-hop explore expansion → node spans
-// as ranked regions. Every step is deterministic (engine tie-breaks are
-// lexicographic), so identical inputs yield identical submissions. Semantic
-// mode additionally waits for the embedding queue to drain — SemanticReady
-// alone would measure a near-empty vector index.
-func ExploreRepo(ctx context.Context, repoDir, issue string, o Options) ([]Region, ExploreStats, error) {
+// Session is one indexed task repo held open across sweep configs. Indexing
+// is the expensive part and is identical for every config — only the
+// search/explore parameters differ — so a sweep bootstraps once and replays
+// in memory. Re-bootstrapping per config also multiplied the ORT session
+// footprint, which is what drove the eval host out of memory.
+type Session struct {
+	w     *workspace.Workspace
+	root  string
+	keep  bool
+	Stats ExploreStats
+}
+
+// Open indexes one task repo and waits until it is queryable: lexical ready,
+// and in semantic mode the model warm AND the embedding queue drained
+// (SemanticReady alone would measure a near-empty vector index).
+func Open(ctx context.Context, repoDir string, o Options) (*Session, error) {
 	ortLib := o.OrtLib
 	if !o.Semantic && ortLib == "" {
 		// lexical-only: poison the ORT path so no provisioning/download runs.
 		ortLib = filepath.Join(os.TempDir(), "graphin-eval-no-ort")
 	}
-	w := workspace.New(workspace.Config{
-		Root:      repoDir,
-		ModelType: o.ModelType,
-		Offline:   o.Offline,
-		ModelDir:  o.ModelDir,
-		OrtLib:    ortLib,
-		Log:       obs.Nop(),
-	})
-	defer w.Close()
-	if !o.KeepIndex {
-		defer os.RemoveAll(filepath.Join(repoDir, workspace.DataDirName))
+	s := &Session{
+		w: workspace.New(workspace.Config{
+			Root:      repoDir,
+			ModelType: o.ModelType,
+			Offline:   o.Offline,
+			ModelDir:  o.ModelDir,
+			OrtLib:    ortLib,
+			Log:       obs.Nop(),
+		}),
+		root: repoDir,
+		keep: o.KeepIndex,
 	}
 
-	var stats ExploreStats
-	if _, err := w.Bootstrap(ctx, o.ModelType, o.Offline); err != nil {
-		return nil, stats, err
+	if _, err := s.w.Bootstrap(ctx, o.ModelType, o.Offline); err != nil {
+		s.Close()
+		return nil, err
 	}
 	deadline := time.Now().Add(o.WaitTimeout)
 	for {
-		st := w.FSM.Status()
-		if st.LexicalReady && (!o.Semantic || (st.SemanticReady && w.SemanticDrained())) {
+		st := s.w.FSM.Status()
+		if st.LexicalReady && (!o.Semantic || (st.SemanticReady && s.w.SemanticDrained())) {
 			break
 		}
-		if o.Semantic {
-			if msg := w.SemUnavailable(); msg != "" {
-				return nil, stats, fmt.Errorf("semantic engine unavailable: %s", msg)
-			}
+		var err error
+		switch {
+		case o.Semantic && s.w.SemUnavailable() != "":
+			err = fmt.Errorf("semantic engine unavailable: %s", s.w.SemUnavailable())
+		case time.Now().After(deadline) && o.Semantic && st.LexicalReady:
+			err = fmt.Errorf("semantic warmup/drain did not finish within %s (ready=%t drained=%t)",
+				o.WaitTimeout, st.SemanticReady, s.w.SemanticDrained())
+		case time.Now().After(deadline):
+			err = fmt.Errorf("indexing did not finish within %s", o.WaitTimeout)
 		}
-		if time.Now().After(deadline) {
-			if o.Semantic && st.LexicalReady {
-				return nil, stats, fmt.Errorf("semantic warmup/drain did not finish within %s (ready=%t drained=%t)",
-					o.WaitTimeout, st.SemanticReady, w.SemanticDrained())
-			}
-			return nil, stats, fmt.Errorf("indexing did not finish within %s", o.WaitTimeout)
+		if err != nil {
+			s.Close()
+			return nil, err
 		}
 		select {
 		case <-ctx.Done():
-			return nil, stats, ctx.Err()
+			s.Close()
+			return nil, ctx.Err()
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
-	stats.EmbedDropped = w.SemanticEmbedDropped()
+	s.Stats.EmbedDropped = s.w.SemanticEmbedDropped()
+	return s, nil
+}
 
-	return collectRegions(w, issue, o), stats, nil
+// Explore replays the policy against the open index: derived queries →
+// SearchK seeds → one-hop explore expansion → node spans as ranked regions.
+// Every step is deterministic (engine tie-breaks are lexicographic), so the
+// same session and options always yield the same regions.
+func (s *Session) Explore(issue string, o Options) []Region {
+	return collectRegions(s.w, issue, o)
+}
+
+// Close releases the workspace and, unless KeepIndex was set, the on-disk
+// index it built.
+func (s *Session) Close() {
+	s.w.Close()
+	if !s.keep {
+		os.RemoveAll(filepath.Join(s.root, workspace.DataDirName))
+	}
+}
+
+// ExploreRepo is the single-config convenience wrapper around Open+Explore.
+func ExploreRepo(ctx context.Context, repoDir, issue string, o Options) ([]Region, ExploreStats, error) {
+	s, err := Open(ctx, repoDir, o)
+	if err != nil {
+		return nil, ExploreStats{}, err
+	}
+	defer s.Close()
+	return s.Explore(issue, o), s.Stats, nil
 }
 
 func collectRegions(w *workspace.Workspace, issue string, o Options) []Region {
