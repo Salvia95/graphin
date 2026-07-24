@@ -19,7 +19,6 @@ import (
 
 const (
 	collectionName = "nodes"
-	queueCap       = 16384
 	idlePersist    = 5 * time.Second // §2.2: 유휴 5s 후 비동기 Export
 )
 
@@ -68,13 +67,23 @@ type Engine struct {
 	passagePrefix string
 	modelID       string
 
-	ready    atomic.Bool
-	readyCh  chan struct{}
-	queue    chan op
+	ready   atomic.Bool
+	readyCh chan struct{}
+
+	// Embedding backlog: producers append without blocking or dropping, the
+	// worker drains it whole each wake. Unbounded on purpose — a bounded
+	// channel dropped work under a cold-bootstrap burst, leaving the vector
+	// index silently half-empty. Memory scales with node count during the
+	// initial scan and drains to zero (§7c 후속 ①). qmu guards backlog only,
+	// never held across an embed, so producers never wait on inference.
+	qmu     sync.Mutex
+	backlog []op
+	wake    chan struct{} // cap 1: coalesced non-blocking wake for the worker
+
 	dirty    atomic.Bool
 	lastTick atomic.Int64 // unix nanos of last mutation
-	pending  atomic.Int64 // queued + in-flight ops (drain signal, Phase 7c 후속)
-	droppedN atomic.Int64 // backpressure drops since start (coverage caveat)
+	pending  atomic.Int64 // backlog + in-flight ops (drain signal)
+	droppedN atomic.Int64 // retained for API compat; the backlog never drops
 
 	// snapshot provides the current merkle state for the export header.
 	snapshot func() (root string, files map[string]string)
@@ -93,7 +102,7 @@ func New(persistPath string, snapshot func() (string, map[string]string), lg *ob
 		persistPath: persistPath,
 		db:          chromem.NewDB(),
 		readyCh:     make(chan struct{}),
-		queue:       make(chan op, queueCap),
+		wake:        make(chan struct{}, 1),
 		snapshot:    snapshot,
 		stop:        make(chan struct{}),
 	}
@@ -167,49 +176,63 @@ func (e *Engine) Ready() bool { return e.ready.Load() }
 // backpressure the doc is dropped and logged (the next content change or
 // stale-file pass re-enqueues it).
 func (e *Engine) Enqueue(id, summary string) {
-	select {
-	case e.queue <- op{id: id, summary: summary}:
-		e.pending.Add(1)
-	default:
-		e.droppedN.Add(1)
-		e.log.Event("embed_queue_full", map[string]any{"dropped": id})
-	}
+	e.push(op{id: id, summary: summary})
 }
 
 // Remove schedules deletion of a node's vector.
 func (e *Engine) Remove(id string) {
+	e.push(op{remove: true, id: id})
+}
+
+// push appends one op to the backlog and wakes the worker. Never blocks on
+// inference (qmu is not held across embeds) and never drops.
+func (e *Engine) push(o op) {
+	e.qmu.Lock()
+	e.backlog = append(e.backlog, o)
+	e.qmu.Unlock()
+	e.pending.Add(1)
 	select {
-	case e.queue <- op{remove: true, id: id}:
-		e.pending.Add(1)
-	default:
-		e.droppedN.Add(1)
-		e.log.Event("embed_queue_full", map[string]any{"dropped": id})
+	case e.wake <- struct{}{}:
+	default: // a wake is already pending; the worker drains the whole backlog
 	}
 }
 
-// Drained reports an idle embedding pipeline: no queued or in-flight ops.
+// Pending reports the backlog + in-flight embedding count (observability).
+func (e *Engine) Pending() int64 { return e.pending.Load() }
+
+// Drained reports an idle embedding pipeline: no backlog or in-flight ops.
 // Meaningful once Ready() — before warmup the worker parks on the first
 // non-remove op, so pending stays high by design.
 func (e *Engine) Drained() bool { return e.pending.Load() == 0 }
 
-// Dropped counts backpressure drops since start: a non-zero value means the
-// vector index is missing that many (re-)embeds until the affected files
-// next change — eval runs must disclose it as a coverage caveat.
+// Dropped is retained for API/caveat compatibility; the backlog never drops,
+// so this is always 0 after the §7c 후속 ① change.
 func (e *Engine) Dropped() int64 { return e.droppedN.Load() }
 
-// worker drains the queue once the model is warm.
+// worker drains the backlog once the model is warm. Each wake it takes the
+// whole current backlog, so a single wake covers any number of appends.
 func (e *Engine) worker() {
 	defer e.stopped.Done()
 	for {
-		select {
-		case <-e.stop:
-			return
-		case o := <-e.queue:
+		e.qmu.Lock()
+		batch := e.backlog
+		e.backlog = nil
+		e.qmu.Unlock()
+
+		if len(batch) == 0 {
+			select {
+			case <-e.wake:
+				continue
+			case <-e.stop:
+				return
+			}
+		}
+		for _, o := range batch {
 			if !o.remove {
 				select {
 				case <-e.readyCh:
 				case <-e.stop:
-					return
+					return // remaining backlog is abandoned on shutdown
 				}
 			}
 			e.apply(o)
@@ -274,8 +297,13 @@ func (e *Engine) Search(query string, topK int) []string {
 	return ids
 }
 
-// QueueDepth reports pending embedding work (observability).
-func (e *Engine) QueueDepth() int { return len(e.queue) }
+// QueueDepth reports backlog length (observability); in-flight ops are not
+// counted — use Drained() for a true idle check.
+func (e *Engine) QueueDepth() int {
+	e.qmu.Lock()
+	defer e.qmu.Unlock()
+	return len(e.backlog)
+}
 
 // persister exports after 5s of idleness (§2.2 지연 영속화).
 func (e *Engine) persister() {

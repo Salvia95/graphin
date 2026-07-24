@@ -172,6 +172,10 @@ func (w *Workspace) removePrefixLocked(relDir string) {
 // initialScan is the first full index pass: parallel parse fan-out, serial
 // single-writer application, staged availability flip.
 func (w *Workspace) initialScan(ctx context.Context) {
+	// Guarantee deferred watcher batches are eventually released even if the
+	// scan bails early — otherwise consumeBatches would defer forever.
+	defer w.markLexicalReady()
+
 	start := time.Now()
 	res, err := scan.Walk(w.Root, w.Log)
 	if err != nil {
@@ -243,7 +247,10 @@ func (w *Workspace) initialScan(ctx context.Context) {
 	}
 	w.persistIndexes()
 	w.FSM.SetProgress(100)
-	w.FSM.Set(PhaseLexicalReady)
+	// Flip lexical-ready and release deferred watcher batches: every scan
+	// result (including any stale in-flight read) is now applied, so replayed
+	// live edits land strictly after and win.
+	w.markLexicalReady()
 	w.Log.Event("initial_scan_done", map[string]any{
 		"files": total, "nodes": w.Sym.Len(),
 		"nodes_changed": changed, "nodes_offset_only": offsetOnly,

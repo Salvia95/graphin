@@ -83,21 +83,48 @@ func TestDrainedTracksInFlightOps(t *testing.T) {
 	}
 }
 
-func TestDroppedCountsBackpressure(t *testing.T) {
+// TestNoDropUnderColdBurst: 워밍업 전 대량 버스트가 와도(콜드 부트스트랩)
+// 백로그가 전부 담아 드랍이 0이어야 한다. 이전 구현은 유계 채널이라 큐 상한
+// 초과분을 조용히 버려 벡터 인덱스를 반쯤 비웠다 (§7c 후속 ①).
+func TestNoDropUnderColdBurst(t *testing.T) {
 	e := New(filepath.Join(t.TempDir(), "vectors.bin"), nil, obs.Nop())
-	defer e.Abandon()
-	// 워밍업 없음: worker는 첫 op에서 readyCh를 기다리며 파킹된다 → 큐가
-	// cap까지 차면 이후 Enqueue는 드랍된다.
-	total := int64(queueCap + 10)
-	for i := int64(0); i < total; i++ {
-		e.Enqueue("n", "s")
+	const burst = 50000 // 옛 상한(16384)의 3배 — 유계 채널이라면 드랍 발생
+	for i := 0; i < burst; i++ {
+		e.Enqueue("n", "summary text")
 	}
-	// worker가 첫 op를 이미 집었으면 흡수량 = cap+1 → 드랍 9, 아직이면
-	// cap → 드랍 10.
-	if d := e.Dropped(); d < 9 || d > 10 {
-		t.Fatalf("drop count off: dropped=%d cap=%d total=%d", d, queueCap, total)
+	if e.Dropped() != 0 {
+		t.Fatalf("backlog must never drop, dropped=%d", e.Dropped())
 	}
+	// 워커는 웨이크 즉시 백로그 전체를 배치로 가져가 첫 op의 readyCh에서
+	// 파킹한다 → QueueDepth는 0~burst로 요동. 의미 있는 불변식은 "아직 하나도
+	// 적용되지 않아 드레인되지 않았다"이다.
 	if e.Drained() {
-		t.Fatal("parked queue must not report drained")
+		t.Fatal("un-warmed engine holds the full backlog, not drained")
 	}
+
+	// 워밍업 후 전부 임베딩되고 드레인된다 — 드랍 0 유지.
+	v := &countVec{}
+	e.WarmupWith(v, "m", "q: ", "p: ")
+	deadline := time.Now().Add(10 * time.Second)
+	for !e.Drained() {
+		if time.Now().After(deadline) {
+			t.Fatalf("backlog never drained (pending, calls=%d)", v.calls.Load())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if e.Dropped() != 0 {
+		t.Fatalf("still zero drops expected, dropped=%d", e.Dropped())
+	}
+	if got := v.calls.Load(); got != burst {
+		t.Fatalf("embedded %d, want all %d (last-writer id is same, but every op runs)", got, burst)
+	}
+	e.Abandon()
+}
+
+// countVec counts Embed calls; unblocked (fast) so drain completes.
+type countVec struct{ calls atomic.Int64 }
+
+func (c *countVec) Embed(string) ([]float32, error) {
+	c.calls.Add(1)
+	return make([]float32, 4), nil
 }

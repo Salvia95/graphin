@@ -13,6 +13,11 @@ type Status struct {
 	LexicalReady  bool
 	SemanticReady bool
 
+	// EmbedPending is the backlog + in-flight embedding count. Surfaced while
+	// semantic is still warming so the agent sees progress (not a hang) and
+	// knows lexical search is usable meanwhile. 0 (idle or no engine) omits it.
+	EmbedPending int64
+
 	// graphindb bootstrap heuristic (schema/graphindb.md): RDB traces found
 	// in the scanned tree and how many snapshot files back them. DBHint is a
 	// one-paragraph guide emitted only when traces exist without a snapshot.
@@ -30,6 +35,12 @@ func (s Status) XML() string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, `<system_status state="%s" progress="%d" lexical_ready="%t" semantic_ready="%t"`,
 		EscapeAttr(s.State), s.Progress, s.LexicalReady, s.SemanticReady)
+	// Show embedding progress only while it is meaningful: semantic present,
+	// not yet complete. A steady non-zero that shrinks over calls tells the
+	// agent it is advancing rather than stuck.
+	if s.EmbedPending > 0 && !s.SemanticReady {
+		fmt.Fprintf(&sb, ` embed_pending="%d"`, s.EmbedPending)
+	}
 	if s.DBSources != "" || s.DBSnapshots > 0 {
 		fmt.Fprintf(&sb, ` db_sources_detected="%s" db_snapshots="%d"`,
 			EscapeAttr(s.DBSources), s.DBSnapshots)

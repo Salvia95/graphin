@@ -77,6 +77,12 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project
 에이전트가 `bootstrap_workspace`를 호출하면 인덱싱과 File Watcher가 시작된다.
 `initialize`는 인덱싱과 무관하게 즉시 응답하며, 준비 전 응답에는
 `<system_status state="indexing" lexical_ready=... semantic_ready=... />`가 동봉된다.
+lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직후 도착 순서대로
+재생된다 — 초기 스캔이 읽어둔 (낡은) 파일 내용이 동시 편집을 덮어쓰지 못하게
+하는 순서 보장이다. 임베딩은 유계 큐 대신 백로그로 처리되어 대형 저장소의 콜드
+부트스트랩에서도 벡터가 유실되지 않으며, 워밍업 중 `bootstrap_workspace`를
+재호출하면 응답에 `embed_pending`(남은 임베딩 수)이 동봉되어 진행 상황을
+확인할 수 있다(lexical 검색은 그 사이에도 사용 가능).
 
 ## 도구 (MCP tools)
 

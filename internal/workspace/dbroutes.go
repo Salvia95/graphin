@@ -131,12 +131,12 @@ func sortedStrings(set map[string]bool) []string {
 	return out
 }
 
-// statusWithDB decorates the FSM status with the graphindb heuristic and
-// manifest state for the agent feedback loop.
+// statusWithDB decorates Status with the graphindb heuristic and manifest
+// state for the agent feedback loop.
 func (w *Workspace) statusWithDB() mcp.Status {
 	w.dbMu.RLock()
 	defer w.dbMu.RUnlock()
-	st := w.FSM.Status()
+	st := w.Status()
 	st.DBSources = strings.Join(w.dbInfo.Sources, ", ")
 	st.DBSnapshots = w.dbInfo.Snapshots
 	st.DBManifestErrors = strings.Join(w.dbManifestErrs, "; ")

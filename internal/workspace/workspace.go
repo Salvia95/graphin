@@ -104,7 +104,33 @@ type Workspace struct {
 	cancel       context.CancelFunc
 	bg           sync.WaitGroup // goroutines touching engines; Close waits
 
+	// lexReady closes when the initial scan reaches PhaseLexicalReady. Watcher
+	// batches arriving before then are deferred and replayed after it, so a
+	// live edit during the scan can never be clobbered by the scan's own
+	// in-flight (stale) read of the same file — the scan's whole generation
+	// applies first, live edits strictly after (§2.1.1 ordering).
+	lexReady     chan struct{}
+	lexReadyOnce sync.Once
+
 	semErr atomic.Pointer[string] // permanent semantic warmup failure
+}
+
+// markLexicalReady flips the FSM and unblocks deferred watcher batches, once.
+func (w *Workspace) markLexicalReady() {
+	w.lexReadyOnce.Do(func() {
+		w.FSM.Set(PhaseLexicalReady)
+		close(w.lexReady)
+	})
+}
+
+// Status is the workspace's decorated lifecycle status: the FSM phase plus
+// the live embedding backlog so an agent sees semantic progress advancing.
+func (w *Workspace) Status() mcp.Status {
+	st := w.FSM.Status()
+	if w.sem != nil {
+		st.EmbedPending = w.sem.Pending()
+	}
+	return st
 }
 
 func New(cfg Config) *Workspace {
@@ -114,16 +140,17 @@ func New(cfg Config) *Workspace {
 	sym := lexical.NewSymbolTable()
 	ix := lexical.NewIndex()
 	return &Workspace{
-		Root:   cfg.Root,
-		Dir:    filepath.Join(cfg.Root, DataDirName),
-		FSM:    &FSM{},
-		Log:    cfg.Log,
-		Sym:    sym,
-		Lex:    ix,
-		Router: &search.Router{Sym: sym, Lex: ix},
-		cfg:    cfg,
-		merkle: merkle.NewTree(),
-		nodes:  map[string]NodeMeta{},
+		Root:     cfg.Root,
+		Dir:      filepath.Join(cfg.Root, DataDirName),
+		FSM:      &FSM{},
+		Log:      cfg.Log,
+		Sym:      sym,
+		Lex:      ix,
+		Router:   &search.Router{Sym: sym, Lex: ix},
+		cfg:      cfg,
+		lexReady: make(chan struct{}),
+		merkle:   merkle.NewTree(),
+		nodes:    map[string]NodeMeta{},
 	}
 }
 
@@ -285,12 +312,28 @@ func (w *Workspace) watchSemanticReady(ctx context.Context, sem *semantic.Engine
 
 // consumeBatches drains debounced watcher batches into the indexer.
 func (w *Workspace) consumeBatches(ctx context.Context, batches <-chan watch.Batch) {
+	// Until lexical-ready, batches are buffered rather than applied: a live
+	// edit during the initial scan must not race the scan's own stale read of
+	// the same file. Once ready, the buffer is flushed in arrival order and
+	// every later batch applies immediately.
+	ready := w.lexReady
+	var deferred []watch.Batch
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-ready:
+			for _, b := range deferred {
+				w.handleBatch(b)
+			}
+			deferred = nil
+			ready = nil // disable this case; closed channel would busy-loop
 		case b := <-batches:
-			w.handleBatch(b)
+			if ready != nil { // scan still running: defer
+				deferred = append(deferred, b)
+			} else {
+				w.handleBatch(b)
+			}
 		}
 	}
 }
