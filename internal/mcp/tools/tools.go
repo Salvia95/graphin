@@ -52,7 +52,7 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			"direction": map[string]any{"type": "string", "enum": []string{"uses", "used_by", "both"}, "default": "both"},
 			"cursor":    map[string]any{"type": "string", "description": "Pagination cursor from a previous page."},
 			"min_confidence": map[string]any{
-				"type": "number", "default": 0.5, "description": "Exclude edges below this confidence.",
+				"type": "number", "default": 0.85, "description": "Exclude edges below this confidence. Default 0.85 drops the 0.80 heuristic tier (higher precision, ~17% fewer lines, <2%p recall cost per docs/eval); lower to 0.75 for max recall.",
 			},
 		}, []string{"node_id"}),
 		Handler: exploreHandler(ws),
@@ -183,7 +183,7 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		default:
 			a.Direction = "both"
 		}
-		minConf := float32(0.5) // §3.3 기본값
+		minConf := float32(0.85) // 기본값: docs/eval H2(2026-07-25) — 0.80 티어 절단
 		if a.MinConfidence != nil {
 			minConf = float32(*a.MinConfidence)
 		}
