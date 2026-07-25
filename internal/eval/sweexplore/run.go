@@ -23,13 +23,21 @@ type SweepConfig struct {
 
 // DefaultSweep is the spec's H2/H3 matrix (lexical/hybrid is a run-level
 // toggle, not a per-config axis — model warmup happens once per task).
+//
+// The min_confidence axis straddles the confidence tiers (internal/graph:
+// 1.0 explicit / 0.95 same-pkg / 0.90 imported / 0.80 heuristic). Since the
+// filter keeps conf >= mc and the floor tier is 0.80, any mc <= 0.80 is a
+// no-op — the earlier {0, 0.5, 0.8} axis never bit (H2 vacuous). The axis
+// below is off-tier so each point removes a distinct tier: 0.75 keeps all,
+// 0.85 drops the 0.80 tier, 0.95 keeps only {0.95, 1.0}. Name encodes mc*100
+// (mc75/mc85/mc95) — mc*10 collided (0.75->8, 0.85->8 under %.0f rounding).
 func DefaultSweep() []SweepConfig {
 	var out []SweepConfig
 	for _, tk := range []int{5, 10, 20} {
 		for _, rk := range []int{20, 60, 100} {
-			for _, mc := range []float32{0, 0.5, 0.8} {
+			for _, mc := range []float32{0.75, 0.85, 0.95} {
 				out = append(out, SweepConfig{
-					Name: fmt.Sprintf("k%d-rrf%d-mc%02.0f", tk, rk, mc*10),
+					Name: fmt.Sprintf("k%d-rrf%d-mc%02.0f", tk, rk, mc*100),
 					TopK: tk, RRFK: rk, MinConf: mc,
 				})
 			}
