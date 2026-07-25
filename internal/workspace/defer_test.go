@@ -33,6 +33,21 @@ func batchFor(root, rel string) watch.Batch {
 	return watch.Batch{abs: watch.Change{Path: abs, Kind: watch.Modified}}
 }
 
+// runConsumer starts consumeBatches on its own goroutine and joins it at test
+// end BEFORE t.TempDir's cleanup runs. t.Cleanup is LIFO and TempDir registers
+// its RemoveAll first, so this cleanup runs earlier: cancel stops the loop,
+// then <-done waits for its final persistIndexes to finish — otherwise an
+// in-flight index write into .graphin/search races RemoveAll ("directory not
+// empty"). consumeBatches is the only file-writing goroutine here
+// (minimalWorkspace skips Bootstrap, so no watcher/scan/engine run).
+func runConsumer(t *testing.T, w *Workspace, batches chan watch.Batch) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); w.consumeBatches(ctx, batches) }()
+	t.Cleanup(func() { cancel(); <-done })
+}
+
 func waitIndexed(t *testing.T, w *Workspace, id string, want time.Duration) NodeMeta {
 	t.Helper()
 	deadline := time.Now().Add(want)
@@ -59,10 +74,8 @@ func TestWatcherBatchDeferredUntilLexicalReady(t *testing.T) {
 	}
 	w := minimalWorkspace(t, root)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	batches := make(chan watch.Batch)
-	go w.consumeBatches(ctx, batches)
+	runConsumer(t, w, batches)
 
 	batches <- batchFor(root, rel) // arrives during "scan" (lexReady still open)
 
@@ -90,10 +103,8 @@ func TestDeferredBatchesReplayInArrivalOrder(t *testing.T) {
 	write("first content\n")
 	w := minimalWorkspace(t, root)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	batches := make(chan watch.Batch)
-	go w.consumeBatches(ctx, batches)
+	runConsumer(t, w, batches)
 
 	// Two deferred batches; the on-disk file ends at the final content. Order
 	// is preserved but each handleBatch re-reads disk, so the end state must
@@ -129,10 +140,8 @@ func TestLiveBatchesAppliedAfterReady(t *testing.T) {
 	w := minimalWorkspace(t, root)
 	w.markLexicalReady() // already ready before any batch
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	batches := make(chan watch.Batch)
-	go w.consumeBatches(ctx, batches)
+	runConsumer(t, w, batches)
 
 	batches <- batchFor(root, rel)
 	waitIndexed(t, w, rel, 2*time.Second)
