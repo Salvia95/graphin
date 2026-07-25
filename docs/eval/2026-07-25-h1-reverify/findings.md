@@ -67,8 +67,19 @@ graphin(k5/rrf60/mc.75) recall@300 **0.109** vs grep-C20 **0.004**, 제출 라�
    1차의 "넓게 보기와 의미로 찾기는 부분 대체재" 관찰과 반대 방향. 재검증에선
    시맨틱이 넓은 예산에서도 랭킹·recall을 동시에 밀어올린다.
 
+## 적용된 기본값 변경 (이 리포트 근거, 스펙 §3.4)
+사용자 결정으로 하이브리드를 승격하며 다음을 반영:
+1. **`explore_graph` min_confidence 기본값 0.5 → 0.85** — H2의 유효 운영점(0.80
+   티어 절단; recall −0.25%p·precision +1.2%p·라인 −17%, N=451). 유지=max recall은
+   0.75.
+2. **semantic 노드 수 게이팅 `--semantic-max-nodes` 기본 40,000** — 콜드스타트 벤치
+   (multilingual_cjk, 8GB): 워밍업 6.9ms/node·**RSS ~450MB+34KB/node(메모리 binder)**.
+   40k ≈ RSS 1.4GB·워밍업 4.6분(백그라운드), 최대 단일 레포 django(31k) 포함. 초과 시
+   lexical-only로 폴백하고 `<system_status semantic="disabled" semantic_note=…>`로 안내.
+   마커로 재기동 시 재임베딩 스킵. 모델은 multilingual-e5-small 유지(한/영, 재핀 없음).
+3. **top_k 기본 5 유지** — ndcg 이득은 k5에서도 크고 컨텍스트 절약 우선.
+
 ## 재현
 `run_c.sh`(순차: sem-203 → sweep-451 → grep-451) → `score_and_verify.sh`
-(채점 + sweep-203 파생 + verify) → `h1_perrepo.py`. 바이너리는 mc 축 교체판
-(`bin/graphin`, graphin `run.go` 미커밋). 리포트: `report-h1-203.md`,
-`report-h23-451.md`, `h1_detail.md`, `h1_perrepo.md`.
+(채점 + sweep-203 파생 + verify) → `h1_perrepo.py`. 콜드스타트: `bench_coldstart.sh`.
+리포트: `report-h1-203.md`, `report-h23-451.md`, `h1_detail.md`, `h1_perrepo.md`.

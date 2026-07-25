@@ -18,6 +18,12 @@ type Status struct {
 	// knows lexical search is usable meanwhile. 0 (idle or no engine) omits it.
 	EmbedPending int64
 
+	// SemanticGated is true when the node-count ceiling disabled semantic
+	// search for this tree; SemanticNote explains it (node count vs ceiling +
+	// how to override). The agent should not wait for semantic to warm up.
+	SemanticGated bool
+	SemanticNote  string
+
 	// graphindb bootstrap heuristic (schema/graphindb.md): RDB traces found
 	// in the scanned tree and how many snapshot files back them. DBHint is a
 	// one-paragraph guide emitted only when traces exist without a snapshot.
@@ -38,8 +44,13 @@ func (s Status) XML() string {
 	// Show embedding progress only while it is meaningful: semantic present,
 	// not yet complete. A steady non-zero that shrinks over calls tells the
 	// agent it is advancing rather than stuck.
-	if s.EmbedPending > 0 && !s.SemanticReady {
+	if s.EmbedPending > 0 && !s.SemanticReady && !s.SemanticGated {
 		fmt.Fprintf(&sb, ` embed_pending="%d"`, s.EmbedPending)
+	}
+	// Node-count gate: semantic is off by design, not warming up. Tell the
+	// agent so it relies on lexical and does not poll for semantic_ready.
+	if s.SemanticGated {
+		fmt.Fprintf(&sb, ` semantic="disabled" semantic_note="%s"`, EscapeAttr(s.SemanticNote))
 	}
 	if s.DBSources != "" || s.DBSnapshots > 0 {
 		fmt.Fprintf(&sb, ` db_sources_detected="%s" db_snapshots="%d"`,

@@ -49,7 +49,10 @@ type Config struct {
 	Offline   bool
 	ModelDir  string
 	OrtLib    string
-	Log       *obs.Logger
+	// SemanticMaxNodes disables semantic search above this node count
+	// (cold-start cost is ~linear in nodes; see docs/eval). 0 = no limit.
+	SemanticMaxNodes int
+	Log              *obs.Logger
 }
 
 // Workspace holds all engines for one indexed source tree.
@@ -112,7 +115,10 @@ type Workspace struct {
 	lexReady     chan struct{}
 	lexReadyOnce sync.Once
 
-	semErr atomic.Pointer[string] // permanent semantic warmup failure
+	semErr atomic.Pointer[string] // permanent semantic warmup failure (or gate note)
+
+	semMaxNodes int         // node-count ceiling for semantic (0 = no limit)
+	semGated    atomic.Bool // semantic disabled by the node-count gate
 }
 
 // markLexicalReady flips the FSM and unblocks deferred watcher batches, once.
@@ -129,6 +135,18 @@ func (w *Workspace) Status() mcp.Status {
 	st := w.FSM.Status()
 	if w.sem != nil {
 		st.EmbedPending = w.sem.Pending()
+	}
+	if w.semGated.Load() {
+		st.SemanticGated = true
+		if p := w.semErr.Load(); p != nil {
+			st.SemanticNote = *p
+		}
+		// lexical-only is a terminal, usable state — don't report "indexing"
+		// forever waiting for a semantic warmup that will never come.
+		if st.LexicalReady {
+			st.State = "ready"
+			st.Progress = 100
+		}
 	}
 	return st
 }
@@ -200,18 +218,40 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	w.graph = eng
 
 	// Semantic engine: restore vectors.bin, then mark files whose hash moved
-	// since that export as force-embed — the crash-recovery diff (§2.2).
+	// since that export as force-embed — the crash-recovery diff (§2.2). A
+	// node-count gate (Config.SemanticMaxNodes) keeps very large trees
+	// lexical-only: a prior run's marker skips setup entirely here, and a live
+	// scan trips gateSemanticOff once the count crosses the ceiling.
 	if err := os.MkdirAll(filepath.Join(w.Dir, "search"), 0o755); err != nil {
 		return w.FSM.Status(), err
 	}
-	w.sem = semantic.New(filepath.Join(w.Dir, "search", "vectors.bin"), w.merkleSnapshot, w.Log)
-	w.semSink = w.sem
-	w.Router.Sem = w.sem
-	current := make(map[string]string, len(w.merkle.Files))
-	for rel, fe := range w.merkle.Files {
-		current[rel] = fe.Hash
+	w.semMaxNodes = w.cfg.SemanticMaxNodes
+	gatedByMarker := false
+	if w.semMaxNodes > 0 {
+		if m, ok := readGateMarker(w.Dir); ok {
+			if m.Nodes > w.semMaxNodes {
+				gatedByMarker = true
+				note := gateNote(m.Nodes, w.semMaxNodes)
+				w.semErr.Store(&note)
+				w.semGated.Store(true)
+			} else {
+				// ceiling raised above the recorded count: clear the stale
+				// gate and the partial vectors it left, then embed fresh.
+				removeGateMarker(w.Dir)
+				_ = os.Remove(filepath.Join(w.Dir, "search", "vectors.bin"))
+			}
+		}
 	}
-	w.forceEmbed = w.sem.StaleFiles(current)
+	if !gatedByMarker {
+		w.sem = semantic.New(filepath.Join(w.Dir, "search", "vectors.bin"), w.merkleSnapshot, w.Log)
+		w.semSink = w.sem
+		w.Router.Sem = w.sem
+		current := make(map[string]string, len(w.merkle.Files))
+		for rel, fe := range w.merkle.Files {
+			current[rel] = fe.Hash
+		}
+		w.forceEmbed = w.sem.StaleFiles(current)
+	}
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	deb := watch.NewDebouncer(0, 0) // spec defaults: 500ms quiet, 2s cap
@@ -243,8 +283,11 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	go func() { defer w.bg.Done(); w.consumeBatches(runCtx, deb.Out()) }()
 	go func() { defer w.bg.Done(); w.initialScan(runCtx) }()
 	// warmup is not waited on (provisioning may be mid-download at shutdown);
-	// it works on captured pointers, never on torn-down fields.
-	go w.warmupSemantic(runCtx, w.sem, modelType, offline || w.cfg.Offline)
+	// it works on captured pointers, never on torn-down fields. Skipped when a
+	// marker already gated this tree — no engine was set up.
+	if !gatedByMarker {
+		go w.warmupSemantic(runCtx, w.sem, modelType, offline || w.cfg.Offline)
+	}
 	return w.statusWithDB(), nil
 }
 
@@ -302,6 +345,9 @@ func (w *Workspace) watchSemanticReady(ctx context.Context, sem *semantic.Engine
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			if w.semGated.Load() {
+				return // gated mid-scan: never flip to semantic-ready
+			}
 			if w.FSM.Phase() >= PhaseLexicalReady && sem.Ready() {
 				w.FSM.Set(PhaseSemanticReady)
 				return

@@ -67,8 +67,9 @@ type Engine struct {
 	passagePrefix string
 	modelID       string
 
-	ready   atomic.Bool
-	readyCh chan struct{}
+	ready    atomic.Bool
+	readyCh  chan struct{}
+	disabled atomic.Bool // node-count gating: makes Ready() false, router falls back to lexical
 
 	// Embedding backlog: producers append without blocking or dropping, the
 	// worker drains it whole each wake. Unbounded on purpose — a bounded
@@ -170,7 +171,13 @@ func (e *Engine) markReady() {
 }
 
 // Ready implements search.Semantic.
-func (e *Engine) Ready() bool { return e.ready.Load() }
+func (e *Engine) Ready() bool { return e.ready.Load() && !e.disabled.Load() }
+
+// Disable turns semantic search off without tearing down the engine: Ready()
+// (and thus the router and Search) go dark, so a partial vector index built
+// before a node-count gate is never queried. The bounded backlog already
+// enqueued drains harmlessly; the model is released at Close.
+func (e *Engine) Disable() { e.disabled.Store(true) }
 
 // Enqueue schedules (re-)embedding of one node summary. Non-blocking: under
 // backpressure the doc is dropped and logged (the next content change or
