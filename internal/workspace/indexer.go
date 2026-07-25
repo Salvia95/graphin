@@ -69,6 +69,12 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 		w.graph.ApplyFile(res, diff)
 	}
 	w.collectDBXrefDelta(res, diff)
+	// Node-count gate: w.Sym.Len() is the count from prior files (this file's
+	// symbols land below), so we trip the ceiling and stop embedding before
+	// this file's nodes are enqueued. gateSemanticOff nils w.semSink.
+	if w.semSink != nil && w.semMaxNodes > 0 && w.Sym.Len() > w.semMaxNodes {
+		w.gateSemanticOff(w.Sym.Len())
+	}
 	if w.semSink != nil { // Track B + crash-recovery force set (§2.2)
 		force := w.forceEmbed[res.RelPath]
 		changedIDs := make(map[string]bool, len(diff.Changed))

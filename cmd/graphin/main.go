@@ -39,7 +39,10 @@ func main() {
 		modelDir  = flag.String("model-dir", "", "local directory containing the ONNX model")
 		ortLib    = flag.String("ort-lib", "", "path to the onnxruntime shared library")
 		workers   = flag.Int("workers", runtime.NumCPU(), "parser worker pool size")
-		verbose   = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
+		semMaxNodes = flag.Int("semantic-max-nodes", 40000,
+			"disable semantic search above this node count; lexical stays on (0 = no limit). "+
+				"Default from docs/eval cold-start: ~1.4GB peak / ~4.6min warmup at 40k on 8GB.")
+		verbose = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
 	)
 	flag.Parse()
 
@@ -62,13 +65,14 @@ func main() {
 	defer lg.Close()
 
 	ws := workspace.New(workspace.Config{
-		Root:      abs,
-		Workers:   *workers,
-		ModelType: *modelType,
-		Offline:   *offline,
-		ModelDir:  *modelDir,
-		OrtLib:    *ortLib,
-		Log:       lg,
+		Root:             abs,
+		Workers:          *workers,
+		ModelType:        *modelType,
+		Offline:          *offline,
+		ModelDir:         *modelDir,
+		OrtLib:           *ortLib,
+		SemanticMaxNodes: *semMaxNodes,
+		Log:              lg,
 	})
 	defer ws.Close()
 
