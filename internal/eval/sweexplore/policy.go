@@ -34,10 +34,11 @@ type Options struct {
 }
 
 // Defaults returns the shipping tool defaults (top_k 5 / RRF 60 / min_conf
-// 0.5) — the H2 null hypothesis configuration.
+// 0.85 — the H2 operating point from docs/eval/2026-07-25: drops the 0.80
+// heuristic tier for higher precision at <2%p recall cost).
 func Defaults() Options {
 	return Options{
-		TopK: 5, RRFK: 60, MinConf: 0.5, Queries: 3,
+		TopK: 5, RRFK: 60, MinConf: 0.85, Queries: 3,
 		MaxRegions: 100, MaxRegionLines: 400,
 		WaitTimeout: 10 * time.Minute,
 	}
