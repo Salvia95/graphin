@@ -13,6 +13,7 @@ SWE-Explore 하니스(`graphin eval swe-explore`, docs/phase7-spec.md §3) 실�
 |---|---|---|
 | [2026-07-23-verified40](2026-07-23-verified40/manifest.md) | Verified 40, lexical-only 27점 스윕 + grep | H3 PASS (예산 내 리콜 4.1×, 라인 3.1%) · H2 vacuous · H1 보류 |
 | [2026-07-24-verified40-hybrid](2026-07-24-verified40-hybrid/manifest.md) | 같은 서브셋, `--semantic` 27점 스윕 | H1 불충분(평균 +1.7%p지만 p≥0.24, ndcg 역행) · H3 5.4×로 강화 |
+| [2026-07-25-h1-reverify](2026-07-25-h1-reverify/manifest.md) | H1: balanced 203 `--semantic`; H2/H3: 451 (drop 0) | **H1 역전 — hybrid ndcg@300 +7~9%p(p≤0.002)·recall@300 유의, 1차 ndcg 역행은 드랍 아티팩트** · H2 non-vacuous(축 교체) · H3 PASS |
 
 ## 규약
 
