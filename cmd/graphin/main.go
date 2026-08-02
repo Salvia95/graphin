@@ -15,6 +15,7 @@ import (
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/mcp/tools"
 	"github.com/Salvia95/graphin/internal/obs"
+	"github.com/Salvia95/graphin/internal/usage"
 	"github.com/Salvia95/graphin/internal/workspace"
 )
 
@@ -31,14 +32,19 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "eval" {
 		os.Exit(runEval(os.Args[2:]))
 	}
+	// Subcommand: `graphin usage ingest|report` — adoption instrumentation
+	// (docs/usage-spec.md). ingest is the graphin-usage plugin's hook sink.
+	if len(os.Args) > 1 && os.Args[1] == "usage" {
+		os.Exit(usage.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
 
 	var (
-		root      = flag.String("workspace", "", "path to the workspace to index (required)")
-		modelType = flag.String("model-type", "multilingual_cjk", "embedding model: english_optimal | multilingual_cjk")
-		offline   = flag.Bool("offline", false, "never download; use local runtime/ artifacts only")
-		modelDir  = flag.String("model-dir", "", "local directory containing the ONNX model")
-		ortLib    = flag.String("ort-lib", "", "path to the onnxruntime shared library")
-		workers   = flag.Int("workers", runtime.NumCPU(), "parser worker pool size")
+		root        = flag.String("workspace", "", "path to the workspace to index (required)")
+		modelType   = flag.String("model-type", "multilingual_cjk", "embedding model: english_optimal | multilingual_cjk")
+		offline     = flag.Bool("offline", false, "never download; use local runtime/ artifacts only")
+		modelDir    = flag.String("model-dir", "", "local directory containing the ONNX model")
+		ortLib      = flag.String("ort-lib", "", "path to the onnxruntime shared library")
+		workers     = flag.Int("workers", runtime.NumCPU(), "parser worker pool size")
 		semMaxNodes = flag.Int("semantic-max-nodes", 40000,
 			"disable semantic search above this node count; lexical stays on (0 = no limit). "+
 				"Default from docs/eval cold-start: ~1.4GB peak / ~4.6min warmup at 40k on 8GB.")
@@ -63,6 +69,13 @@ func main() {
 		fatalf("open log: %v", err)
 	}
 	defer lg.Close()
+
+	// binpath sidecar (docs/usage-spec.md §2.2): MCP configs register graphin
+	// by absolute path, so the usage plugin's hook can't count on PATH — it
+	// resolves the binary through this file instead.
+	if exe, err := os.Executable(); err == nil {
+		_ = os.WriteFile(filepath.Join(abs, workspace.DataDirName, "binpath"), []byte(exe+"\n"), 0o644)
+	}
 
 	ws := workspace.New(workspace.Config{
 		Root:             abs,
