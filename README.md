@@ -112,7 +112,9 @@ SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts
 ├── merkle.json                         # BLAKE3 파일/서브트리 해시
 ├── runtime/                            # 검증 완료된 모델 + ORT
 ├── lockfile                            # PID + 3s heartbeat
-└── agent-nav.log                       # JSONL 구조화 로그
+├── agent-nav.log                       # JSONL 구조화 로그
+├── binpath                             # 서버 바이너리 절대경로 (usage 훅의 해석용)
+└── usage/events.jsonl                  # graphin-usage 플러그인의 툴콜 이벤트 (32MiB 회전)
 ```
 
 ## 평가 (SWE-Explore 하니스)
@@ -133,6 +135,22 @@ search → explore 1-hop → read_code 스팬을 ranked `(path,start,end)` JSONL
 출력한다. 태스크당 인덱싱 1회, 스윕 설정은 영속 인덱스를 재사용한다. 채점은
 벤치 공식 스코어러(`eval.py`) 몫이며, 하니스는 제출 파일과 `summary.md`만
 만든다. 설계·가설: [`docs/phase7-spec.md`](docs/phase7-spec.md) §3.
+
+## 채택 계측 (graphin-usage 플러그인)
+
+실세션에서 graphin이 채택되는지/어디서 폴백하는지 재는 Claude Code 플러그인.
+PostToolUse 훅이 인덱싱된 프로젝트의 툴콜을 `.graphin/usage/events.jsonl`에
+쌓고, 인접 시퀀스에서 헤드라인 4종 — 채택(`graphin → Read/Edit`), 폴백
+(`graphin → Grep`, same-intent 쌍은 인덱스 개선의 실측 재현 케이스),
+늦은 전환, 발견 실패 — 을 집계한다.
+
+```sh
+claude --plugin-dir ./plugin/graphin-usage   # 로컬 시험 (세션 한정)
+graphin usage report [--since 72h] [--json]  # 집계 (세션 안: /graphin-usage:report)
+```
+
+설치·프라이버시·트러블슈팅: [`plugin/graphin-usage/README.md`](plugin/graphin-usage/README.md) ·
+설계: [`docs/usage-spec.md`](docs/usage-spec.md).
 
 ## 개발
 
