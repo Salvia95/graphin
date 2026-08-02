@@ -1,6 +1,5 @@
 {
   "name": "graphin-usage",
   "description": "Passive adoption instrumentation for the graphin MCP server: logs tool-call sequences in graphin-indexed projects and reports adoption/fallback metrics via `graphin usage report`.",
-  "version": "0.1.0",
-  "hooks": "./hooks/hooks.json"
+  "version": "0.1.1"
 }
