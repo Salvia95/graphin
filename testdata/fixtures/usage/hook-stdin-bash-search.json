@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "PostToolUse",
+  "session_id": "e2e-session",
+  "prompt_id": "e2e-prompt",
+  "tool_use_id": "toolu_bash_1",
+  "cwd": "__CWD__",
+  "tool_name": "Bash",
+  "tool_input": {"command": "rg -n 'drainSignal' internal/semantic | head -20", "description": "Search for drain signal"},
+  "tool_response": {"stdout": "internal/semantic/drain.go:41", "stderr": ""}
+}

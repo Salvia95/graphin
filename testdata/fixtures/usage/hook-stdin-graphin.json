@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "PostToolUse",
+  "session_id": "e2e-session",
+  "prompt_id": "e2e-prompt",
+  "tool_use_id": "toolu_search_1",
+  "cwd": "__CWD__",
+  "tool_name": "mcp__mykey__search_hybrid",
+  "tool_input": {"query": "where does index persistence happen", "top_k": 5},
+  "tool_response": {"content": [{"type": "text", "text": "<results semantic_ready=\"true\">\n<node id=\"workspace.persistIndexesLocked\" display_name=\"persistIndexesLocked\" rank=\"1\" match_type=\"lexical\" />\n<node id=\"workspace.Indexer\" display_name=\"Indexer\" rank=\"2\" match_type=\"semantic\" />\n</results>"}]}
+}
