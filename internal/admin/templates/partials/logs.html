@@ -1,0 +1,23 @@
+{{define "logs.html"}}
+{{if .Missing}}
+<p class="muted">로그 파일이 아직 없습니다 <span class="mono small">({{.Path}})</span></p>
+{{else}}
+<p class="muted small">tail {{comma .Total}}건 중 {{comma (len .Rows)}}건 표시 (최신 우선{{if .Filter}}, 필터: <code>{{.Filter}}</code>{{end}})</p>
+{{if .Rows}}
+<table class="logtable">
+  <thead><tr><th>시간</th><th>이벤트</th><th>상세</th></tr></thead>
+  <tbody>
+  {{range .Rows}}
+    <tr{{if .Error}} class="logerr"{{end}}>
+      <td class="mono nowrap">{{.TS}}</td>
+      <td class="mono nowrap">{{.Event}}</td>
+      <td class="mono detail">{{.Detail}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">해당 이벤트 없음</p>
+{{end}}
+{{end}}
+{{end}}

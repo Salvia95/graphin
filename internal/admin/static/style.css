@@ -157,6 +157,12 @@ input[type=search], select {
 input[type=search] { width: 100%; max-width: 480px; }
 input[type=search]:focus, select:focus { outline: 1px solid var(--accent); }
 
+.logtable { font-size: .8rem; }
+.logtable td.nowrap { white-space: nowrap; }
+.logtable td.detail { word-break: break-all; color: var(--muted); }
+.logtable tr.logerr td { color: var(--bad); }
+.logtable tr.logerr td.detail { color: var(--bad); opacity: .85; }
+
 .tabs { display: flex; gap: .3rem; margin-bottom: .9rem; flex-wrap: wrap; }
 .tabs a {
   padding: .35rem .8rem; border-radius: 8px; text-decoration: none;
