@@ -32,6 +32,12 @@ func funcMap() template.FuncMap {
 		"comma":      comma,
 		"bytesHuman": bytesHuman,
 		"list":       func(vals ...string) []string { return vals },
+		// 용어 사전 (labels.go): 보이는 텍스트 전용 — 클래스·파라미터는 raw.
+		"stateLabel":   stateLabel,
+		"kindLabel":    kindLabel,
+		"typeLabel":    typeLabel,
+		"matchLabel":   matchLabel,
+		"minConfLabel": minConfLabel,
 	}
 }
 

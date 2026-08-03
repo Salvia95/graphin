@@ -6,7 +6,7 @@
 {{range .Rows}}
 <li {{if .Dangling}}class="dangling"{{end}}>
   <span class="confbadge {{confClass .Confidence}}">{{conf .Confidence}}</span>
-  <span class="etype {{.Type}}">{{.Type}}</span>
+  <span class="etype {{.Type}}">{{typeLabel .Type}}</span>
   {{if .Dangling}}
   <span class="mono" title="{{.NodeID}}">{{.NodeID}}</span> <span class="badge warn">타겟 없음</span>
   {{else}}

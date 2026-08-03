@@ -12,7 +12,7 @@
     {{range .Nodes}}
       <tr>
         <td><a class="nodelink mono" href="/node?id={{.ID}}" title="{{.ID}}">{{if .DisplayName}}{{.DisplayName}}{{else}}{{simple .ID}}{{end}}</a></td>
-        <td>{{.Kind}}</td>
+        <td>{{kindLabel .Kind}}</td>
         <td class="num">{{.EdgeCount}}</td>
         <td>{{if .Partial}}<span class="badge warn">partial</span>{{end}}</td>
       </tr>

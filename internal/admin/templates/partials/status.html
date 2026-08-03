@@ -4,7 +4,7 @@
 <code>bootstrap_workspace</code>를 호출하면 인덱싱이 시작되고 이 페이지에 데이터가 표시됩니다.</p>
 {{else}}
 <p>
-  <span class="state state-{{.State}}">{{.State}}</span>
+  <span class="state state-{{.State}}">{{stateLabel .State}}</span>
   {{if .SemanticGated}}<span class="badge warn">semantic gated</span>{{end}}
 </p>
 <progress class="progress" value="{{.Progress}}" max="100">{{.Progress}}%</progress>
