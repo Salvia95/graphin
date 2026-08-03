@@ -101,6 +101,9 @@ tr:hover td { background: var(--panel2); }
 a { color: var(--accent); }
 a.nodelink { text-decoration: none; }
 a.nodelink:hover { text-decoration: underline; }
+a.on { color: var(--fg); font-weight: 600; }
+.kv a { text-decoration: none; }
+.kv a:hover b { text-decoration: underline; }
 
 /* confidence 배지 */
 .confbadge {

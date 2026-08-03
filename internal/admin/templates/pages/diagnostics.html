@@ -1,0 +1,111 @@
+{{define "title"}}진단 — graphin admin{{end}}
+{{define "content"}}
+<h1>진단</h1>
+<div class="tabs">
+  <a href="/diagnostics?tab=dangling" {{if eq .Tab "dangling"}}class="on"{{end}}>끊어진 엣지</a>
+  <a href="/diagnostics?tab=partial" {{if eq .Tab "partial"}}class="on"{{end}}>partial 노드</a>
+  <a href="/diagnostics?tab=semantic" {{if eq .Tab "semantic"}}class="on"{{end}}>semantic</a>
+  <a href="/diagnostics?tab=reverse" {{if eq .Tab "reverse"}}class="on"{{end}}>역인덱스</a>
+</div>
+
+{{if .Dangling}}{{template "diag_dangling" .Dangling}}{{end}}
+{{if .Partial}}{{template "diag_partial" .Partial}}{{end}}
+{{if .Semantic}}{{template "diag_semantic" .Semantic}}{{end}}
+{{if .Reverse}}{{template "diag_reverse" .Reverse}}{{end}}
+{{end}}
+
+{{define "diag_dangling"}}
+<section class="card wide">
+  <p class="muted small">target_id에 대응하는 노드가 읽기 경로에 없는 엣지입니다.
+  코드 도메인 dangling은 대개 대상 삭제/미해석의 흔적이고, DB 도메인은 스냅샷 밖 참조
+  (예: supabase <code>auth.users</code>)를 스텁 없이 정직하게 남긴 의도적 설계일 수 있습니다.</p>
+  <p>
+    <span class="badge{{if gt .Totals.Code 0}} warn{{end}}">코드 {{comma .Totals.Code}}</span>
+    <span class="badge">DB {{comma .Totals.DB}}</span>
+    필터:
+    <a href="/diagnostics?tab=dangling&filter=all" {{if eq .Filter "all"}}class="on"{{end}}>전체</a> ·
+    <a href="/diagnostics?tab=dangling&filter=code" {{if eq .Filter "code"}}class="on"{{end}}>코드만</a> ·
+    <a href="/diagnostics?tab=dangling&filter=db" {{if eq .Filter "db"}}class="on"{{end}}>DB만</a>
+  </p>
+  {{if .Rows}}
+  <table>
+    <thead><tr><th>source</th><th>type</th><th class="num">conf</th><th>target (없음)</th><th></th></tr></thead>
+    <tbody>
+    {{range .Rows}}
+      <tr>
+        <td><a class="nodelink mono" href="/node?id={{.Source}}" title="{{.Source}}">{{if .SourceDisplay}}{{.SourceDisplay}}{{else}}{{simple .Source}}{{end}}</a></td>
+        <td><span class="etype {{.Type}}">{{.Type}}</span></td>
+        <td class="num"><span class="confbadge {{confClass .Conf}}">{{conf .Conf}}</span></td>
+        <td class="mono bad">{{.Target}}</td>
+        <td>{{if .DB}}<span class="badge">db</span>{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{if .Truncated}}<p class="muted small">표시 상한({{comma 500}}행)을 넘어 일부만 표시했습니다.</p>{{end}}
+  {{else}}
+  <p class="muted">해당 없음 ✓</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "diag_partial"}}
+<section class="card wide">
+  <p class="muted small">tree-sitter가 ERROR 노드를 만난 파일(또는 구조 검증에 실패한 graphindb
+  스냅샷)의 노드입니다. 소스를 고치면 워처가 자동으로 재인덱싱합니다.</p>
+  {{if .Rows}}
+  <p><span class="badge warn">{{comma .Total}}개</span></p>
+  <table>
+    <thead><tr><th>노드</th><th>kind</th><th>파일</th></tr></thead>
+    <tbody>
+    {{range .Rows}}
+      <tr>
+        <td><a class="nodelink mono" href="/node?id={{.ID}}" title="{{.ID}}">{{if .DisplayName}}{{.DisplayName}}{{else}}{{simple .ID}}{{end}}</a></td>
+        <td>{{.Kind}}</td>
+        <td class="mono">{{.FilePath}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">해당 없음 ✓</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "diag_semantic"}}
+<section class="card wide">
+  <ul class="kv">
+    <li><span>상태</span><b>{{if .Gated}}비활성 (노드 수 게이트){{else if .Ready}}준비됨{{else if .Failure}}사용 불가{{else}}워밍업 중{{end}}</b></li>
+    <li><span>임베딩 대기 (backlog+in-flight)</span><b>{{.Pending}}</b></li>
+    <li><span>큐 깊이</span><b>{{.QueueDepth}}</b></li>
+    <li><span>드레인 완료</span><b>{{if .Drained}}예{{else}}아니오{{end}}</b></li>
+    {{if .Header}}
+    <li><span>vectors.bin 모델</span><b>{{.Header.ModelID}}</b></li>
+    <li><span>vectors.bin 파일 수</span><b>{{comma .HeaderFiles}}</b></li>
+    {{end}}
+    {{if .ExpectedModelID}}<li><span>설정 기대 모델</span><b>{{.ExpectedModelID}}</b></li>{{end}}
+    {{if .Gated}}<li><span>게이트</span><b>{{comma .GateNodes}} 노드 &gt; 상한 {{comma .GateMax}}</b></li>{{end}}
+  </ul>
+  {{if .Mismatch}}
+  <p class="warn small">⚠ 저장된 벡터 인덱스가 다른 모델로 생성되었습니다(혼합 모델 인덱스 위험).
+  서버를 내리고 <code>.graphin/search/vectors.bin</code>을 삭제한 뒤 재기동하면 현재 모델로 전량 재임베딩됩니다.</p>
+  {{end}}
+  {{if .Failure}}<p class="warn small">{{.Failure}}</p>{{end}}
+  {{if .Gated}}<p class="muted small"><code>--semantic-max-nodes</code>를 올리고 재기동하면 게이트 마커가
+  자동 해제되고 재임베딩이 시작됩니다.</p>{{end}}
+</section>
+{{end}}
+
+{{define "diag_reverse"}}
+<section class="card wide">
+  <p class="muted small">used_by 역인덱스는 compacted base + 툼스톤 델타 로그로 관리됩니다.
+  로그 10MB 또는 툼스톤 비율 30% 초과 시 자동 컴팩션됩니다.</p>
+  <ul class="kv">
+    <li><span>타겟 수</span><b>{{comma .Targets}}</b></li>
+    <li><span>역방향 엣지 수</span><b>{{comma .Edges}}</b></li>
+    <li><span>델타 로그 레코드</span><b>{{comma .LogRecords}}</b></li>
+    <li><span>델타 로그 툼스톤</span><b>{{comma .LogTombstones}}</b></li>
+  </ul>
+</section>
+{{end}}

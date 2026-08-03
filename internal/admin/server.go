@@ -61,6 +61,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /partial/explore", s.handleExplorePartial)
 	s.mux.HandleFunc("GET /partial/edges", s.handleEdgesPartial)
 	s.mux.HandleFunc("GET /partial/code", s.handleCodePartial)
+	s.mux.HandleFunc("GET /diagnostics", s.handleDiagnostics)
+	s.mux.HandleFunc("GET /settings", s.handleSettings)
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler()))
 }
 

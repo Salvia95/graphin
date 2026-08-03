@@ -1,0 +1,56 @@
+{{define "title"}}설정 — graphin admin{{end}}
+{{define "content"}}
+<h1>설정 <span class="badge">읽기 전용</span></h1>
+<p class="muted small">graphin은 설정 파일 없이 CLI 플래그로만 구성됩니다 — 값을 바꾸려면
+MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
+
+<div class="cards">
+  <section class="card">
+    <h2>유효 설정 (기동 플래그)</h2>
+    <ul class="kv">
+      <li><span>--workspace</span><b class="mono">{{.Cfg.Root}}</b></li>
+      <li><span>--model-type</span><b>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}<span class="muted">(미지정 → multilingual_cjk)</span>{{end}}</b></li>
+      <li><span>--workers</span><b>{{.Cfg.Workers}}</b></li>
+      <li><span>--semantic-max-nodes</span><b>{{comma .Cfg.SemanticMaxNodes}}{{if eq .Cfg.SemanticMaxNodes 0}} <span class="muted">(무제한)</span>{{end}}</b></li>
+      <li><span>--offline</span><b>{{.Cfg.Offline}}</b></li>
+      <li><span>--model-dir</span><b class="mono">{{if .Cfg.ModelDir}}{{.Cfg.ModelDir}}{{else}}—{{end}}</b></li>
+      <li><span>--ort-lib</span><b class="mono">{{if .Cfg.OrtLib}}{{.Cfg.OrtLib}}{{else}}—{{end}}</b></li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>임베딩 모델</h2>
+    {{if .Spec}}
+    <ul class="kv">
+      <li><span>모델 ID</span><b>{{.Spec.ID}}</b></li>
+      <li><span>차원</span><b>{{.Spec.Dim}}</b></li>
+      <li><span>프리픽스</span><b class="mono">{{.Spec.QueryPrefix}} / {{.Spec.PassagePrefix}}</b></li>
+      <li><span>ONNX Runtime</span><b>{{.ORTVersion}}</b></li>
+      {{if .Header}}<li><span>vectors.bin 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
+    </ul>
+    {{if .Mismatch}}
+    <p class="warn small">⚠ 저장된 벡터 인덱스({{.Header.ModelID}})가 설정 모델({{.ExpectedModelID}})과
+    다릅니다. 그대로 두면 검색 품질이 저하됩니다 — <code>.graphin/search/vectors.bin</code> 삭제 후
+    재기동으로 재임베딩하세요.</p>
+    {{end}}
+    {{else}}
+    <p class="muted">알 수 없는 model_type</p>
+    {{end}}
+    {{if .Gate.Gated}}
+    <p class="warn small">semantic 게이트: {{comma .Gate.Nodes}} 노드 &gt; 상한 {{comma .Gate.Max}} —
+    lexical 전용으로 동작 중.</p>
+    {{end}}
+  </section>
+
+  <section class="card">
+    <h2>저장소 (.graphin)</h2>
+    <ul class="kv">
+      {{range .Sizes}}
+      <li><span class="mono">{{.Name}}/</span><b>{{bytesHuman .Bytes}}</b></li>
+      {{end}}
+      <li><span>합계</span><b>{{bytesHuman .Total}}</b></li>
+    </ul>
+    <p class="muted small mono">{{.DataDir}}</p>
+  </section>
+</div>
+{{end}}

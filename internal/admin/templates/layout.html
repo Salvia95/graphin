@@ -13,6 +13,8 @@
   <nav>
     <a href="/" {{if eq .Active "dashboard"}}class="on"{{end}}>대시보드</a>
     <a href="/search" {{if eq .Active "search"}}class="on"{{end}}>검색</a>
+    <a href="/diagnostics" {{if eq .Active "diagnostics"}}class="on"{{end}}>진단</a>
+    <a href="/settings" {{if eq .Active "settings"}}class="on"{{end}}>설정</a>
   </nav>
   <span class="rootpath" title="{{.Root}}">{{.Root}}</span>
 </header>

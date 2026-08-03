@@ -37,10 +37,10 @@
     <h2>헬스</h2>
     {{if .Status.Bootstrapped}}
     <ul class="kv">
-      <li><span>끊어진 엣지 (코드)</span><b class="{{if gt .Health.Dangling.Code 0}}warn{{end}}">{{comma .Health.Dangling.Code}}</b></li>
-      <li><span>끊어진 엣지 (DB)</span><b>{{comma .Health.Dangling.DB}}</b></li>
-      <li><span>partial 노드</span><b class="{{if gt .Health.PartialNodes 0}}warn{{end}}">{{comma .Health.PartialNodes}}</b></li>
-      <li><span>used_by 타겟</span><b>{{comma .Reverse.Targets}}</b></li>
+      <li><span>끊어진 엣지 (코드)</span><a href="/diagnostics?tab=dangling&filter=code"><b class="{{if gt .Health.Dangling.Code 0}}warn{{end}}">{{comma .Health.Dangling.Code}}</b></a></li>
+      <li><span>끊어진 엣지 (DB)</span><a href="/diagnostics?tab=dangling&filter=db"><b>{{comma .Health.Dangling.DB}}</b></a></li>
+      <li><span>partial 노드</span><a href="/diagnostics?tab=partial"><b class="{{if gt .Health.PartialNodes 0}}warn{{end}}">{{comma .Health.PartialNodes}}</b></a></li>
+      <li><span>used_by 타겟</span><a href="/diagnostics?tab=reverse"><b>{{comma .Reverse.Targets}}</b></a></li>
       <li><span>델타 로그</span><b>{{comma .Reverse.LogRecords}} rec / {{comma .Reverse.LogTombstones}} tomb</b></li>
     </ul>
     {{else}}<p class="muted">—</p>{{end}}
