@@ -1,7 +1,9 @@
 {{define "title"}}구조 — graphin admin{{end}}
 {{define "content"}}
 <h1>구조</h1>
-{{if .Rows}}
+{{if not .Bootstrapped}}
+{{template "empty_state.html" .}}
+{{else if .Rows}}
 <p class="muted small">패키지 {{comma (len .Rows)}} · 파일 {{comma .TotalFiles}} · 노드 {{comma .TotalNodes}}</p>
 <article class="wide">
   <table>

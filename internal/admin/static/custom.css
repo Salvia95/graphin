@@ -175,4 +175,19 @@ h2.filepath code { background: none; padding: 0; font-size: .85rem; color: var(-
 .sidelabel { fill: var(--pico-muted-color); font-size: 12px; letter-spacing: .05em; }
 .morelabel { fill: var(--pico-primary); font-size: 12px; text-decoration: underline; }
 
-.htmx-request { opacity: .6; }
+/* 로딩 인디케이터: htmx가 요청 중 부여하는 클래스에 순수 CSS 스피너 */
+.htmx-request { position: relative; opacity: .7; }
+.htmx-request::after {
+  content: ""; position: absolute; top: .4rem; right: .4rem;
+  width: 1rem; height: 1rem;
+  border: 2px solid var(--pico-muted-border-color);
+  border-top-color: var(--pico-primary); border-radius: 50%;
+  animation: adminspin .6s linear infinite;
+}
+@keyframes adminspin { to { transform: rotate(360deg); } }
+
+/* breadcrumb·빈 상태 */
+.crumbs { margin-bottom: .2rem; }
+.crumbs ul { font-size: .85rem; }
+article.empty { text-align: center; padding: 2.5rem 1rem; }
+article.empty h2 { font-size: 1.05rem; color: var(--pico-color); }

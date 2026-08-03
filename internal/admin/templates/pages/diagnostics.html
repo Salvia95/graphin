@@ -1,6 +1,9 @@
 {{define "title"}}진단 — graphin admin{{end}}
 {{define "content"}}
 <h1>진단</h1>
+{{if not .Bootstrapped}}
+{{template "empty_state.html" .}}
+{{else}}
 <div class="tabs">
   <a href="/diagnostics?tab=dangling" {{if eq .Tab "dangling"}}class="on"{{end}}>끊어진 엣지</a>
   <a href="/diagnostics?tab=partial" {{if eq .Tab "partial"}}class="on"{{end}}>부분 인덱싱</a>
@@ -12,6 +15,7 @@
 {{if .Partial}}{{template "diag_partial" .Partial}}{{end}}
 {{if .Semantic}}{{template "diag_semantic" .Semantic}}{{end}}
 {{if .Reverse}}{{template "diag_reverse" .Reverse}}{{end}}
+{{end}}
 {{end}}
 
 {{define "diag_dangling"}}

@@ -10,15 +10,20 @@ import (
 	"github.com/Salvia95/graphin/internal/workspace"
 )
 
-// pageVM is the chrome every full page carries.
+// pageVM is the chrome every full page carries. Bootstrapped drives the
+// shared empty-state guidance on data screens (US-1).
 type pageVM struct {
-	Root    string
-	Version string
-	Active  string // nav highlight key
+	Root         string
+	Version      string
+	Active       string // nav highlight key
+	Bootstrapped bool
 }
 
 func (s *Server) pageVM(active string) pageVM {
-	return pageVM{Root: s.ws.Root, Version: s.version, Active: active}
+	return pageVM{
+		Root: s.ws.Root, Version: s.version, Active: active,
+		Bootstrapped: s.ws.Bootstrapped(),
+	}
 }
 
 // statusVM decorates mcp.Status for the polling card. Done stops the htmx

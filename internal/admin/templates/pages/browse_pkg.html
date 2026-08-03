@@ -1,7 +1,17 @@
 {{define "title"}}{{.Pkg}} — graphin admin{{end}}
+{{define "breadcrumb"}}
+<nav aria-label="breadcrumb" class="crumbs">
+  <ul>
+    <li><a href="/browse">구조</a></li>
+    <li><span class="mono">{{.Pkg}}</span></li>
+  </ul>
+</nav>
+{{end}}
 {{define "content"}}
-<h1><a href="/browse" class="nodelink muted">구조</a> / <span class="mono">{{.Pkg}}</span></h1>
-{{if .Files}}
+<h1 class="mono">{{.Pkg}}</h1>
+{{if not .Bootstrapped}}
+{{template "empty_state.html" .}}
+{{else if .Files}}
 <p class="muted small">파일 {{comma (len .Files)}} · 노드 {{comma .Total}}{{if .Truncated}} (표시 상한 {{comma 2000}} 초과 — 일부만 표시){{end}}</p>
 {{range .Files}}
 <article class="wide" id="{{.Anchor}}">
