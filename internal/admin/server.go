@@ -55,6 +55,12 @@ func NewServer(ws *workspace.Workspace, version string, lg *obs.Logger) (*Server
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
 	s.mux.HandleFunc("GET /partial/status", s.handleStatusPartial)
+	s.mux.HandleFunc("GET /search", s.handleSearchPage)
+	s.mux.HandleFunc("GET /partial/search", s.handleSearchPartial)
+	s.mux.HandleFunc("GET /node", s.handleNode)
+	s.mux.HandleFunc("GET /partial/explore", s.handleExplorePartial)
+	s.mux.HandleFunc("GET /partial/edges", s.handleEdgesPartial)
+	s.mux.HandleFunc("GET /partial/code", s.handleCodePartial)
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler()))
 }
 

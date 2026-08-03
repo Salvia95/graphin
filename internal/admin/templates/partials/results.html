@@ -1,0 +1,23 @@
+{{define "results.html"}}
+{{if .Query}}
+  {{if .Hits}}
+  <table>
+    <thead><tr><th class="num">#</th><th>노드</th><th>kind</th><th>match</th></tr></thead>
+    <tbody>
+    {{range .Hits}}
+      <tr>
+        <td class="num">{{.Rank}}</td>
+        <td><a class="nodelink mono" href="/node?id={{.NodeID}}" title="{{.NodeID}}">{{if .Display}}{{.Display}}{{else}}{{simple .NodeID}}{{end}}</a></td>
+        <td>{{.Kind}}</td>
+        <td><span class="badge">{{.Match}}</span></td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">결과 없음</p>
+  {{end}}
+{{else}}
+<p class="muted">질의를 입력하면 Tier-0 정확 일치 → BM25 ∥ 벡터 RRF 순서로 검색합니다.</p>
+{{end}}
+{{end}}

@@ -12,6 +12,7 @@
   <span class="brand">graphin <em>admin</em></span>
   <nav>
     <a href="/" {{if eq .Active "dashboard"}}class="on"{{end}}>대시보드</a>
+    <a href="/search" {{if eq .Active "search"}}class="on"{{end}}>검색</a>
   </nav>
   <span class="rootpath" title="{{.Root}}">{{.Root}}</span>
 </header>

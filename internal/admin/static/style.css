@@ -124,6 +124,23 @@ a.nodelink:hover { text-decoration: underline; }
 
 .dangling td { color: var(--bad); }
 
+.edgelist { list-style: none; margin: 0; padding: 0; font-size: .86rem; }
+.edgelist li {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .25rem 0; border-bottom: 1px dashed var(--line);
+  overflow: hidden;
+}
+.edgelist li:last-child { border-bottom: none; }
+.edgelist li.dangling .mono { color: var(--bad); }
+.edgelist li.more { justify-content: center; border-bottom: none; }
+.edgelist button {
+  background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 6px; padding: .25rem .9rem; cursor: pointer;
+}
+.edgelist button:hover { border-color: var(--accent); }
+.controls { margin: .6rem 0 .9rem; color: var(--muted); }
+.controls select { margin-left: .4rem; }
+
 pre.code {
   background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
   padding: .8rem 1rem; overflow-x: auto; font-size: .82rem; line-height: 1.45;

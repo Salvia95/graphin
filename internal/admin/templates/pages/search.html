@@ -1,0 +1,9 @@
+{{define "title"}}검색 — graphin admin{{end}}
+{{define "content"}}
+<h1>검색</h1>
+<input type="search" name="q" value="{{.Results.Query}}" placeholder="심볼·자연어 질의 (예: cancelPayment, 주문 취소 흐름)"
+  hx-get="/partial/search" hx-trigger="input changed delay:300ms, search" hx-target="#results" autofocus>
+<div id="results">
+{{template "results.html" .Results}}
+</div>
+{{end}}

@@ -31,6 +31,7 @@ func funcMap() template.FuncMap {
 		},
 		"comma":      comma,
 		"bytesHuman": bytesHuman,
+		"list":       func(vals ...string) []string { return vals },
 	}
 }
 

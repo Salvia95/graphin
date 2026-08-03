@@ -1,0 +1,10 @@
+{{define "code.html"}}
+{{if .Err}}
+<p class="warn small">{{.Err}}</p>
+{{else}}
+<p class="muted small mono">{{.Block.RelPath}}:{{.Block.StartLine}}–{{.Block.EndLine}}
+{{if .Block.Reparsed}} <span class="badge">재파싱됨</span>{{end}}
+{{if .Block.Partial}} <span class="badge warn">partial</span>{{end}}</p>
+<pre class="code">{{.Block.Code}}</pre>
+{{end}}
+{{end}}

@@ -1,0 +1,35 @@
+{{define "title"}}{{if .Meta.DisplayName}}{{.Meta.DisplayName}}{{else}}노드{{end}} — graphin admin{{end}}
+{{define "content"}}
+{{if not .Found}}
+<h1>노드를 찾을 수 없습니다</h1>
+<p class="muted mono">{{.ID}}</p>
+<p><a href="/search">검색으로 돌아가기</a></p>
+{{else}}
+<h1>{{if .Meta.DisplayName}}{{.Meta.DisplayName}}{{else}}{{simple .ID}}{{end}}
+  <span class="badge">{{.Meta.Kind}}</span>
+  {{if .Meta.Partial}}<span class="badge warn">partial</span>{{end}}
+</h1>
+<p class="muted small mono" title="{{.ID}}">{{.ID}}</p>
+<p class="muted small mono">{{.Meta.RelPath}}</p>
+
+<div class="controls">
+  <label>min_conf
+    <select name="min_conf" hx-get="/partial/explore?id={{.ID}}" hx-target="#explore">
+      {{$cur := .Explore.MinConf}}
+      {{range $v := list "0.00" "0.75" "0.80" "0.85" "0.90" "0.95" "1.00"}}
+      <option value="{{$v}}" {{if eq $v $cur}}selected{{end}}>{{$v}}</option>
+      {{end}}
+    </select>
+  </label>
+</div>
+
+<div id="explore">
+{{template "explore.html" .Explore}}
+</div>
+
+<section class="card wide">
+  <h2>코드</h2>
+  {{template "code.html" .Code}}
+</section>
+{{end}}
+{{end}}

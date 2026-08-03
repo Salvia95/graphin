@@ -1,0 +1,12 @@
+{{define "explore.html"}}
+<div class="split">
+  <section class="card">
+    <h2>uses (이 노드가 참조)</h2>
+    <ul class="edgelist">{{template "edges.html" .Uses}}</ul>
+  </section>
+  <section class="card">
+    <h2>used_by (이 노드를 참조)</h2>
+    <ul class="edgelist">{{template "edges.html" .UsedBy}}</ul>
+  </section>
+</div>
+{{end}}
