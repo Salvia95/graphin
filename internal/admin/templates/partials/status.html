@@ -7,7 +7,7 @@
   <span class="state state-{{.State}}">{{.State}}</span>
   {{if .SemanticGated}}<span class="badge warn">semantic gated</span>{{end}}
 </p>
-<div class="progress"><div class="bar" style="width: {{.Progress}}%"></div></div>
+<progress class="progress" value="{{.Progress}}" max="100">{{.Progress}}%</progress>
 <ul class="kv">
   <li><span>lexical</span><b>{{if .LexicalReady}}준비됨{{else}}인덱싱 중…{{end}}</b></li>
   <li><span>semantic</span><b>{{if .SemanticGated}}비활성(게이트){{else if .SemanticReady}}준비됨{{else if .SemFailure}}사용 불가(lexical 폴백){{else}}워밍업…{{end}}</b></li>

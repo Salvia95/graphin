@@ -87,10 +87,14 @@ h2 { font-size: .95rem; margin: 0 0 .6rem; color: var(--muted); font-weight: 600
 }
 .badge.warn { color: var(--warn); border-color: var(--warn); }
 
-.progress {
-  height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin: .4rem 0 .6rem;
+progress.progress {
+  width: 100%; height: 6px; margin: .4rem 0 .6rem; border: none; border-radius: 3px;
+  background: var(--panel2); accent-color: var(--accent);
+  -webkit-appearance: none; appearance: none;
 }
-.progress .bar { height: 100%; background: var(--accent); transition: width .4s; }
+progress.progress::-webkit-progress-bar { background: var(--panel2); border-radius: 3px; }
+progress.progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
+progress.progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 
 table { width: 100%; border-collapse: collapse; font-size: .88rem; }
 th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--line); }

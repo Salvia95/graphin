@@ -24,6 +24,12 @@ const cacheTTL = 10 * time.Second
 type healthCounts struct {
 	Dangling     graph.DanglingTotals
 	PartialNodes int
+	Kinds        []kindCount // count desc → name asc
+}
+
+type kindCount struct {
+	Kind  string
+	Count int
 }
 
 // Server is the admin HTTP handler. All routes are GET — v1 mutates nothing.
@@ -70,12 +76,16 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", staticHandler()))
 }
 
-// ServeHTTP guards every route with the loopback Host check.
+// ServeHTTP guards every route with the loopback Host check and a strict CSP.
+// 템플릿에 인라인 script/style이 없으므로(동적 값은 SVG 표현 속성과
+// <progress>로 표현) 'unsafe-inline' 없이 self만 허용한다.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !hostAllowed(r.Host) {
 		http.Error(w, "forbidden host", http.StatusForbidden)
 		return
 	}
+	w.Header().Set("Content-Security-Policy", "default-src 'self'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	s.mux.ServeHTTP(w, r)
 }
 
@@ -100,11 +110,22 @@ func (s *Server) cachedHealth() healthCounts {
 	}
 	var h healthCounts
 	_, h.Dangling = s.ws.GraphDangling(0)
+	kinds := map[string]int{}
 	s.ws.GraphForEach(func(n graph.NodeInfo) bool {
 		if n.Partial {
 			h.PartialNodes++
 		}
+		kinds[n.Kind]++
 		return true
+	})
+	for k, n := range kinds {
+		h.Kinds = append(h.Kinds, kindCount{Kind: k, Count: n})
+	}
+	sort.Slice(h.Kinds, func(i, j int) bool {
+		if h.Kinds[i].Count != h.Kinds[j].Count {
+			return h.Kinds[i].Count > h.Kinds[j].Count
+		}
+		return h.Kinds[i].Kind < h.Kinds[j].Kind
 	})
 	s.health = h
 	s.healthAt = time.Now()

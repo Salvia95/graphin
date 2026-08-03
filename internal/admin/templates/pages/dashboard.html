@@ -21,6 +21,17 @@
   </section>
 
   <section class="card">
+    <h2>구성 (kind)</h2>
+    {{if .Health.Kinds}}
+    <ul class="kv">
+      {{range .Health.Kinds}}
+      <li><span>{{.Kind}}</span><b>{{comma .Count}}</b></li>
+      {{end}}
+    </ul>
+    {{else}}<p class="muted">—</p>{{end}}
+  </section>
+
+  <section class="card">
     <h2>모델</h2>
     <ul class="kv">
       <li><span>설정 model_type</span><b>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}(기본){{end}}</b></li>

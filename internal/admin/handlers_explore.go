@@ -3,6 +3,7 @@ package admin
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -29,6 +30,7 @@ type searchHit struct {
 	search.Result
 	Display string
 	Kind    string
+	RelPath string
 }
 
 type resultsVM struct {
@@ -47,10 +49,12 @@ func (s *Server) searchResults(q string, k int) resultsVM {
 		return vm
 	}
 	for _, res := range s.ws.Router.Search(q, k) {
+		meta, _ := s.ws.Meta(res.NodeID)
 		vm.Hits = append(vm.Hits, searchHit{
 			Result:  res,
-			Display: s.ws.DisplayName(res.NodeID),
-			Kind:    s.ws.NodeKind(res.NodeID),
+			Display: meta.DisplayName,
+			Kind:    meta.Kind,
+			RelPath: meta.RelPath,
 		})
 	}
 	return vm
@@ -206,7 +210,14 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleExplorePartial(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	s.renderPartial(w, "explore.html", http.StatusOK, s.exploreVM(id, parseMinConf(r)))
+	minConf := parseMinConf(r)
+	// min_conf 변경이 주소창에 남도록 노드 페이지 URL로 치환 — 새로고침해도
+	// 필터가 유지된다 (handleNode의 parseMinConf가 읽음).
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Replace-Url",
+			"/node?id="+url.QueryEscape(id)+"&min_conf="+fmtConf(minConf))
+	}
+	s.renderPartial(w, "explore.html", http.StatusOK, s.exploreVM(id, minConf))
 }
 
 func (s *Server) handleEdgesPartial(w http.ResponseWriter, r *http.Request) {

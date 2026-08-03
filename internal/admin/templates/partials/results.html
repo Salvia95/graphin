@@ -2,13 +2,14 @@
 {{if .Query}}
   {{if .Hits}}
   <table>
-    <thead><tr><th class="num">#</th><th>노드</th><th>kind</th><th>match</th></tr></thead>
+    <thead><tr><th class="num">#</th><th>노드</th><th>kind</th><th>파일</th><th>match</th></tr></thead>
     <tbody>
     {{range .Hits}}
       <tr>
         <td class="num">{{.Rank}}</td>
         <td><a class="nodelink mono" href="/node?id={{.NodeID}}" title="{{.NodeID}}">{{if .Display}}{{.Display}}{{else}}{{simple .NodeID}}{{end}}</a></td>
         <td>{{.Kind}}</td>
+        <td class="mono muted">{{.RelPath}}</td>
         <td><span class="badge">{{.Match}}</span></td>
       </tr>
     {{end}}
