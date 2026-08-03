@@ -3,7 +3,7 @@
 <g class="ego-node">
   <circle cx="{{.X}}" cy="{{.Y}}" r="7" class="ncirc ndangling"/>
   <text x="{{.LabelX}}" y="{{.Y}}" dy="4" text-anchor="{{.Anchor}}" class="nlabel ldangling">{{.Label}}</text>
-  <title>{{.ID}} (타겟 없음)</title>
+  <title>{{.ID}} (대상 없음)</title>
 </g>
 {{else}}
 <a href="/node?id={{.ID}}" class="ego-node">
@@ -16,7 +16,7 @@
 
 {{define "ego.html"}}
 {{if .Empty}}
-<p class="muted">현재 min_conf에서 표시할 엣지가 없습니다.</p>
+<p class="muted">현재 최소 신뢰도에서 표시할 엣지가 없습니다.</p>
 {{else}}
 <svg viewBox="0 0 {{.W}} {{.H}}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ego graph">
   <g>
@@ -32,8 +32,8 @@
     <text x="{{.CX}}" y="{{.CY}}" dy="-16" text-anchor="middle" class="nlabel lcenter">{{.Label}}</text>
     <title>{{.ID}}</title>
   </g>
-  <text x="30" y="24" class="sidelabel">used_by ←</text>
-  <text x="{{.W}}" y="24" dx="-30" text-anchor="end" class="sidelabel">→ uses</text>
+  <text x="30" y="24" class="sidelabel">참조됨 (used_by) ←</text>
+  <text x="{{.W}}" y="24" dx="-30" text-anchor="end" class="sidelabel">→ 참조함 (uses)</text>
   {{if .MoreUsedBy}}<a href="#edgelists"><text x="30" y="{{.H}}" dy="-14" class="morelabel">…더 있음 (목록)</text></a>{{end}}
   {{if .MoreUses}}<a href="#edgelists"><text x="{{.W}}" y="{{.H}}" dy="-14" dx="-30" text-anchor="end" class="morelabel">…더 있음 (목록)</text></a>{{end}}
 </svg>

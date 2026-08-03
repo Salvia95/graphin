@@ -38,9 +38,9 @@ func TestDiagnosticsDanglingTab(t *testing.T) {
 
 func TestDiagnosticsOtherTabs(t *testing.T) {
 	s := dbWS(t)
-	wantContains(t, get(t, s, "/diagnostics?tab=partial"), http.StatusOK, "partial")
+	wantContains(t, get(t, s, "/diagnostics?tab=partial"), http.StatusOK, "부분 인덱싱")
 	wantContains(t, get(t, s, "/diagnostics?tab=semantic"), http.StatusOK, "임베딩 대기")
-	wantContains(t, get(t, s, "/diagnostics?tab=reverse"), http.StatusOK, "타겟 수")
+	wantContains(t, get(t, s, "/diagnostics?tab=reverse"), http.StatusOK, "대상 수")
 }
 
 func TestSettingsReadOnlyView(t *testing.T) {

@@ -7,13 +7,13 @@
 {{else}}
 <h1>{{if .Meta.DisplayName}}{{.Meta.DisplayName}}{{else}}{{simple .ID}}{{end}}
   <span class="badge">{{kindLabel .Meta.Kind}}</span>
-  {{if .Meta.Partial}}<span class="badge warn">partial</span>{{end}}
+  {{if .Meta.Partial}}<span class="badge warn">부분</span>{{end}}
 </h1>
 <p class="muted small mono" title="{{.ID}}">{{.ID}}</p>
 <p class="muted small mono">{{if .Pkg}}<a class="nodelink" href="/browse?pkg={{.Pkg}}#{{.FileAnchor}}">{{.Meta.RelPath}}</a>{{else}}{{.Meta.RelPath}}{{end}}</p>
 
 <div class="controls">
-  <label>min_conf
+  <label>최소 신뢰도
     <select name="min_conf" hx-get="/partial/explore?id={{.ID}}" hx-target="#explore">
       {{$cur := .Explore.MinConf}}
       {{range $v := list "0.00" "0.75" "0.80" "0.85" "0.90" "0.95" "1.00"}}

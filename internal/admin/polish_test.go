@@ -40,7 +40,7 @@ func TestExplorePartialReplacesURL(t *testing.T) {
 
 func TestDashboardKindDistribution(t *testing.T) {
 	s, _ := bootstrappedServer(t)
-	wantContains(t, get(t, s, "/"), http.StatusOK, "구성 (kind)", "메서드")
+	wantContains(t, get(t, s, "/"), http.StatusOK, "종류별 노드", "메서드")
 }
 
 func TestStrictCSPAndNoInlineStyles(t *testing.T) {

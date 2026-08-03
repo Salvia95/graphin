@@ -26,19 +26,15 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
       <li><span>차원</span><b>{{.Spec.Dim}}</b></li>
       <li><span>프리픽스</span><b class="mono">{{.Spec.QueryPrefix}} / {{.Spec.PassagePrefix}}</b></li>
       <li><span>ONNX Runtime</span><b>{{.ORTVersion}}</b></li>
-      {{if .Header}}<li><span>vectors.bin 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
+      {{if .Header}}<li><span>저장된 벡터 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
     </ul>
-    {{if .Mismatch}}
-    <p class="warn small">⚠ 저장된 벡터 인덱스({{.Header.ModelID}})가 설정 모델({{.ExpectedModelID}})과
-    다릅니다. 그대로 두면 검색 품질이 저하됩니다 — <code>.graphin/search/vectors.bin</code> 삭제 후
-    재기동으로 재임베딩하세요.</p>
-    {{end}}
+    {{if .Warning}}{{template "model_warning.html" .Warning}}{{end}}
     {{else}}
-    <p class="muted">알 수 없는 model_type</p>
+    <p class="muted">알 수 없는 모델 종류</p>
     {{end}}
     {{if .Gate.Gated}}
-    <p class="warn small">semantic 게이트: {{comma .Gate.Nodes}} 노드 &gt; 상한 {{comma .Gate.Max}} —
-    lexical 전용으로 동작 중.</p>
+    <p class="warn small">의미 검색 게이트: {{comma .Gate.Nodes}} 노드 &gt; 상한 {{comma .Gate.Max}} —
+    키워드 검색 전용으로 동작 중.</p>
     {{end}}
   </section>
 

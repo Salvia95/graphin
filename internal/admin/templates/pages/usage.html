@@ -1,6 +1,6 @@
 {{define "title"}}계측 — graphin admin{{end}}
 {{define "content"}}
-<h1>채택 계측</h1>
+<h1>계측</h1>
 {{if .Missing}}
 <p class="muted">계측 데이터가 없습니다 <span class="mono small">({{.Dir}})</span></p>
 <p class="muted small">graphin-usage 플러그인(PostToolUse 훅)이 설치된 세션에서 툴콜이 쌓이면
@@ -39,10 +39,10 @@
 
 {{if .Groups}}
 <section class="card wide">
-  <h2>헤드라인</h2>
+  <h2>핵심 지표</h2>
   <table>
-    <thead><tr><th>group</th><th class="num">windows</th><th>adoption</th><th class="num">fallback</th>
-      <th class="num">same-intent</th><th class="num">inconclusive</th><th>late switch</th><th>discovery failure</th></tr></thead>
+    <thead><tr><th>그룹</th><th class="num">윈도우 수</th><th>채택률</th><th class="num">폴백 수</th>
+      <th class="num">동일 의도</th><th class="num">판단 불가</th><th>늦은 전환</th><th>탐색 실패</th></tr></thead>
     <tbody>
     {{range .Groups}}
       <tr>
@@ -58,8 +58,8 @@
     {{end}}
     </tbody>
   </table>
-  <p class="muted small">adoption = 채택/(채택+폴백) · late switch 분모 = graphin 사용 윈도우 ·
-  discovery failure 분모 = search 있는 윈도우</p>
+  <p class="muted small">채택률(adoption) = 채택/(채택+폴백) · 늦은 전환(late switch) 분모 = graphin 사용 윈도우 ·
+  탐색 실패(discovery failure) 분모 = search 있는 윈도우 · 동일 의도(same-intent) = 같은 의도의 grep 폴백</p>
 </section>
 {{end}}
 
@@ -69,14 +69,14 @@
   <p class="muted small">graphin 질의 직후 grep으로 후퇴한 사례. same-intent 쌍은 search_hybrid가
   놓친 리터럴 재현 케이스 — 인덱스/랭킹 개선 입력.</p>
   <table>
-    <thead><tr><th>ts</th><th>graphin query</th><th>fallback pattern</th><th></th></tr></thead>
+    <thead><tr><th>시각</th><th>graphin 질의</th><th>폴백 패턴</th><th></th></tr></thead>
     <tbody>
     {{range .R.FallbackPairs}}
       <tr>
         <td class="mono nowrap">{{.TS}}</td>
         <td class="mono">{{.Query}}</td>
         <td class="mono">{{.Pattern}}</td>
-        <td>{{if .SameIntent}}<span class="badge warn">same-intent</span>{{end}}</td>
+        <td>{{if .SameIntent}}<span class="badge warn">동일 의도</span>{{end}}</td>
       </tr>
     {{end}}
     </tbody>
@@ -88,13 +88,15 @@
 <section class="card wide">
   <h2>바이그램 전이</h2>
   <table class="bigram">
-    <thead><tr><th>from \ to</th>{{range .Bigram.Cols}}<th class="num">{{.}}</th>{{end}}</tr></thead>
+    <thead><tr><th>이전 \ 다음</th>{{range .Bigram.Cols}}<th class="num mono">{{.}}</th>{{end}}</tr></thead>
     <tbody>
     {{range .Bigram.Rows}}
-      <tr><td>{{.From}}</td>{{range .Cells}}<td class="num">{{if gt . 0}}{{comma .}}{{end}}</td>{{end}}</tr>
+      <tr><td class="mono">{{.From}}</td>{{range .Cells}}<td class="num">{{if gt . 0}}{{comma .}}{{end}}</td>{{end}}</tr>
     {{end}}
     </tbody>
   </table>
+  <p class="muted small">g_search/g_explore/g_read = graphin 검색·탐색·코드 읽기 · g_boot/g_bench = 부트스트랩·벤치마크 ·
+  search/read/action/other = 일반 도구(검색·읽기·수정·기타)</p>
 </section>
 {{end}}
 {{end}}

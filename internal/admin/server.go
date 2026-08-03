@@ -80,7 +80,7 @@ func (s *Server) routes() {
 // <progress>로 표현) 'unsafe-inline' 없이 self만 허용한다.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !hostAllowed(r.Host) {
-		http.Error(w, "forbidden host", http.StatusForbidden)
+		http.Error(w, "허용되지 않은 호스트 (로컬 전용)", http.StatusForbidden)
 		return
 	}
 	w.Header().Set("Content-Security-Policy", "default-src 'self'")

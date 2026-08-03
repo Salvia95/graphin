@@ -32,7 +32,7 @@ func TestUsagePageRendersReport(t *testing.T) {
 
 	rec := get(t, s, "/usage")
 	wantContains(t, rec, http.StatusOK,
-		"헤드라인", "adoption", "폴백 페어", "바이그램", "이벤트")
+		"핵심 지표", "채택률", "폴백 페어", "바이그램", "이벤트")
 	// 픽스처에는 채택·폴백이 모두 있으므로 all 그룹 행과 차트가 나온다.
 	body := rec.Body.String()
 	if !strings.Contains(body, "<svg") || !strings.Contains(body, `class="bar adoption"`) {

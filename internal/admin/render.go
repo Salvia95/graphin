@@ -100,13 +100,13 @@ func loadTemplates() (map[string]*template.Template, error) {
 func (s *Server) renderPage(w http.ResponseWriter, page string, data any) {
 	t, ok := s.tmpl[page]
 	if !ok {
-		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
+		http.Error(w, "알 수 없는 페이지: "+page, http.StatusInternalServerError)
 		return
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout.html", data); err != nil {
 		s.log.Event("admin_render_error", map[string]any{"page": page, "error": err.Error()})
-		http.Error(w, "render error", http.StatusInternalServerError)
+		http.Error(w, "렌더링 오류", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -120,7 +120,7 @@ func (s *Server) renderPartial(w http.ResponseWriter, name string, code int, dat
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
 		s.log.Event("admin_render_error", map[string]any{"partial": name, "error": err.Error()})
-		http.Error(w, "render error", http.StatusInternalServerError)
+		http.Error(w, "렌더링 오류", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

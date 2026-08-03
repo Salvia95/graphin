@@ -57,7 +57,7 @@ type dashboardVM struct {
 	Cfg             workspace.ConfigView
 	Header          *semantic.Header
 	ExpectedModelID string
-	ModelMismatch   bool
+	Warning         *modelWarningVM
 }
 
 // modelExpectation resolves the configured model type to its pinned ModelID
@@ -68,6 +68,21 @@ func modelExpectation(cfg workspace.ConfigView, hdr *semantic.Header) (string, b
 		return "", false
 	}
 	return spec.ID, hdr != nil && hdr.ModelID != spec.ID
+}
+
+// modelWarningVM feeds the shared model_warning.html partial (nil = 정상).
+type modelWarningVM struct {
+	Stored   string
+	Expected string
+}
+
+func (s *Server) modelWarning() *modelWarningVM {
+	hdr := s.ws.SemanticHeader()
+	expected, mismatch := modelExpectation(s.ws.EffectiveConfig(), hdr)
+	if !mismatch {
+		return nil
+	}
+	return &modelWarningVM{Stored: hdr.ModelID, Expected: expected}
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +98,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		vm.Health = s.cachedHealth()
 		vm.Reverse = s.ws.GraphReverseStats()
 	}
-	vm.ExpectedModelID, vm.ModelMismatch = modelExpectation(vm.Cfg, vm.Header)
+	vm.ExpectedModelID, _ = modelExpectation(vm.Cfg, vm.Header)
+	vm.Warning = s.modelWarning()
 	s.renderPage(w, "dashboard.html", vm)
 }
 

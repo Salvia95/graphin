@@ -7,14 +7,14 @@
 <section class="card wide" id="{{.Anchor}}">
   <h2 class="mono">{{.Path}}</h2>
   <table>
-    <thead><tr><th>노드</th><th>kind</th><th class="num">uses</th><th></th></tr></thead>
+    <thead><tr><th>노드</th><th>종류</th><th class="num">참조 수</th><th></th></tr></thead>
     <tbody>
     {{range .Nodes}}
       <tr>
         <td><a class="nodelink mono" href="/node?id={{.ID}}" title="{{.ID}}">{{if .DisplayName}}{{.DisplayName}}{{else}}{{simple .ID}}{{end}}</a></td>
         <td>{{kindLabel .Kind}}</td>
         <td class="num">{{.EdgeCount}}</td>
-        <td>{{if .Partial}}<span class="badge warn">partial</span>{{end}}</td>
+        <td>{{if .Partial}}<span class="badge warn">부분</span>{{end}}</td>
       </tr>
     {{end}}
     </tbody>

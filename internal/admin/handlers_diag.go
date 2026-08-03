@@ -49,7 +49,7 @@ type diagSemanticVM struct {
 	Header          *semantic.Header
 	HeaderFiles     int
 	ExpectedModelID string
-	Mismatch        bool
+	Warning         *modelWarningVM
 }
 
 type diagVM struct {
@@ -120,7 +120,8 @@ func (s *Server) diagSemantic() *diagSemanticVM {
 	if vm.Header != nil {
 		vm.HeaderFiles = len(vm.Header.Files)
 	}
-	vm.ExpectedModelID, vm.Mismatch = modelExpectation(s.ws.EffectiveConfig(), vm.Header)
+	vm.ExpectedModelID, _ = modelExpectation(s.ws.EffectiveConfig(), vm.Header)
+	vm.Warning = s.modelWarning()
 	return vm
 }
 
@@ -166,10 +167,9 @@ type settingsVM struct {
 	Spec       *provision.ModelSpec
 	ORTVersion string
 
-	Header          *semantic.Header
-	ExpectedModelID string
-	Mismatch        bool
-	Gate            gateVM
+	Header  *semantic.Header
+	Warning *modelWarningVM
+	Gate    gateVM
 
 	DataDir string
 	Sizes   []dirSize
@@ -203,7 +203,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	if spec, ok := provision.Models[cfg.ModelType]; ok {
 		vm.Spec = &spec
 	}
-	vm.ExpectedModelID, vm.Mismatch = modelExpectation(cfg, vm.Header)
+	vm.Warning = s.modelWarning()
 	vm.Gate.Nodes, vm.Gate.Max, vm.Gate.Gated = s.ws.GateInfo()
 	for _, sub := range []string{"search", "graph", "runtime", "usage"} {
 		n := duDir(filepath.Join(s.ws.Dir, sub))

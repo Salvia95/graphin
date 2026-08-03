@@ -120,7 +120,7 @@ func TestStatusPartialStopsPollingWhenTerminal(t *testing.T) {
 	for time.Now().Before(deadline) {
 		rec := get(t, s, "/partial/status")
 		if rec.Code == 286 {
-			wantContains(t, rec, 286, "lexical")
+			wantContains(t, rec, 286, "키워드 검색")
 			return
 		}
 		time.Sleep(20 * time.Millisecond)

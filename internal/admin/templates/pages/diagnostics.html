@@ -3,8 +3,8 @@
 <h1>진단</h1>
 <div class="tabs">
   <a href="/diagnostics?tab=dangling" {{if eq .Tab "dangling"}}class="on"{{end}}>끊어진 엣지</a>
-  <a href="/diagnostics?tab=partial" {{if eq .Tab "partial"}}class="on"{{end}}>partial 노드</a>
-  <a href="/diagnostics?tab=semantic" {{if eq .Tab "semantic"}}class="on"{{end}}>semantic</a>
+  <a href="/diagnostics?tab=partial" {{if eq .Tab "partial"}}class="on"{{end}}>부분 인덱싱</a>
+  <a href="/diagnostics?tab=semantic" {{if eq .Tab "semantic"}}class="on"{{end}}>의미 검색</a>
   <a href="/diagnostics?tab=reverse" {{if eq .Tab "reverse"}}class="on"{{end}}>역인덱스</a>
 </div>
 
@@ -29,7 +29,7 @@
   </p>
   {{if .Rows}}
   <table>
-    <thead><tr><th>source</th><th>type</th><th class="num">conf</th><th>target (없음)</th><th></th></tr></thead>
+    <thead><tr><th>출발 노드</th><th>유형</th><th class="num">신뢰도</th><th>사라진 대상</th><th>도메인</th></tr></thead>
     <tbody>
     {{range .Rows}}
       <tr>
@@ -37,7 +37,7 @@
         <td><span class="etype {{.Type}}">{{typeLabel .Type}}</span></td>
         <td class="num"><span class="confbadge {{confClass .Conf}}">{{conf .Conf}}</span></td>
         <td class="mono bad">{{.Target}}</td>
-        <td>{{if .DB}}<span class="badge">db</span>{{end}}</td>
+        <td>{{if .DB}}<span class="badge">DB</span>{{else}}<span class="badge">코드</span>{{end}}</td>
       </tr>
     {{end}}
     </tbody>
@@ -77,20 +77,18 @@
 <section class="card wide">
   <ul class="kv">
     <li><span>상태</span><b>{{if .Gated}}비활성 (노드 수 게이트){{else if .Ready}}준비됨{{else if .Failure}}사용 불가{{else}}워밍업 중{{end}}</b></li>
-    <li><span>임베딩 대기 (backlog+in-flight)</span><b>{{.Pending}}</b></li>
-    <li><span>큐 깊이</span><b>{{.QueueDepth}}</b></li>
-    <li><span>드레인 완료</span><b>{{if .Drained}}예{{else}}아니오{{end}}</b></li>
+    <li><span>임베딩 대기</span><b>{{.Pending}}</b></li>
+    <li><span>대기열 깊이</span><b>{{.QueueDepth}}</b></li>
+    <li><span>대기열 소진</span><b>{{if .Drained}}예{{else}}아니오{{end}}</b></li>
     {{if .Header}}
-    <li><span>vectors.bin 모델</span><b>{{.Header.ModelID}}</b></li>
-    <li><span>vectors.bin 파일 수</span><b>{{comma .HeaderFiles}}</b></li>
+    <li><span>저장된 벡터 모델</span><b>{{.Header.ModelID}}</b></li>
+    <li><span>저장된 벡터 파일 수</span><b>{{comma .HeaderFiles}}</b></li>
     {{end}}
     {{if .ExpectedModelID}}<li><span>설정 기대 모델</span><b>{{.ExpectedModelID}}</b></li>{{end}}
     {{if .Gated}}<li><span>게이트</span><b>{{comma .GateNodes}} 노드 &gt; 상한 {{comma .GateMax}}</b></li>{{end}}
   </ul>
-  {{if .Mismatch}}
-  <p class="warn small">⚠ 저장된 벡터 인덱스가 다른 모델로 생성되었습니다(혼합 모델 인덱스 위험).
-  서버를 내리고 <code>.graphin/search/vectors.bin</code>을 삭제한 뒤 재기동하면 현재 모델로 전량 재임베딩됩니다.</p>
-  {{end}}
+  <p class="muted small">임베딩 대기 = 백로그(backlog) + 처리 중(in-flight) · 저장된 벡터 = <code>vectors.bin</code></p>
+  {{if .Warning}}{{template "model_warning.html" .Warning}}{{end}}
   {{if .Failure}}<p class="warn small">{{.Failure}}</p>{{end}}
   {{if .Gated}}<p class="muted small"><code>--semantic-max-nodes</code>를 올리고 재기동하면 게이트 마커가
   자동 해제되고 재임베딩이 시작됩니다.</p>{{end}}
@@ -102,7 +100,7 @@
   <p class="muted small">used_by 역인덱스는 compacted base + 툼스톤 델타 로그로 관리됩니다.
   로그 10MB 또는 툼스톤 비율 30% 초과 시 자동 컴팩션됩니다.</p>
   <ul class="kv">
-    <li><span>타겟 수</span><b>{{comma .Targets}}</b></li>
+    <li><span>대상 수</span><b>{{comma .Targets}}</b></li>
     <li><span>역방향 엣지 수</span><b>{{comma .Edges}}</b></li>
     <li><span>델타 로그 레코드</span><b>{{comma .LogRecords}}</b></li>
     <li><span>델타 로그 툼스톤</span><b>{{comma .LogTombstones}}</b></li>

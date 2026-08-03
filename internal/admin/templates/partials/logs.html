@@ -2,7 +2,7 @@
 {{if .Missing}}
 <p class="muted">로그 파일이 아직 없습니다 <span class="mono small">({{.Path}})</span></p>
 {{else}}
-<p class="muted small">tail {{comma .Total}}건 중 {{comma (len .Rows)}}건 표시 (최신 우선{{if .Filter}}, 필터: <code>{{.Filter}}</code>{{end}})</p>
+<p class="muted small">최근 {{comma .Total}}건 중 {{comma (len .Rows)}}건 표시 (최신 우선{{if .Filter}}, 필터: <code>{{.Filter}}</code>{{end}})</p>
 {{if .Rows}}
 <table class="logtable">
   <thead><tr><th>시간</th><th>이벤트</th><th>상세</th></tr></thead>

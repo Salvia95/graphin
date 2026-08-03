@@ -1,0 +1,5 @@
+{{define "model_warning.html"}}
+<p class="warn small">⚠ 저장된 벡터 인덱스(<code>{{.Stored}}</code>)가 설정 모델(<code>{{.Expected}}</code>)과
+다릅니다 — 혼합 모델 인덱스는 검색 품질을 떨어뜨립니다. 서버를 내리고
+<code>.graphin/search/vectors.bin</code>을 삭제한 뒤 재기동하면 현재 모델로 전량 재임베딩됩니다.</p>
+{{end}}

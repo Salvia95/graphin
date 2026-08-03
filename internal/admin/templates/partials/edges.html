@@ -1,14 +1,14 @@
 {{define "edges.html"}}
 {{if .FirstPage}}
 {{if .Err}}<li class="muted">{{.Err}}</li>{{end}}
-{{if and (not .Rows) (not .Err)}}<li class="muted">없음 (min_conf {{.MinConf}})</li>{{end}}
+{{if and (not .Rows) (not .Err)}}<li class="muted">없음 (최소 신뢰도 {{.MinConf}})</li>{{end}}
 {{end}}
 {{range .Rows}}
 <li {{if .Dangling}}class="dangling"{{end}}>
   <span class="confbadge {{confClass .Confidence}}">{{conf .Confidence}}</span>
   <span class="etype {{.Type}}">{{typeLabel .Type}}</span>
   {{if .Dangling}}
-  <span class="mono" title="{{.NodeID}}">{{.NodeID}}</span> <span class="badge warn">타겟 없음</span>
+  <span class="mono" title="{{.NodeID}}">{{.NodeID}}</span> <span class="badge warn">대상 없음</span>
   {{else}}
   <a class="nodelink mono" href="/node?id={{.NodeID}}" title="{{.NodeID}}">{{if .Display}}{{.Display}}{{else}}{{simple .NodeID}}{{end}}</a>
   {{end}}

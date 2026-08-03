@@ -52,9 +52,9 @@ func TestNodeDetailShowsEdgesAndCode(t *testing.T) {
 
 	rec := get(t, s, "/node?id="+url.QueryEscape(runID))
 	wantContains(t, rec, http.StatusOK,
-		"uses", "used_by", "help", // 호출 엣지
+		"참조함 (uses)", "참조됨 (used_by)", "help", // 호출 엣지
 		"Flow.java", "void run()", // 코드 블록(메서드 슬라이스)
-		"min_conf")
+		"min_conf", "최소 신뢰도")
 	if !strings.Contains(rec.Body.String(), "confbadge") {
 		t.Fatal("confidence badge missing")
 	}
