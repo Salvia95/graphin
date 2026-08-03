@@ -149,15 +149,22 @@ type exploreVM struct {
 	MinConf string
 	Uses    edgeListVM
 	UsedBy  edgeListVM
+	Ego     egoData
 }
 
 func (s *Server) exploreVM(id string, minConf float32) exploreVM {
-	return exploreVM{
+	vm := exploreVM{
 		ID:      id,
 		MinConf: fmtConf(minConf),
 		Uses:    s.edgeList(id, "uses", "", minConf),
 		UsedBy:  s.edgeList(id, "used_by", "", minConf),
 	}
+	display := s.ws.DisplayName(id)
+	if display == "" {
+		display = id
+	}
+	vm.Ego = buildEgo(id, display, vm.Uses, vm.UsedBy)
+	return vm
 }
 
 type nodeVM struct {

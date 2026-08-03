@@ -167,3 +167,23 @@ input[type=search]:focus, select:focus { outline: 1px solid var(--accent); }
 #ego svg { width: 100%; height: auto; display: block; }
 #ego a { cursor: pointer; }
 .htmx-request { opacity: .6; }
+
+/* ego-graph SVG */
+.el { stroke: var(--muted); }
+.el.call { stroke: var(--edge-call); }
+.el.import { stroke: var(--edge-import); }
+.el.extends { stroke: var(--edge-extends); }
+.el.implements { stroke: var(--edge-implements); }
+.el.reference { stroke: var(--edge-reference); }
+.el.foreign_key { stroke: var(--edge-foreign_key); }
+.el.edashed { stroke-dasharray: 5 4; }
+.ncirc { fill: var(--panel2); stroke: var(--line); stroke-width: 1.5; }
+.ego-node:hover .ncirc { stroke: var(--accent); fill: var(--panel); }
+.ncirc.ncenter { fill: var(--accent); stroke: var(--accent); }
+.ncirc.ndangling { fill: none; stroke: var(--bad); stroke-dasharray: 3 3; }
+.nlabel { fill: var(--fg); font-size: 12px; }
+.ego-node:hover .nlabel { fill: var(--accent); }
+.nlabel.ldangling { fill: var(--bad); }
+.nlabel.lcenter { font-weight: 700; }
+.sidelabel { fill: var(--muted); font-size: 12px; letter-spacing: .05em; }
+.morelabel { fill: var(--accent); font-size: 12px; text-decoration: underline; }
