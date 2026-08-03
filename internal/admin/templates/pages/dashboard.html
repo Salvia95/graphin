@@ -1,0 +1,63 @@
+{{define "title"}}대시보드 — graphin admin{{end}}
+{{define "content"}}
+<h1>대시보드</h1>
+<div class="cards">
+  <section class="card">
+    <h2>상태</h2>
+    <div id="status" hx-get="/partial/status" hx-trigger="every 2s" hx-swap="innerHTML">
+      {{template "status.html" .Status}}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>그래프</h2>
+    {{if .Status.Bootstrapped}}
+    <ul class="kv">
+      <li><span>노드</span><b>{{comma .Stats.Nodes}}</b></li>
+      <li><span>엣지</span><b>{{comma .Stats.Edges}}</b></li>
+      <li><span>샤드</span><b>{{comma (len .Stats.Shards)}}</b></li>
+    </ul>
+    {{else}}<p class="muted">—</p>{{end}}
+  </section>
+
+  <section class="card">
+    <h2>모델</h2>
+    <ul class="kv">
+      <li><span>설정 model_type</span><b>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}(기본){{end}}</b></li>
+      {{if .ExpectedModelID}}<li><span>기대 모델</span><b>{{.ExpectedModelID}}</b></li>{{end}}
+      {{if .Header}}<li><span>vectors.bin 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
+    </ul>
+    {{if .ModelMismatch}}
+    <p class="warn small">⚠ 저장된 벡터 인덱스가 다른 모델로 생성되었습니다 — 혼합 모델 인덱스 위험.
+    <code>.graphin/search/vectors.bin</code>을 삭제 후 재기동하면 현재 모델로 전량 재임베딩됩니다.</p>
+    {{end}}
+  </section>
+
+  <section class="card">
+    <h2>헬스</h2>
+    {{if .Status.Bootstrapped}}
+    <ul class="kv">
+      <li><span>끊어진 엣지 (코드)</span><b class="{{if gt .Health.Dangling.Code 0}}warn{{end}}">{{comma .Health.Dangling.Code}}</b></li>
+      <li><span>끊어진 엣지 (DB)</span><b>{{comma .Health.Dangling.DB}}</b></li>
+      <li><span>partial 노드</span><b class="{{if gt .Health.PartialNodes 0}}warn{{end}}">{{comma .Health.PartialNodes}}</b></li>
+      <li><span>used_by 타겟</span><b>{{comma .Reverse.Targets}}</b></li>
+      <li><span>델타 로그</span><b>{{comma .Reverse.LogRecords}} rec / {{comma .Reverse.LogTombstones}} tomb</b></li>
+    </ul>
+    {{else}}<p class="muted">—</p>{{end}}
+  </section>
+</div>
+
+{{if .TopShards}}
+<section class="card wide">
+  <h2>샤드 상위 {{len .TopShards}}</h2>
+  <table>
+    <thead><tr><th>패키지</th><th class="num">gen</th><th class="num">노드</th><th class="num">엣지</th></tr></thead>
+    <tbody>
+    {{range .TopShards}}
+      <tr><td class="mono">{{.Pkg}}</td><td class="num">{{.Gen}}</td><td class="num">{{comma .Nodes}}</td><td class="num">{{comma .Edges}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+{{end}}

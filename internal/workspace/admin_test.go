@@ -23,8 +23,8 @@ func TestAdminFacadeBeforeBootstrap(t *testing.T) {
 	if _, ok := ws.GraphInfo("x"); ok {
 		t.Fatal("GraphInfo must miss before bootstrap")
 	}
-	if rows, total := ws.GraphDangling(10); rows != nil || total != 0 {
-		t.Fatalf("dangling before bootstrap: %v %d", rows, total)
+	if rows, totals := ws.GraphDangling(10); rows != nil || totals.Sum() != 0 {
+		t.Fatalf("dangling before bootstrap: %v %+v", rows, totals)
 	}
 	visited := false
 	ws.GraphForEach(func(graph.NodeInfo) bool { visited = true; return true })

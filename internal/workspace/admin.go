@@ -48,10 +48,10 @@ func (w *Workspace) GraphForEach(fn func(graph.NodeInfo) bool) {
 }
 
 // GraphDangling lists edges whose target is not on the read path.
-func (w *Workspace) GraphDangling(max int) ([]graph.Dangling, int) {
+func (w *Workspace) GraphDangling(max int) ([]graph.Dangling, graph.DanglingTotals) {
 	e := w.engineForRead()
 	if e == nil {
-		return nil, 0
+		return nil, graph.DanglingTotals{}
 	}
 	return e.DanglingEdges(max)
 }

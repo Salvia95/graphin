@@ -171,27 +171,37 @@ type Dangling struct {
 	DBDomain bool
 }
 
+// DanglingTotals splits the dangling count by target domain: DB targets can
+// dangle by design, code targets are always worth a look.
+type DanglingTotals struct {
+	Code int
+	DB   int
+}
+
+func (t DanglingTotals) Sum() int { return t.Code + t.DB }
+
 // DanglingEdges scans every visible edge and reports those whose target is
 // not on the read path. At most max entries are returned (0 = count only);
-// total always counts everything.
-func (e *Engine) DanglingEdges(max int) (out []Dangling, total int) {
+// totals always count everything.
+func (e *Engine) DanglingEdges(max int) (out []Dangling, totals DanglingTotals) {
 	e.ForEachNode(func(n NodeInfo) bool {
 		for _, u := range n.Uses {
 			if e.HasNode(u.TargetID) {
 				continue
 			}
-			total++
+			db := strings.HasPrefix(u.TargetID, "db.")
+			if db {
+				totals.DB++
+			} else {
+				totals.Code++
+			}
 			if len(out) < max {
-				out = append(out, Dangling{
-					SourceID: n.ID,
-					Edge:     u,
-					DBDomain: strings.HasPrefix(u.TargetID, "db."),
-				})
+				out = append(out, Dangling{SourceID: n.ID, Edge: u, DBDomain: db})
 			}
 		}
 		return true
 	})
-	return out, total
+	return out, totals
 }
 
 // ReverseStats summarizes the used_by index and its delta log.

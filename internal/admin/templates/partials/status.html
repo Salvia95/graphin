@@ -1,0 +1,21 @@
+{{define "status.html"}}
+{{if not .Bootstrapped}}
+<p class="muted">워크스페이스가 아직 부트스트랩되지 않았습니다 — MCP 클라이언트(에이전트)가
+<code>bootstrap_workspace</code>를 호출하면 인덱싱이 시작되고 이 페이지에 데이터가 표시됩니다.</p>
+{{else}}
+<p>
+  <span class="state state-{{.State}}">{{.State}}</span>
+  {{if .SemanticGated}}<span class="badge warn">semantic gated</span>{{end}}
+</p>
+<div class="progress"><div class="bar" style="width: {{.Progress}}%"></div></div>
+<ul class="kv">
+  <li><span>lexical</span><b>{{if .LexicalReady}}준비됨{{else}}인덱싱 중…{{end}}</b></li>
+  <li><span>semantic</span><b>{{if .SemanticGated}}비활성(게이트){{else if .SemanticReady}}준비됨{{else if .SemFailure}}사용 불가(lexical 폴백){{else}}워밍업…{{end}}</b></li>
+  {{if gt .EmbedPending 0}}<li><span>임베딩 대기</span><b>{{.EmbedPending}}</b></li>{{end}}
+  {{if .DBSources}}<li><span>DB 소스</span><b>{{.DBSources}} ({{.DBSnapshots}} snapshot)</b></li>{{end}}
+</ul>
+{{if .SemanticNote}}<p class="warn small">{{.SemanticNote}}</p>
+{{else if .SemFailure}}<p class="warn small">{{.SemFailure}}</p>{{end}}
+{{if .DBManifestErrors}}<p class="warn small">manifest: {{.DBManifestErrors}}</p>{{end}}
+{{end}}
+{{end}}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{block "title" .}}graphin admin{{end}}</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/htmx.min.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">graphin <em>admin</em></span>
+  <nav>
+    <a href="/" {{if eq .Active "dashboard"}}class="on"{{end}}>대시보드</a>
+  </nav>
+  <span class="rootpath" title="{{.Root}}">{{.Root}}</span>
+</header>
+<main>
+{{template "content" .}}
+</main>
+<footer>graphin {{.Version}} · 읽기 전용 로컬 페이지</footer>
+</body>
+</html>

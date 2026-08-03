@@ -80,8 +80,8 @@ func TestInspectStatsForEachInfo(t *testing.T) {
 func TestInspectDanglingAfterRemoval(t *testing.T) {
 	e, runID, chargeID := inspectFixture(t)
 
-	if _, total := e.DanglingEdges(0); total != 0 {
-		t.Fatalf("fresh graph dangling = %d, want 0", total)
+	if _, totals := e.DanglingEdges(0); totals.Sum() != 0 {
+		t.Fatalf("fresh graph dangling = %+v, want 0", totals)
 	}
 
 	// Removing the callee leaves the caller's persisted edge pointing at a
@@ -89,9 +89,9 @@ func TestInspectDanglingAfterRemoval(t *testing.T) {
 	e.RemoveNodes([]string{chargeID})
 	e.Flush()
 
-	out, total := e.DanglingEdges(10)
-	if total != 1 || len(out) != 1 {
-		t.Fatalf("dangling = %d (%d rows), want 1", total, len(out))
+	out, totals := e.DanglingEdges(10)
+	if totals.Code != 1 || totals.DB != 0 || len(out) != 1 {
+		t.Fatalf("dangling = %+v (%d rows), want code 1", totals, len(out))
 	}
 	d := out[0]
 	if d.SourceID != runID || d.Edge.TargetID != chargeID || d.DBDomain {
@@ -99,9 +99,9 @@ func TestInspectDanglingAfterRemoval(t *testing.T) {
 	}
 
 	// max=0 counts without collecting rows.
-	out, total = e.DanglingEdges(0)
-	if total != 1 || out != nil {
-		t.Fatalf("count-only scan: rows=%v total=%d", out, total)
+	out, totals = e.DanglingEdges(0)
+	if totals.Sum() != 1 || out != nil {
+		t.Fatalf("count-only scan: rows=%v totals=%+v", out, totals)
 	}
 }
 
@@ -109,8 +109,8 @@ func TestInspectDanglingDBDomain(t *testing.T) {
 	e := newEngine(t)
 	applyAll(e, dbFixture(t, "main.graphindb.json"))
 
-	out, total := e.DanglingEdges(100)
-	if total == 0 {
+	out, totals := e.DanglingEdges(100)
+	if totals.DB == 0 {
 		t.Fatal("db snapshot must contain the auth.users dangling FK")
 	}
 	found := false

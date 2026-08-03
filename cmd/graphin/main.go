@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Salvia95/graphin/internal/admin"
 	"github.com/Salvia95/graphin/internal/dbimport"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/mcp/tools"
@@ -48,7 +49,10 @@ func main() {
 		semMaxNodes = flag.Int("semantic-max-nodes", 40000,
 			"disable semantic search above this node count; lexical stays on (0 = no limit). "+
 				"Default from docs/eval cold-start: ~1.4GB peak / ~4.6min warmup at 40k on 8GB.")
-		verbose = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
+		verbose   = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
+		adminAddr = flag.String("admin-addr", "",
+			"serve the read-only local admin page at this loopback address "+
+				"(e.g. 127.0.0.1:7466); empty = disabled")
 	)
 	flag.Parse()
 
@@ -92,9 +96,31 @@ func main() {
 	reg := mcp.NewRegistry()
 	tools.Register(reg, ws)
 
+	// Admin page rides in-process so it shares the live workspace instead of
+	// fighting the single-writer lock. It must be shut down before ws.Close —
+	// the deferred stop below runs first (LIFO) and waits for handlers.
+	adminCtx, stopAdmin := context.WithCancel(context.Background())
+	adminDone := make(chan struct{})
+	if *adminAddr != "" {
+		go func() {
+			defer close(adminDone)
+			if err := admin.Serve(adminCtx, ws, *adminAddr, version, lg); err != nil {
+				// The MCP server keeps running without the page — never fatal.
+				lg.Event("admin_serve_error", map[string]any{"error": err.Error()})
+				fmt.Fprintf(os.Stderr, "graphin: admin page unavailable: %v\n", err)
+			}
+		}()
+		fmt.Fprintf(os.Stderr, "graphin: admin page at http://%s\n", *adminAddr)
+	} else {
+		close(adminDone)
+	}
+	defer func() { stopAdmin(); <-adminDone }()
+
 	srv := mcp.NewServer(os.Stdin, os.Stdout, reg, version, lg)
 	if err := srv.Serve(context.Background()); err != nil && err != context.Canceled {
 		lg.Event("serve_error", map[string]any{"error": err.Error()})
+		stopAdmin()
+		<-adminDone
 		os.Exit(1)
 	}
 }
