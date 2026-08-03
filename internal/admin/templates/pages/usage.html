@@ -10,15 +10,15 @@
 <div class="cards">
   <article>
     <h2>개요</h2>
-    <ul class="kv">
-      <li><span>이벤트</span><b>{{comma .R.Events}}</b></li>
-      <li><span>세션</span><b>{{comma .R.Sessions}} (graphin 사용 {{comma .R.SessionsWithGraphin}})</b></li>
+    <dl class="kv">
+      <dt>이벤트</dt><dd>{{comma .R.Events}}</dd>
+      <dt>세션</dt><dd>{{comma .R.Sessions}} (graphin 사용 {{comma .R.SessionsWithGraphin}})</dd>
       {{if ge .R.MedianCallsToFirstNav 0}}
-      <li><span>첫 graphin 내비까지 선행 툴콜(중앙값)</span><b>{{.R.MedianCallsToFirstNav}}</b></li>
+      <dt>첫 graphin 탐색까지 선행 도구 호출(중앙값)</dt><dd>{{.R.MedianCallsToFirstNav}}</dd>
       {{end}}
-      {{if .Funnel}}<li><span>퍼널 준수 (search→explore/read)</span><b>{{.Funnel}}</b></li>{{end}}
-      {{if .R.Problems}}<li><span>로그 문제</span><b class="warn">{{len .R.Problems}}건 스킵</b></li>{{end}}
-    </ul>
+      {{if .Funnel}}<dt>퍼널 준수 (search→explore/read)</dt><dd>{{.Funnel}}</dd>{{end}}
+      {{if .R.Problems}}<dt>로그 문제</dt><dd class="warn">{{len .R.Problems}}건 건너뜀</dd>{{end}}
+    </dl>
   </article>
 
   {{if .Chart.Bars}}

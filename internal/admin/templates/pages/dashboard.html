@@ -12,45 +12,45 @@
   <article>
     <h2>그래프</h2>
     {{if .Status.Bootstrapped}}
-    <ul class="kv">
-      <li><span>노드</span><b>{{comma .Stats.Nodes}}</b></li>
-      <li><span>엣지</span><b>{{comma .Stats.Edges}}</b></li>
-      <li><span>샤드</span><b>{{comma (len .Stats.Shards)}}</b></li>
-    </ul>
+    <dl class="kv">
+      <dt>노드</dt><dd>{{comma .Stats.Nodes}}</dd>
+      <dt>엣지</dt><dd>{{comma .Stats.Edges}}</dd>
+      <dt>샤드</dt><dd>{{comma (len .Stats.Shards)}}</dd>
+    </dl>
     {{else}}<p class="muted">—</p>{{end}}
   </article>
 
   <article>
     <h2>종류별 노드</h2>
     {{if .Health.Kinds}}
-    <ul class="kv">
+    <dl class="kv">
       {{range .Health.Kinds}}
-      <li><span>{{kindLabel .Kind}}</span><b>{{comma .Count}}</b></li>
+      <dt>{{kindLabel .Kind}}</dt><dd>{{comma .Count}}</dd>
       {{end}}
-    </ul>
+    </dl>
     {{else}}<p class="muted">—</p>{{end}}
   </article>
 
   <article>
     <h2>모델</h2>
-    <ul class="kv">
-      <li><span>설정 모델 종류</span><b>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}(기본){{end}}</b></li>
-      {{if .ExpectedModelID}}<li><span>기대 모델</span><b>{{.ExpectedModelID}}</b></li>{{end}}
-      {{if .Header}}<li><span>저장된 벡터 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
-    </ul>
+    <dl class="kv">
+      <dt>설정 모델 종류</dt><dd>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}(기본){{end}}</dd>
+      {{if .ExpectedModelID}}<dt>기대 모델</dt><dd>{{.ExpectedModelID}}</dd>{{end}}
+      {{if .Header}}<dt>저장된 벡터 모델</dt><dd>{{.Header.ModelID}}</dd>{{end}}
+    </dl>
     {{if .Warning}}{{template "model_warning.html" .Warning}}{{end}}
   </article>
 
   <article>
     <h2>헬스</h2>
     {{if .Status.Bootstrapped}}
-    <ul class="kv">
-      <li><span>끊어진 엣지 (코드)</span><a href="/diagnostics?tab=dangling&filter=code"><b class="{{if gt .Health.Dangling.Code 0}}warn{{end}}">{{comma .Health.Dangling.Code}}</b></a></li>
-      <li><span>끊어진 엣지 (DB)</span><a href="/diagnostics?tab=dangling&filter=db"><b>{{comma .Health.Dangling.DB}}</b></a></li>
-      <li><span>부분 인덱싱 노드</span><a href="/diagnostics?tab=partial"><b class="{{if gt .Health.PartialNodes 0}}warn{{end}}">{{comma .Health.PartialNodes}}</b></a></li>
-      <li><span>역인덱스 대상</span><a href="/diagnostics?tab=reverse"><b>{{comma .Reverse.Targets}}</b></a></li>
-      <li><span>델타 로그</span><b>레코드 {{comma .Reverse.LogRecords}} · 툼스톤 {{comma .Reverse.LogTombstones}}</b></li>
-    </ul>
+    <dl class="kv">
+      <dt>끊어진 엣지 (코드)</dt><dd class="{{if gt .Health.Dangling.Code 0}}warn{{end}}"><a href="/diagnostics?tab=dangling&filter=code">{{comma .Health.Dangling.Code}}</a></dd>
+      <dt>끊어진 엣지 (DB)</dt><dd><a href="/diagnostics?tab=dangling&filter=db">{{comma .Health.Dangling.DB}}</a></dd>
+      <dt>부분 인덱싱 노드</dt><dd class="{{if gt .Health.PartialNodes 0}}warn{{end}}"><a href="/diagnostics?tab=partial">{{comma .Health.PartialNodes}}</a></dd>
+      <dt>역인덱스 대상</dt><dd><a href="/diagnostics?tab=reverse">{{comma .Reverse.Targets}}</a></dd>
+      <dt>델타 로그</dt><dd>레코드 {{comma .Reverse.LogRecords}} · 툼스톤 {{comma .Reverse.LogTombstones}}</dd>
+    </dl>
     {{else}}<p class="muted">—</p>{{end}}
   </article>
 </div>

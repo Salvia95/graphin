@@ -5,7 +5,7 @@
 <p class="muted small">파일 {{comma (len .Files)}} · 노드 {{comma .Total}}{{if .Truncated}} (표시 상한 {{comma 2000}} 초과 — 일부만 표시){{end}}</p>
 {{range .Files}}
 <article class="wide" id="{{.Anchor}}">
-  <h2 class="mono">{{.Path}}</h2>
+  <h2 class="filepath"><code>{{.Path}}</code></h2>
   <table>
     <thead><tr><th>노드</th><th>종류</th><th class="num">참조 수</th><th></th></tr></thead>
     <tbody>

@@ -16,7 +16,9 @@
   </label>
 </div>
 
+<article class="wide">
 <div id="logbody" hx-get="/partial/logs" hx-trigger="every 3s" hx-include="#logfilter">
 {{template "logs.html" .Logs}}
 </div>
+</article>
 {{end}}

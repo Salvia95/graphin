@@ -8,12 +8,12 @@
   {{if .SemanticGated}}<span class="badge warn">의미 검색 게이트</span>{{end}}
 </p>
 <progress class="progress" value="{{.Progress}}" max="100">{{.Progress}}%</progress>
-<ul class="kv">
-  <li><span>키워드 검색 (lexical)</span><b>{{if .LexicalReady}}준비됨{{else}}인덱싱 중…{{end}}</b></li>
-  <li><span>의미 검색 (semantic)</span><b>{{if .SemanticGated}}비활성(게이트){{else if .SemanticReady}}준비됨{{else if .SemFailure}}사용 불가(키워드 폴백){{else}}워밍업…{{end}}</b></li>
-  {{if gt .EmbedPending 0}}<li><span>임베딩 대기</span><b>{{.EmbedPending}}</b></li>{{end}}
-  {{if .DBSources}}<li><span>DB 소스</span><b>{{.DBSources}} (스냅샷 {{.DBSnapshots}})</b></li>{{end}}
-</ul>
+<dl class="kv">
+  <dt>키워드 검색 (lexical)</dt><dd>{{if .LexicalReady}}준비됨{{else}}인덱싱 중…{{end}}</dd>
+  <dt>의미 검색 (semantic)</dt><dd>{{if .SemanticGated}}비활성(게이트){{else if .SemanticReady}}준비됨{{else if .SemFailure}}사용 불가(키워드 폴백){{else}}워밍업…{{end}}</dd>
+  {{if gt .EmbedPending 0}}<dt>임베딩 대기</dt><dd>{{.EmbedPending}}</dd>{{end}}
+  {{if .DBSources}}<dt>DB 소스</dt><dd>{{.DBSources}} (스냅샷 {{.DBSnapshots}})</dd>{{end}}
+</dl>
 {{if .SemanticNote}}<p class="warn small">{{.SemanticNote}}</p>
 {{else if .SemFailure}}<p class="warn small">{{.SemFailure}}</p>{{end}}
 {{if .DBManifestErrors}}<p class="warn small">manifest: {{.DBManifestErrors}}</p>{{end}}

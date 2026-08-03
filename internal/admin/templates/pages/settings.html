@@ -7,27 +7,27 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
 <div class="cards">
   <article>
     <h2>유효 설정 (기동 플래그)</h2>
-    <ul class="kv">
-      <li><span>--workspace</span><b class="mono">{{.Cfg.Root}}</b></li>
-      <li><span>--model-type</span><b>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}<span class="muted">(미지정 → multilingual_cjk)</span>{{end}}</b></li>
-      <li><span>--workers</span><b>{{.Cfg.Workers}}</b></li>
-      <li><span>--semantic-max-nodes</span><b>{{comma .Cfg.SemanticMaxNodes}}{{if eq .Cfg.SemanticMaxNodes 0}} <span class="muted">(무제한)</span>{{end}}</b></li>
-      <li><span>--offline</span><b>{{.Cfg.Offline}}</b></li>
-      <li><span>--model-dir</span><b class="mono">{{if .Cfg.ModelDir}}{{.Cfg.ModelDir}}{{else}}—{{end}}</b></li>
-      <li><span>--ort-lib</span><b class="mono">{{if .Cfg.OrtLib}}{{.Cfg.OrtLib}}{{else}}—{{end}}</b></li>
-    </ul>
+    <dl class="kv">
+      <dt>--workspace</dt><dd class="mono">{{.Cfg.Root}}</dd>
+      <dt>--model-type</dt><dd>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}<span class="muted">(미지정 → multilingual_cjk)</span>{{end}}</dd>
+      <dt>--workers</dt><dd>{{.Cfg.Workers}}</dd>
+      <dt>--semantic-max-nodes</dt><dd>{{comma .Cfg.SemanticMaxNodes}}{{if eq .Cfg.SemanticMaxNodes 0}} <span class="muted">(무제한)</span>{{end}}</dd>
+      <dt>--offline</dt><dd>{{.Cfg.Offline}}</dd>
+      <dt>--model-dir</dt><dd class="mono">{{if .Cfg.ModelDir}}{{.Cfg.ModelDir}}{{else}}—{{end}}</dd>
+      <dt>--ort-lib</dt><dd class="mono">{{if .Cfg.OrtLib}}{{.Cfg.OrtLib}}{{else}}—{{end}}</dd>
+    </dl>
   </article>
 
   <article>
     <h2>임베딩 모델</h2>
     {{if .Spec}}
-    <ul class="kv">
-      <li><span>모델 ID</span><b>{{.Spec.ID}}</b></li>
-      <li><span>차원</span><b>{{.Spec.Dim}}</b></li>
-      <li><span>프리픽스</span><b class="mono">{{.Spec.QueryPrefix}} / {{.Spec.PassagePrefix}}</b></li>
-      <li><span>ONNX Runtime</span><b>{{.ORTVersion}}</b></li>
-      {{if .Header}}<li><span>저장된 벡터 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
-    </ul>
+    <dl class="kv">
+      <dt>모델 ID</dt><dd>{{.Spec.ID}}</dd>
+      <dt>차원</dt><dd>{{.Spec.Dim}}</dd>
+      <dt>프리픽스</dt><dd class="mono">{{.Spec.QueryPrefix}} / {{.Spec.PassagePrefix}}</dd>
+      <dt>ONNX Runtime</dt><dd>{{.ORTVersion}}</dd>
+      {{if .Header}}<dt>저장된 벡터 모델</dt><dd>{{.Header.ModelID}}</dd>{{end}}
+    </dl>
     {{if .Warning}}{{template "model_warning.html" .Warning}}{{end}}
     {{else}}
     <p class="muted">알 수 없는 모델 종류</p>
@@ -40,12 +40,12 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
 
   <article>
     <h2>저장소 (.graphin)</h2>
-    <ul class="kv">
+    <dl class="kv">
       {{range .Sizes}}
-      <li><span class="mono">{{.Name}}/</span><b>{{bytesHuman .Bytes}}</b></li>
+      <dt class="mono">{{.Name}}/</dt><dd>{{bytesHuman .Bytes}}</dd>
       {{end}}
-      <li><span>합계</span><b>{{bytesHuman .Total}}</b></li>
-    </ul>
+      <dt>합계</dt><dd>{{bytesHuman .Total}}</dd>
+    </dl>
     <p class="muted small mono">{{.DataDir}}</p>
   </article>
 </div>

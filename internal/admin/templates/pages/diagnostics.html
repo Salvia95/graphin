@@ -75,18 +75,18 @@
 
 {{define "diag_semantic"}}
 <article class="wide">
-  <ul class="kv">
-    <li><span>상태</span><b>{{if .Gated}}비활성 (노드 수 게이트){{else if .Ready}}준비됨{{else if .Failure}}사용 불가{{else}}워밍업 중{{end}}</b></li>
-    <li><span>임베딩 대기</span><b>{{.Pending}}</b></li>
-    <li><span>대기열 깊이</span><b>{{.QueueDepth}}</b></li>
-    <li><span>대기열 소진</span><b>{{if .Drained}}예{{else}}아니오{{end}}</b></li>
+  <dl class="kv">
+    <dt>상태</dt><dd>{{if .Gated}}비활성 (노드 수 게이트){{else if .Ready}}준비됨{{else if .Failure}}사용 불가{{else}}워밍업 중{{end}}</dd>
+    <dt>임베딩 대기</dt><dd>{{.Pending}}</dd>
+    <dt>대기열 깊이</dt><dd>{{.QueueDepth}}</dd>
+    <dt>대기열 소진</dt><dd>{{if .Drained}}예{{else}}아니오{{end}}</dd>
     {{if .Header}}
-    <li><span>저장된 벡터 모델</span><b>{{.Header.ModelID}}</b></li>
-    <li><span>저장된 벡터 파일 수</span><b>{{comma .HeaderFiles}}</b></li>
+    <dt>저장된 벡터 모델</dt><dd>{{.Header.ModelID}}</dd>
+    <dt>저장된 벡터 파일 수</dt><dd>{{comma .HeaderFiles}}</dd>
     {{end}}
-    {{if .ExpectedModelID}}<li><span>설정 기대 모델</span><b>{{.ExpectedModelID}}</b></li>{{end}}
-    {{if .Gated}}<li><span>게이트</span><b>{{comma .GateNodes}} 노드 &gt; 상한 {{comma .GateMax}}</b></li>{{end}}
-  </ul>
+    {{if .ExpectedModelID}}<dt>설정 기대 모델</dt><dd>{{.ExpectedModelID}}</dd>{{end}}
+    {{if .Gated}}<dt>게이트</dt><dd>{{comma .GateNodes}} 노드 &gt; 상한 {{comma .GateMax}}</dd>{{end}}
+  </dl>
   <p class="muted small">임베딩 대기 = 백로그(backlog) + 처리 중(in-flight) · 저장된 벡터 = <code>vectors.bin</code></p>
   {{if .Warning}}{{template "model_warning.html" .Warning}}{{end}}
   {{if .Failure}}<p class="warn small">{{.Failure}}</p>{{end}}
@@ -99,11 +99,11 @@
 <article class="wide">
   <p class="muted small">used_by 역인덱스는 compacted base + 툼스톤 델타 로그로 관리됩니다.
   로그 10MB 또는 툼스톤 비율 30% 초과 시 자동 컴팩션됩니다.</p>
-  <ul class="kv">
-    <li><span>대상 수</span><b>{{comma .Targets}}</b></li>
-    <li><span>역방향 엣지 수</span><b>{{comma .Edges}}</b></li>
-    <li><span>델타 로그 레코드</span><b>{{comma .LogRecords}}</b></li>
-    <li><span>델타 로그 툼스톤</span><b>{{comma .LogTombstones}}</b></li>
-  </ul>
+  <dl class="kv">
+    <dt>대상 수</dt><dd>{{comma .Targets}}</dd>
+    <dt>역방향 엣지 수</dt><dd>{{comma .Edges}}</dd>
+    <dt>델타 로그 레코드</dt><dd>{{comma .LogRecords}}</dd>
+    <dt>델타 로그 툼스톤</dt><dd>{{comma .LogTombstones}}</dd>
+  </dl>
 </article>
 {{end}}

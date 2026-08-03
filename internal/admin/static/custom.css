@@ -52,18 +52,18 @@ main article { padding: 1rem 1.1rem; margin-bottom: 1rem; }
 article h2 { font-size: .95rem; color: var(--pico-muted-color); font-weight: 600; margin-bottom: .6rem; }
 article.wide { margin-top: 1rem; }
 
-/* kv 리스트 (5단계에서 dl 그리드로 교체 예정 — 임시 호환) */
-.kv { list-style: none; margin: 0; padding: 0; }
-.kv li {
-  display: flex; justify-content: space-between; gap: 1rem;
-  padding: .22rem 0; border-bottom: 1px dashed var(--pico-muted-border-color);
-  font-size: .9rem;
+/* kv: 정의 리스트 2열 그리드 — 라벨 열 고정, 값 열 우측 정렬(tabular-nums)
+   → 카드 안 모든 값의 우측 경계와 자릿수가 세로로 맞는다 */
+dl.kv {
+  display: grid; grid-template-columns: minmax(9rem, max-content) 1fr;
+  row-gap: .3rem; column-gap: 1rem; margin: 0; font-size: .9rem;
 }
-.kv li:last-child { border-bottom: none; }
-.kv span { color: var(--pico-muted-color); }
-.kv b { font-variant-numeric: tabular-nums; }
-.kv b.warn, b.warn { color: var(--warn); }
-.kv a { text-decoration: none; }
+dl.kv dt { color: var(--pico-muted-color); font-weight: 400; margin: 0; }
+dl.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+dl.kv dd.warn { color: var(--warn); }
+dl.kv dd a { text-decoration: none; }
+dl.kv dd a:hover { text-decoration: underline; }
+b.warn { color: var(--warn); }
 
 /* 유틸 */
 .muted { color: var(--pico-muted-color); }
@@ -120,6 +120,7 @@ a.on { font-weight: 600; }
 /* 컨트롤·목록 */
 .controls { margin: .6rem 0 1rem; color: var(--pico-muted-color); }
 .controls select { display: inline-block; width: auto; margin: 0 0 0 .4rem; }
+.controls input[type=search] { max-width: 480px; margin-bottom: 0; }
 .edgelist { list-style: none; margin: 0; padding: 0; font-size: .88rem; }
 .edgelist li {
   display: flex; align-items: baseline; gap: .5rem;
@@ -132,8 +133,7 @@ a.on { font-weight: 600; }
 .edgelist button { width: auto; padding: .25rem 1rem; font-size: .85rem; margin: 0; }
 .dangling td { color: var(--bad); }
 pre.code { font-size: .82rem; line-height: 1.45; tab-size: 4; max-height: 34rem; overflow: auto; }
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+h2.filepath code { background: none; padding: 0; font-size: .85rem; color: var(--pico-color); }
 
 /* usage 차트 */
 .chart { width: 100%; height: auto; display: block; }
