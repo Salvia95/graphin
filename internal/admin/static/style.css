@@ -157,6 +157,19 @@ input[type=search], select {
 input[type=search] { width: 100%; max-width: 480px; }
 input[type=search]:focus, select:focus { outline: 1px solid var(--accent); }
 
+/* usage 차트 */
+.chart { width: 100%; height: auto; display: block; }
+.chart .axis { stroke: var(--line); }
+.chart .bar.adoption { fill: var(--ok); }
+.chart .bar.fallback { fill: var(--warn); }
+.chart .chartlabel { fill: var(--muted); font-size: 9px; }
+.legend { font-weight: 400; font-size: .78rem; margin-left: .6rem; }
+.legend .sw { display: inline-block; width: .7em; height: .7em; margin: 0 .25em 0 .6em; border-radius: 2px; }
+.legend .sw.adoption { background: var(--ok); }
+.legend .sw.fallback { background: var(--warn); }
+.bigram td, .bigram th { padding: .25rem .5rem; }
+td.nowrap { white-space: nowrap; }
+
 .logtable { font-size: .8rem; }
 .logtable td.nowrap { white-space: nowrap; }
 .logtable td.detail { word-break: break-all; color: var(--muted); }

@@ -16,6 +16,7 @@
     <a href="/search" {{if eq .Active "search"}}class="on"{{end}}>검색</a>
     <a href="/diagnostics" {{if eq .Active "diagnostics"}}class="on"{{end}}>진단</a>
     <a href="/logs" {{if eq .Active "logs"}}class="on"{{end}}>로그</a>
+    <a href="/usage" {{if eq .Active "usage"}}class="on"{{end}}>계측</a>
     <a href="/settings" {{if eq .Active "settings"}}class="on"{{end}}>설정</a>
   </nav>
   <span class="rootpath" title="{{.Root}}">{{.Root}}</span>

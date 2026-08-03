@@ -133,9 +133,12 @@ claude mcp add graphin -- /path/to/bin/graphin \
 | 화면 | 내용 |
 |---|---|
 | 대시보드 | 인덱싱 진행률·임베딩 백로그(2s 폴링), 노드/엣지/샤드 카운트, 헬스 요약 |
+| 구조 | 패키지(샤드) → 파일 → 노드 드릴다운 — 검색 없이 그래프를 둘러보는 진입점 |
 | 검색 | Tier-0 → BM25 ∥ 벡터 RRF (MCP `search_hybrid`와 동일 경로), match 배지 |
 | 노드 상세 | ego-graph SVG(1홉, confidence 기반 스타일), uses/used_by 목록(min_conf 필터·커서 페이지네이션), 코드 뷰 |
 | 진단 | 끊어진(dangling) 엣지(코드/DB 필터), partial 노드, semantic 상태, 역인덱스 통계 |
+| 로그 | `agent-nav.log` tail(3s 갱신) — 워처 배치·재인덱싱·임베딩 이벤트, 에러 강조·이벤트 필터 |
+| 계측 | graphin-usage 채택 지표(`usage report`와 동일 산식) — 헤드라인·폴백 페어·바이그램·일별 추이 차트 |
 | 설정 | 유효 기동 플래그·모델 스펙·게이트 상태·저장소 용량 (읽기 전용) |
 
 v1은 어떤 변경도 수행하지 않는다(전 라우트 GET). 바인드 실패 시 경고만 남기고
