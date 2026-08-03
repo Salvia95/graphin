@@ -8,13 +8,13 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
   <article>
     <h2>유효 설정 (기동 플래그)</h2>
     <dl class="kv">
-      <dt>--workspace</dt><dd class="mono">{{.Cfg.Root}}</dd>
-      <dt>--model-type</dt><dd>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}<span class="muted">(미지정 → multilingual_cjk)</span>{{end}}</dd>
-      <dt>--workers</dt><dd>{{.Cfg.Workers}}</dd>
-      <dt>--semantic-max-nodes</dt><dd>{{comma .Cfg.SemanticMaxNodes}}{{if eq .Cfg.SemanticMaxNodes 0}} <span class="muted">(무제한)</span>{{end}}</dd>
-      <dt>--offline</dt><dd>{{.Cfg.Offline}}</dd>
-      <dt>--model-dir</dt><dd class="mono">{{if .Cfg.ModelDir}}{{.Cfg.ModelDir}}{{else}}—{{end}}</dd>
-      <dt>--ort-lib</dt><dd class="mono">{{if .Cfg.OrtLib}}{{.Cfg.OrtLib}}{{else}}—{{end}}</dd>
+      <dt>워크스페이스 경로 <small class="mono muted">--workspace</small></dt><dd class="mono">{{.Cfg.Root}}</dd>
+      <dt>임베딩 모델 종류 <small class="mono muted">--model-type</small></dt><dd>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}<span class="muted">(미지정 → multilingual_cjk)</span>{{end}}</dd>
+      <dt>인덱싱 워커 수 <small class="mono muted">--workers</small></dt><dd>{{.Cfg.Workers}}</dd>
+      <dt>의미 검색 노드 상한 <small class="mono muted">--semantic-max-nodes</small></dt><dd>{{comma .Cfg.SemanticMaxNodes}}{{if eq .Cfg.SemanticMaxNodes 0}} <span class="muted">(무제한)</span>{{end}}</dd>
+      <dt>오프라인 모드 <small class="mono muted">--offline</small></dt><dd>{{if .Cfg.Offline}}켜짐{{else}}꺼짐{{end}}</dd>
+      <dt>모델 캐시 경로 <small class="mono muted">--model-dir</small></dt><dd class="mono">{{if .Cfg.ModelDir}}{{.Cfg.ModelDir}}{{else}}—{{end}}</dd>
+      <dt>ONNX Runtime 라이브러리 <small class="mono muted">--ort-lib</small></dt><dd class="mono">{{if .Cfg.OrtLib}}{{.Cfg.OrtLib}}{{else}}—{{end}}</dd>
     </dl>
   </article>
 
@@ -42,7 +42,8 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
     <h2>저장소 (.graphin)</h2>
     <dl class="kv">
       {{range .Sizes}}
-      <dt class="mono">{{.Name}}/</dt><dd>{{bytesHuman .Bytes}}</dd>
+      <dt>{{if eq .Name "search"}}검색 인덱스{{else if eq .Name "graph"}}그래프 샤드{{else if eq .Name "runtime"}}모델 런타임{{else if eq .Name "usage"}}계측 로그{{else}}{{.Name}}{{end}}
+        <small class="mono muted">{{.Name}}/</small></dt><dd>{{bytesHuman .Bytes}}</dd>
       {{end}}
       <dt>합계</dt><dd>{{bytesHuman .Total}}</dd>
     </dl>

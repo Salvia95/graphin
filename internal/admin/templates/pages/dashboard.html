@@ -1,6 +1,18 @@
 {{define "title"}}대시보드 — graphin admin{{end}}
 {{define "content"}}
 <h1>대시보드</h1>
+{{if .Status.Bootstrapped}}
+{{if or .Warning (gt .Health.Dangling.Code 0) (gt .Health.PartialNodes 0)}}
+<article class="notice">
+  <strong>⚠ 확인이 필요합니다</strong>
+  <ul>
+    {{if .Warning}}<li>저장된 벡터 인덱스가 설정 모델과 다릅니다 — <a href="/diagnostics?tab=semantic">의미 검색 진단</a></li>{{end}}
+    {{if gt .Health.Dangling.Code 0}}<li>코드 도메인 끊어진 엣지 {{comma .Health.Dangling.Code}}건 — <a href="/diagnostics?tab=dangling&filter=code">끊어진 엣지 진단</a></li>{{end}}
+    {{if gt .Health.PartialNodes 0}}<li>부분 인덱싱 노드 {{comma .Health.PartialNodes}}건 — <a href="/diagnostics?tab=partial">부분 인덱싱 진단</a></li>{{end}}
+  </ul>
+</article>
+{{end}}
+{{end}}
 <div class="cards">
   <article>
     <h2>상태</h2>
@@ -21,12 +33,17 @@
   </article>
 
   <article>
-    <h2>종류별 노드</h2>
-    {{if .Health.Kinds}}
+    <h2>헬스</h2>
+    {{if .Status.Bootstrapped}}
+    {{if and (eq .Health.Dangling.Code 0) (eq .Health.PartialNodes 0) (not .Warning)}}
+    <p class="ok small">문제 없음 ✓</p>
+    {{end}}
     <dl class="kv">
-      {{range .Health.Kinds}}
-      <dt>{{kindLabel .Kind}}</dt><dd>{{comma .Count}}</dd>
-      {{end}}
+      <dt>끊어진 엣지 (코드)</dt><dd class="{{if gt .Health.Dangling.Code 0}}warn{{end}}"><a href="/diagnostics?tab=dangling&filter=code">{{comma .Health.Dangling.Code}}</a></dd>
+      <dt>끊어진 엣지 (DB)</dt><dd><a href="/diagnostics?tab=dangling&filter=db">{{comma .Health.Dangling.DB}}</a></dd>
+      <dt>부분 인덱싱 노드</dt><dd class="{{if gt .Health.PartialNodes 0}}warn{{end}}"><a href="/diagnostics?tab=partial">{{comma .Health.PartialNodes}}</a></dd>
+      <dt>역인덱스 대상</dt><dd><a href="/diagnostics?tab=reverse">{{comma .Reverse.Targets}}</a></dd>
+      <dt>델타 로그</dt><dd>레코드 {{comma .Reverse.LogRecords}} · 툼스톤 {{comma .Reverse.LogTombstones}}</dd>
     </dl>
     {{else}}<p class="muted">—</p>{{end}}
   </article>
@@ -42,14 +59,12 @@
   </article>
 
   <article>
-    <h2>헬스</h2>
-    {{if .Status.Bootstrapped}}
+    <h2>종류별 노드</h2>
+    {{if .Health.Kinds}}
     <dl class="kv">
-      <dt>끊어진 엣지 (코드)</dt><dd class="{{if gt .Health.Dangling.Code 0}}warn{{end}}"><a href="/diagnostics?tab=dangling&filter=code">{{comma .Health.Dangling.Code}}</a></dd>
-      <dt>끊어진 엣지 (DB)</dt><dd><a href="/diagnostics?tab=dangling&filter=db">{{comma .Health.Dangling.DB}}</a></dd>
-      <dt>부분 인덱싱 노드</dt><dd class="{{if gt .Health.PartialNodes 0}}warn{{end}}"><a href="/diagnostics?tab=partial">{{comma .Health.PartialNodes}}</a></dd>
-      <dt>역인덱스 대상</dt><dd><a href="/diagnostics?tab=reverse">{{comma .Reverse.Targets}}</a></dd>
-      <dt>델타 로그</dt><dd>레코드 {{comma .Reverse.LogRecords}} · 툼스톤 {{comma .Reverse.LogTombstones}}</dd>
+      {{range .Health.Kinds}}
+      <dt>{{kindLabel .Kind}}</dt><dd>{{comma .Count}}</dd>
+      {{end}}
     </dl>
     {{else}}<p class="muted">—</p>{{end}}
   </article>

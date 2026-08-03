@@ -186,6 +186,13 @@ h2.filepath code { background: none; padding: 0; font-size: .85rem; color: var(-
 }
 @keyframes adminspin { to { transform: rotate(360deg); } }
 
+/* 경고 스트립·정상 표시 */
+article.notice { border-color: var(--warn); }
+article.notice strong { color: var(--warn); }
+article.notice ul { margin: .4rem 0 0; padding-left: 1.2rem; font-size: .9rem; }
+.ok { color: var(--ok); }
+dl.kv dt small { font-size: .72rem; }
+
 /* breadcrumb·빈 상태 */
 .crumbs { margin-bottom: .2rem; }
 .crumbs ul { font-size: .85rem; }

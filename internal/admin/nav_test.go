@@ -21,6 +21,29 @@ func TestGlobalSearchFormInShell(t *testing.T) {
 	wantContains(t, get(t, s, "/"), http.StatusOK, `role="search"`, `action="/search"`)
 }
 
+// US-2: 문제가 있을 때만 대시보드 경고 스트립이 뜬다.
+func TestDashboardWarningStrip(t *testing.T) {
+	// 정상 그래프: 스트립 없음 + "문제 없음" 요약.
+	s, _ := bootstrappedServer(t)
+	rec := get(t, s, "/")
+	if strings.Contains(rec.Body.String(), "확인이 필요합니다") {
+		t.Fatal("healthy graph must not show the warning strip")
+	}
+	wantContains(t, rec, http.StatusOK, "문제 없음")
+
+	// 구문 오류 파일 → 부분 인덱싱 노드 → 스트립 표시.
+	ws := newTestWS(t, map[string]string{
+		"Ok.java":  "class Ok { void fine() {} }",
+		"Bad.java": "class Bad { void broken( { }",
+	})
+	bootstrapWS(t, ws)
+	s2 := newTestServer(t, ws)
+	body := get(t, s2, "/").Body.String()
+	if !strings.Contains(body, "확인이 필요합니다") || !strings.Contains(body, "부분 인덱싱") {
+		t.Fatalf("warning strip missing for partial nodes; body: %.400s", body)
+	}
+}
+
 // US-3: 노드 페이지 breadcrumb이 구조/패키지/파일로 이어진다.
 func TestNodeBreadcrumb(t *testing.T) {
 	s, ws := bootstrappedServer(t)

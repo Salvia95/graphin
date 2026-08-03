@@ -20,9 +20,9 @@
 
 {{define "diag_dangling"}}
 <article class="wide">
-  <p class="muted small">target_id에 대응하는 노드가 읽기 경로에 없는 엣지입니다.
-  코드 도메인 dangling은 대개 대상 삭제/미해석의 흔적이고, DB 도메인은 스냅샷 밖 참조
-  (예: supabase <code>auth.users</code>)를 스텁 없이 정직하게 남긴 의도적 설계일 수 있습니다.</p>
+  <p class="muted small">대상 ID(target_id)에 해당하는 노드가 인덱스에 없는 엣지입니다.
+  코드 도메인은 대개 대상이 삭제되었거나 아직 해석되지 않은 흔적이고, DB 도메인은 스냅샷 밖 참조
+  (예: supabase <code>auth.users</code>)를 스텁 없이 그대로 남긴 의도적 설계일 수 있습니다.</p>
   <p>
     <span class="badge{{if gt .Totals.Code 0}} warn{{end}}">코드 {{comma .Totals.Code}}</span>
     <span class="badge">DB {{comma .Totals.DB}}</span>
@@ -55,12 +55,12 @@
 
 {{define "diag_partial"}}
 <article class="wide">
-  <p class="muted small">tree-sitter가 ERROR 노드를 만난 파일(또는 구조 검증에 실패한 graphindb
-  스냅샷)의 노드입니다. 소스를 고치면 워처가 자동으로 재인덱싱합니다.</p>
+  <p class="muted small">구문 오류(파서의 ERROR 노드)가 있는 채로 파싱된 파일, 또는 구조 검증에 실패한
+  graphindb 스냅샷의 노드입니다. 소스를 고치면 워처가 자동으로 재인덱싱합니다.</p>
   {{if .Rows}}
   <p><span class="badge warn">{{comma .Total}}개</span></p>
   <table>
-    <thead><tr><th>노드</th><th>kind</th><th>파일</th></tr></thead>
+    <thead><tr><th>노드</th><th>종류</th><th>파일</th></tr></thead>
     <tbody>
     {{range .Rows}}
       <tr>
@@ -101,8 +101,8 @@
 
 {{define "diag_reverse"}}
 <article class="wide">
-  <p class="muted small">used_by 역인덱스는 compacted base + 툼스톤 델타 로그로 관리됩니다.
-  로그 10MB 또는 툼스톤 비율 30% 초과 시 자동 컴팩션됩니다.</p>
+  <p class="muted small">'참조됨 (used_by)' 역인덱스는 압축 베이스(compacted base)와 툼스톤 델타 로그로
+  관리됩니다. 로그가 10MB를 넘거나 툼스톤 비율이 30%를 넘으면 자동으로 압축됩니다.</p>
   <dl class="kv">
     <dt>대상 수</dt><dd>{{comma .Targets}}</dd>
     <dt>역방향 엣지 수</dt><dd>{{comma .Edges}}</dd>

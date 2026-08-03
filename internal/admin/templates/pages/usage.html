@@ -61,6 +61,8 @@
   <p class="muted small">채택률(adoption) = 채택/(채택+폴백) · 늦은 전환(late switch) 분모 = graphin 사용 윈도우 ·
   탐색 실패(discovery failure) 분모 = search 있는 윈도우 · 동일 의도(same-intent) = 같은 의도의 grep 폴백</p>
 </article>
+{{else}}
+<p class="muted">집계할 윈도우가 없습니다 — 도구 호출이 쌓이면 지표가 계산됩니다.</p>
 {{end}}
 
 {{if .R.FallbackPairs}}
