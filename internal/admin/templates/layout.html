@@ -3,27 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>{{block "title" .}}graphin admin{{end}}</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/pico.min.css">
+<link rel="stylesheet" href="/static/custom.css">
 <script src="/static/htmx.min.js"></script>
 </head>
 <body>
 <header class="topbar">
-  <span class="brand">graphin <em>admin</em></span>
-  <nav>
-    <a href="/" {{if eq .Active "dashboard"}}class="on"{{end}}>대시보드</a>
-    <a href="/browse" {{if eq .Active "browse"}}class="on"{{end}}>구조</a>
-    <a href="/search" {{if eq .Active "search"}}class="on"{{end}}>검색</a>
-    <a href="/diagnostics" {{if eq .Active "diagnostics"}}class="on"{{end}}>진단</a>
-    <a href="/logs" {{if eq .Active "logs"}}class="on"{{end}}>로그</a>
-    <a href="/usage" {{if eq .Active "usage"}}class="on"{{end}}>계측</a>
-    <a href="/settings" {{if eq .Active "settings"}}class="on"{{end}}>설정</a>
+  <nav class="container-fluid">
+    <ul>
+      <li><strong>graphin <em>admin</em></strong></li>
+    </ul>
+    <ul class="mainnav">
+      <li><a href="/" {{if eq .Active "dashboard"}}aria-current="page"{{end}}>대시보드</a></li>
+      <li><a href="/browse" {{if eq .Active "browse"}}aria-current="page"{{end}}>구조</a></li>
+      <li><a href="/search" {{if eq .Active "search"}}aria-current="page"{{end}}>검색</a></li>
+      <li class="navsep" aria-hidden="true"></li>
+      <li><a href="/diagnostics" {{if eq .Active "diagnostics"}}aria-current="page"{{end}}>진단</a></li>
+      <li><a href="/logs" {{if eq .Active "logs"}}aria-current="page"{{end}}>로그</a></li>
+      <li><a href="/usage" {{if eq .Active "usage"}}aria-current="page"{{end}}>계측</a></li>
+      <li class="navsep" aria-hidden="true"></li>
+      <li><a href="/settings" {{if eq .Active "settings"}}aria-current="page"{{end}}>설정</a></li>
+    </ul>
+    <ul class="navside">
+      <li>
+        <form role="search" action="/search" method="get">
+          <input type="search" name="q" placeholder="심볼 검색" aria-label="전역 검색">
+        </form>
+      </li>
+      <li><span class="rootpath mono" title="{{.Root}}">{{.Root}}</span></li>
+    </ul>
   </nav>
-  <span class="rootpath" title="{{.Root}}">{{.Root}}</span>
 </header>
-<main>
+<main class="container">
+{{block "breadcrumb" .}}{{end}}
 {{template "content" .}}
 </main>
-<footer>graphin {{.Version}} · 읽기 전용 로컬 페이지</footer>
+<footer class="container"><small class="muted">graphin {{.Version}} · 읽기 전용 로컬 페이지</small></footer>
 </body>
 </html>

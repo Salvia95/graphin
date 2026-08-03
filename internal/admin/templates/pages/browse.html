@@ -3,7 +3,7 @@
 <h1>구조</h1>
 {{if .Rows}}
 <p class="muted small">패키지 {{comma (len .Rows)}} · 파일 {{comma .TotalFiles}} · 노드 {{comma .TotalNodes}}</p>
-<section class="card wide">
+<article class="wide">
   <table>
     <thead><tr><th>패키지</th><th class="num">파일</th><th class="num">노드</th><th class="num">엣지</th></tr></thead>
     <tbody>
@@ -17,7 +17,7 @@
     {{end}}
     </tbody>
   </table>
-</section>
+</article>
 {{else}}
 <p class="muted">그래프가 비어 있습니다 — 부트스트랩/인덱싱이 끝나면 패키지가 표시됩니다.</p>
 {{end}}

@@ -131,7 +131,8 @@ func TestStatusPartialStopsPollingWhenTerminal(t *testing.T) {
 func TestStaticAssets(t *testing.T) {
 	s := newTestServer(t, newTestWS(t, nil))
 	wantContains(t, get(t, s, "/static/htmx.min.js"), http.StatusOK, "htmx")
-	wantContains(t, get(t, s, "/static/style.css"), http.StatusOK, "graphin admin")
+	wantContains(t, get(t, s, "/static/pico.min.css"), http.StatusOK, "Pico CSS")
+	wantContains(t, get(t, s, "/static/custom.css"), http.StatusOK, "graphin admin")
 }
 
 func TestServeRefusesBadAddresses(t *testing.T) {

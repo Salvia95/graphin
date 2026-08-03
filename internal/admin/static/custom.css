@@ -1,0 +1,178 @@
+/* graphin admin — Pico 위 도메인 커스텀 레이어 */
+
+/* 밀도: 데이터 중심 화면이라 기본보다 한 단계 촘촘하게 */
+html { font-size: 93.75%; }
+th, td { padding: .4rem .6rem; font-size: .9rem; }
+h1 { font-size: 1.35rem; margin-bottom: 1rem; }
+
+/* 도메인 색 10종 + 시맨틱 3종 — 라이트 기본, 다크 오버라이드 */
+:root {
+  --ok: #2e7d32; --warn: #9a6700; --bad: #c62828;
+  --conf-certain: #2e7d32; --conf-samepkg: #558b2f;
+  --conf-imported: #9a6700; --conf-global: #c96a1e;
+  --conf-text: #ffffff;
+  --edge-call: #1565c0; --edge-import: #607d8b; --edge-extends: #7b1fa2;
+  --edge-implements: #5e35b1; --edge-reference: #00838f; --edge-foreign_key: #c2185b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ok: #4cc38a; --warn: #e5a13a; --bad: #e5534b;
+    --conf-certain: #4cc38a; --conf-samepkg: #9ccc65;
+    --conf-imported: #e0c341; --conf-global: #e5a13a;
+    --conf-text: #0e1016;
+    --edge-call: #6ea8fe; --edge-import: #8b91a5; --edge-extends: #b085f5;
+    --edge-implements: #7e57c2; --edge-reference: #4dd0e1; --edge-foreign_key: #f06292;
+  }
+}
+
+/* 상단바 */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--pico-card-background-color);
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+.topbar nav { min-height: 3.2rem; }
+.topbar strong em { color: var(--pico-primary); font-style: normal; font-weight: 400; }
+.topbar a[aria-current="page"] {
+  color: var(--pico-primary); font-weight: 700; text-decoration: none;
+}
+.navsep { border-left: 1px solid var(--pico-muted-border-color); height: 1.2rem; padding: 0; margin: 0 .2rem; }
+.navside form, .navside input[type=search] { margin-bottom: 0; }
+.navside input[type=search] { width: 13rem; height: 2.2rem; font-size: .85rem; }
+.rootpath {
+  color: var(--pico-muted-color); font-size: .78rem;
+  max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: inline-block; vertical-align: middle;
+}
+
+/* 카드: Pico article + 밀도 조정, 그리드는 auto-fit 단일 메커니즘 */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+main article { padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.cards > article { margin-bottom: 0; }
+article h2 { font-size: .95rem; color: var(--pico-muted-color); font-weight: 600; margin-bottom: .6rem; }
+article.wide { margin-top: 1rem; }
+
+/* kv 리스트 (5단계에서 dl 그리드로 교체 예정 — 임시 호환) */
+.kv { list-style: none; margin: 0; padding: 0; }
+.kv li {
+  display: flex; justify-content: space-between; gap: 1rem;
+  padding: .22rem 0; border-bottom: 1px dashed var(--pico-muted-border-color);
+  font-size: .9rem;
+}
+.kv li:last-child { border-bottom: none; }
+.kv span { color: var(--pico-muted-color); }
+.kv b { font-variant-numeric: tabular-nums; }
+.kv b.warn, b.warn { color: var(--warn); }
+.kv a { text-decoration: none; }
+
+/* 유틸 */
+.muted { color: var(--pico-muted-color); }
+.small { font-size: .82rem; }
+.mono, code, pre { font-family: var(--pico-font-family-monospace, ui-monospace, monospace); }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.nowrap { white-space: nowrap; }
+
+/* 상태·배지 */
+.state {
+  display: inline-block; padding: .1rem .6rem; border-radius: 999px; font-size: .8rem;
+  border: 1px solid var(--pico-muted-border-color);
+}
+.state-ready { color: var(--ok); border-color: var(--ok); }
+.state-indexing { color: var(--warn); border-color: var(--warn); }
+.state-not_bootstrapped { color: var(--pico-muted-color); }
+.badge {
+  display: inline-block; padding: .05rem .5rem; border-radius: 999px; font-size: .75rem;
+  border: 1px solid var(--pico-muted-border-color); color: var(--pico-muted-color);
+}
+.badge.warn { color: var(--warn); border-color: var(--warn); }
+
+/* confidence 배지 (동적 클래스 conf-*) */
+.confbadge {
+  display: inline-block; min-width: 3.2ch; text-align: center;
+  padding: 0 .35rem; border-radius: 4px; font-size: .75rem; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--conf-text);
+}
+.conf-certain { background: var(--conf-certain); }
+.conf-samepkg { background: var(--conf-samepkg); }
+.conf-imported { background: var(--conf-imported); }
+.conf-global { background: var(--conf-global); }
+
+/* 엣지 유형 라벨 (동적 클래스) */
+.etype { font-size: .78rem; }
+.etype.call { color: var(--edge-call); }
+.etype.import { color: var(--edge-import); }
+.etype.extends { color: var(--edge-extends); }
+.etype.implements { color: var(--edge-implements); }
+.etype.reference { color: var(--edge-reference); }
+.etype.foreign_key { color: var(--edge-foreign_key); }
+
+/* 탭 */
+.tabs { display: flex; gap: .35rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.tabs a {
+  padding: .3rem .8rem; border-radius: var(--pico-border-radius); text-decoration: none;
+  color: var(--pico-muted-color); border: 1px solid var(--pico-muted-border-color);
+}
+.tabs a.on, .tabs a:hover { color: var(--pico-primary); border-color: var(--pico-primary); }
+a.on { font-weight: 600; }
+
+/* 컨트롤·목록 */
+.controls { margin: .6rem 0 1rem; color: var(--pico-muted-color); }
+.controls select { display: inline-block; width: auto; margin: 0 0 0 .4rem; }
+.edgelist { list-style: none; margin: 0; padding: 0; font-size: .88rem; }
+.edgelist li {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .25rem 0; border-bottom: 1px dashed var(--pico-muted-border-color);
+  overflow: hidden;
+}
+.edgelist li:last-child { border-bottom: none; }
+.edgelist li.dangling .mono { color: var(--bad); }
+.edgelist li.more { justify-content: center; border-bottom: none; }
+.edgelist button { width: auto; padding: .25rem 1rem; font-size: .85rem; margin: 0; }
+.dangling td { color: var(--bad); }
+pre.code { font-size: .82rem; line-height: 1.45; tab-size: 4; max-height: 34rem; overflow: auto; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+/* usage 차트 */
+.chart { width: 100%; height: auto; display: block; }
+.chart .axis { stroke: var(--pico-muted-border-color); }
+.chart .bar.adoption { fill: var(--ok); }
+.chart .bar.fallback { fill: var(--warn); }
+.chart .chartlabel { fill: var(--pico-muted-color); font-size: 9px; }
+.legend { font-weight: 400; font-size: .78rem; margin-left: .6rem; }
+.legend .sw { display: inline-block; width: .7em; height: .7em; margin: 0 .25em 0 .6em; border-radius: 2px; }
+.legend .sw.adoption { background: var(--ok); }
+.legend .sw.fallback { background: var(--warn); }
+.bigram td, .bigram th { padding: .25rem .5rem; }
+
+/* 로그 */
+.logtable { font-size: .8rem; }
+.logtable td.nowrap { white-space: nowrap; }
+.logtable td.detail { word-break: break-all; color: var(--pico-muted-color); }
+.logtable tr.logerr td { color: var(--bad); }
+
+/* ego-graph SVG */
+#ego svg { width: 100%; height: auto; display: block; }
+#ego a { cursor: pointer; }
+.el { stroke: var(--pico-muted-color); }
+.el.call { stroke: var(--edge-call); }
+.el.import { stroke: var(--edge-import); }
+.el.extends { stroke: var(--edge-extends); }
+.el.implements { stroke: var(--edge-implements); }
+.el.reference { stroke: var(--edge-reference); }
+.el.foreign_key { stroke: var(--edge-foreign_key); }
+.el.edashed { stroke-dasharray: 5 4; }
+.ncirc { fill: var(--pico-card-background-color); stroke: var(--pico-muted-border-color); stroke-width: 1.5; }
+.ego-node:hover .ncirc { stroke: var(--pico-primary); }
+.ncirc.ncenter { fill: var(--pico-primary); stroke: var(--pico-primary); }
+.ncirc.ndangling { fill: none; stroke: var(--bad); stroke-dasharray: 3 3; }
+.nlabel { fill: var(--pico-color); font-size: 12px; }
+.ego-node:hover .nlabel { fill: var(--pico-primary); }
+.nlabel.ldangling { fill: var(--bad); }
+.nlabel.lcenter { font-weight: 700; }
+.sidelabel { fill: var(--pico-muted-color); font-size: 12px; letter-spacing: .05em; }
+.morelabel { fill: var(--pico-primary); font-size: 12px; text-decoration: underline; }
+
+.htmx-request { opacity: .6; }

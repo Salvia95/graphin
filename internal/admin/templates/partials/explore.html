@@ -1,15 +1,15 @@
 {{define "explore.html"}}
-<section class="card wide" id="ego">
+<article class="wide" id="ego">
 {{template "ego.html" .Ego}}
-</section>
+</article>
 <div class="split" id="edgelists">
-  <section class="card">
+  <article>
     <h2>참조함 (uses)</h2>
     <ul class="edgelist">{{template "edges.html" .Uses}}</ul>
-  </section>
-  <section class="card">
+  </article>
+  <article>
     <h2>참조됨 (used_by)</h2>
     <ul class="edgelist">{{template "edges.html" .UsedBy}}</ul>
-  </section>
+  </article>
 </div>
 {{end}}

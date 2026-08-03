@@ -8,7 +8,7 @@
 {{else}}
 
 <div class="cards">
-  <section class="card">
+  <article>
     <h2>개요</h2>
     <ul class="kv">
       <li><span>이벤트</span><b>{{comma .R.Events}}</b></li>
@@ -19,10 +19,10 @@
       {{if .Funnel}}<li><span>퍼널 준수 (search→explore/read)</span><b>{{.Funnel}}</b></li>{{end}}
       {{if .R.Problems}}<li><span>로그 문제</span><b class="warn">{{len .R.Problems}}건 스킵</b></li>{{end}}
     </ul>
-  </section>
+  </article>
 
   {{if .Chart.Bars}}
-  <section class="card">
+  <article>
     <h2>일별 추이 <span class="legend"><i class="sw adoption"></i>채택 <i class="sw fallback"></i>폴백</span></h2>
     <svg viewBox="0 0 {{.Chart.W}} {{.Chart.H}}" class="chart" role="img" aria-label="daily adoption chart">
       <line x1="0" y1="{{.Chart.Baseline}}" x2="{{.Chart.W}}" y2="{{.Chart.Baseline}}" class="axis"/>
@@ -33,12 +33,12 @@
       <text x="{{.X}}" y="{{$.Chart.H}}" dy="-4" class="chartlabel">{{.Text}}</text>
       {{end}}
     </svg>
-  </section>
+  </article>
   {{end}}
 </div>
 
 {{if .Groups}}
-<section class="card wide">
+<article class="wide">
   <h2>핵심 지표</h2>
   <table>
     <thead><tr><th>그룹</th><th class="num">윈도우 수</th><th>채택률</th><th class="num">폴백 수</th>
@@ -60,11 +60,11 @@
   </table>
   <p class="muted small">채택률(adoption) = 채택/(채택+폴백) · 늦은 전환(late switch) 분모 = graphin 사용 윈도우 ·
   탐색 실패(discovery failure) 분모 = search 있는 윈도우 · 동일 의도(same-intent) = 같은 의도의 grep 폴백</p>
-</section>
+</article>
 {{end}}
 
 {{if .R.FallbackPairs}}
-<section class="card wide">
+<article class="wide">
   <h2>폴백 페어 — 금맥 (최근 {{len .R.FallbackPairs}})</h2>
   <p class="muted small">graphin 질의 직후 grep으로 후퇴한 사례. same-intent 쌍은 search_hybrid가
   놓친 리터럴 재현 케이스 — 인덱스/랭킹 개선 입력.</p>
@@ -81,11 +81,11 @@
     {{end}}
     </tbody>
   </table>
-</section>
+</article>
 {{end}}
 
 {{if .Bigram.Cols}}
-<section class="card wide">
+<article class="wide">
   <h2>바이그램 전이</h2>
   <table class="bigram">
     <thead><tr><th>이전 \ 다음</th>{{range .Bigram.Cols}}<th class="num mono">{{.}}</th>{{end}}</tr></thead>
@@ -97,7 +97,7 @@
   </table>
   <p class="muted small">g_search/g_explore/g_read = graphin 검색·탐색·코드 읽기 · g_boot/g_bench = 부트스트랩·벤치마크 ·
   search/read/action/other = 일반 도구(검색·읽기·수정·기타)</p>
-</section>
+</article>
 {{end}}
 {{end}}
 {{end}}

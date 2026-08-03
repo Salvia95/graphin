@@ -5,7 +5,7 @@
 MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
 
 <div class="cards">
-  <section class="card">
+  <article>
     <h2>유효 설정 (기동 플래그)</h2>
     <ul class="kv">
       <li><span>--workspace</span><b class="mono">{{.Cfg.Root}}</b></li>
@@ -16,9 +16,9 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
       <li><span>--model-dir</span><b class="mono">{{if .Cfg.ModelDir}}{{.Cfg.ModelDir}}{{else}}—{{end}}</b></li>
       <li><span>--ort-lib</span><b class="mono">{{if .Cfg.OrtLib}}{{.Cfg.OrtLib}}{{else}}—{{end}}</b></li>
     </ul>
-  </section>
+  </article>
 
-  <section class="card">
+  <article>
     <h2>임베딩 모델</h2>
     {{if .Spec}}
     <ul class="kv">
@@ -36,9 +36,9 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
     <p class="warn small">의미 검색 게이트: {{comma .Gate.Nodes}} 노드 &gt; 상한 {{comma .Gate.Max}} —
     키워드 검색 전용으로 동작 중.</p>
     {{end}}
-  </section>
+  </article>
 
-  <section class="card">
+  <article>
     <h2>저장소 (.graphin)</h2>
     <ul class="kv">
       {{range .Sizes}}
@@ -47,6 +47,6 @@ MCP 등록의 실행 인자를 수정하고 서버를 재시작하세요.</p>
       <li><span>합계</span><b>{{bytesHuman .Total}}</b></li>
     </ul>
     <p class="muted small mono">{{.DataDir}}</p>
-  </section>
+  </article>
 </div>
 {{end}}

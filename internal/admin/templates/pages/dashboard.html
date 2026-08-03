@@ -2,14 +2,14 @@
 {{define "content"}}
 <h1>대시보드</h1>
 <div class="cards">
-  <section class="card">
+  <article>
     <h2>상태</h2>
     <div id="status" hx-get="/partial/status" hx-trigger="every 2s" hx-swap="innerHTML">
       {{template "status.html" .Status}}
     </div>
-  </section>
+  </article>
 
-  <section class="card">
+  <article>
     <h2>그래프</h2>
     {{if .Status.Bootstrapped}}
     <ul class="kv">
@@ -18,9 +18,9 @@
       <li><span>샤드</span><b>{{comma (len .Stats.Shards)}}</b></li>
     </ul>
     {{else}}<p class="muted">—</p>{{end}}
-  </section>
+  </article>
 
-  <section class="card">
+  <article>
     <h2>종류별 노드</h2>
     {{if .Health.Kinds}}
     <ul class="kv">
@@ -29,9 +29,9 @@
       {{end}}
     </ul>
     {{else}}<p class="muted">—</p>{{end}}
-  </section>
+  </article>
 
-  <section class="card">
+  <article>
     <h2>모델</h2>
     <ul class="kv">
       <li><span>설정 모델 종류</span><b>{{.Cfg.ModelType}}{{if not .Cfg.ModelType}}(기본){{end}}</b></li>
@@ -39,9 +39,9 @@
       {{if .Header}}<li><span>저장된 벡터 모델</span><b>{{.Header.ModelID}}</b></li>{{end}}
     </ul>
     {{if .Warning}}{{template "model_warning.html" .Warning}}{{end}}
-  </section>
+  </article>
 
-  <section class="card">
+  <article>
     <h2>헬스</h2>
     {{if .Status.Bootstrapped}}
     <ul class="kv">
@@ -52,11 +52,11 @@
       <li><span>델타 로그</span><b>레코드 {{comma .Reverse.LogRecords}} · 툼스톤 {{comma .Reverse.LogTombstones}}</b></li>
     </ul>
     {{else}}<p class="muted">—</p>{{end}}
-  </section>
+  </article>
 </div>
 
 {{if .TopShards}}
-<section class="card wide">
+<article class="wide">
   <h2>샤드 상위 {{len .TopShards}}</h2>
   <table>
     <thead><tr><th>패키지</th><th class="num">세대(gen)</th><th class="num">노드</th><th class="num">엣지</th></tr></thead>
@@ -66,6 +66,6 @@
     {{end}}
     </tbody>
   </table>
-</section>
+</article>
 {{end}}
 {{end}}
