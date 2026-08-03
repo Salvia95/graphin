@@ -78,7 +78,9 @@ func TestEdgesPartialMinConfFilter(t *testing.T) {
 	wantContains(t, rec, http.StatusOK, "없음")
 }
 
-func TestCodePartialUnknownNode(t *testing.T) {
+func TestCodeVMUnknownNode(t *testing.T) {
 	s, _ := bootstrappedServer(t)
-	wantContains(t, get(t, s, "/partial/code?id=nope"), http.StatusOK, "메타데이터가 없습니다")
+	if vm := s.codeVM("nope"); !strings.Contains(vm.Err, "메타데이터가 없습니다") {
+		t.Fatalf("codeVM err: %q", vm.Err)
+	}
 }

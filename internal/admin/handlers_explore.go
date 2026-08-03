@@ -229,7 +229,3 @@ func (s *Server) handleEdgesPartial(w http.ResponseWriter, r *http.Request) {
 	s.renderPartial(w, "edges.html", http.StatusOK,
 		s.edgeList(q.Get("id"), dir, q.Get("cursor"), parseMinConf(r)))
 }
-
-func (s *Server) handleCodePartial(w http.ResponseWriter, r *http.Request) {
-	s.renderPartial(w, "code.html", http.StatusOK, s.codeVM(r.URL.Query().Get("id")))
-}
