@@ -133,3 +133,29 @@ func TestStaticAssets(t *testing.T) {
 	wantContains(t, get(t, s, "/static/htmx.min.js"), http.StatusOK, "htmx")
 	wantContains(t, get(t, s, "/static/style.css"), http.StatusOK, "graphin admin")
 }
+
+func TestServeRefusesBadAddresses(t *testing.T) {
+	ws := newTestWS(t, nil)
+	for _, addr := range []string{"0.0.0.0:0", "192.168.0.10:8080", "noport", ""} {
+		if err := Serve(context.Background(), ws, addr, "test", obs.Nop()); err == nil {
+			t.Fatalf("Serve(%q) must refuse", addr)
+		}
+	}
+}
+
+func TestServeShutsDownOnCancel(t *testing.T) {
+	ws := newTestWS(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- Serve(ctx, ws, "127.0.0.1:0", "test", obs.Nop()) }()
+	time.Sleep(150 * time.Millisecond)
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("graceful shutdown returned %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Serve did not return after cancel")
+	}
+}

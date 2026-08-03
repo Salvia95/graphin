@@ -1,7 +1,7 @@
 GO ?= go
 
 # packages with heavy concurrency — always exercised under -race at phase gates
-RACE_PKGS = ./internal/graph/... ./internal/store/... ./internal/workspace/... ./internal/watch/...
+RACE_PKGS = ./internal/graph/... ./internal/store/... ./internal/workspace/... ./internal/watch/... ./internal/admin/...
 
 .PHONY: build vet test test-race fbs
 

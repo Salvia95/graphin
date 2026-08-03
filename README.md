@@ -97,7 +97,7 @@ lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직
 ## 실행 플래그
 
 `--workspace <path>`(필수) · `--model-type` · `--offline` · `--model-dir` ·
-`--ort-lib` · `--workers <n>` · `--verbose`
+`--ort-lib` · `--workers <n>` · `--verbose` · `--admin-addr <host:port>`
 
 시멘틱 모델(e5 계열 INT8 ONNX)과 onnxruntime 1.26.0은 최초 부트스트랩 시
 SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts` 캐시).
@@ -116,6 +116,34 @@ SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts
 ├── binpath                             # 서버 바이너리 절대경로 (usage 훅의 해석용)
 └── usage/events.jsonl                  # graphin-usage 플러그인의 툴콜 이벤트 (32MiB 회전)
 ```
+
+## 관리자 페이지 (admin)
+
+MCP 서버에 내장된 읽기 전용 로컬 웹 페이지. 사람이 브라우저로 그래프 상태를
+모니터링하는 용도다 — AI 에이전트의 도구 경로(MCP)와 같은 프로세스에서 같은
+라이브 워크스페이스를 본다.
+
+```sh
+# MCP 등록 인자에 플래그 추가 (루프백 주소만 허용)
+claude mcp add graphin -- /path/to/bin/graphin \
+  --workspace /path/to/project --admin-addr 127.0.0.1:7466
+# 브라우저에서 http://127.0.0.1:7466
+```
+
+| 화면 | 내용 |
+|---|---|
+| 대시보드 | 인덱싱 진행률·임베딩 백로그(2s 폴링), 노드/엣지/샤드 카운트, 헬스 요약 |
+| 검색 | Tier-0 → BM25 ∥ 벡터 RRF (MCP `search_hybrid`와 동일 경로), match 배지 |
+| 노드 상세 | ego-graph SVG(1홉, confidence 기반 스타일), uses/used_by 목록(min_conf 필터·커서 페이지네이션), 코드 뷰 |
+| 진단 | 끊어진(dangling) 엣지(코드/DB 필터), partial 노드, semantic 상태, 역인덱스 통계 |
+| 설정 | 유효 기동 플래그·모델 스펙·게이트 상태·저장소 용량 (읽기 전용) |
+
+v1은 어떤 변경도 수행하지 않는다(전 라우트 GET). 바인드 실패 시 경고만 남기고
+MCP 서버는 계속 동작한다. 페이지는 루프백 바인드 + Host 헤더 검증으로 로컬
+전용이며, 정적 자산은 바이너리에 임베드되어 오프라인에서 완결된다.
+
+서드파티: [htmx](https://htmx.org) v2.0.6 (Zero-Clause BSD,
+`internal/admin/static/htmx.LICENSE`)을 벤더링한다.
 
 ## 평가 (SWE-Explore 하니스)
 
