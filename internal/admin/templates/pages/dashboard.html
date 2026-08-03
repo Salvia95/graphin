@@ -54,7 +54,7 @@
     <thead><tr><th>패키지</th><th class="num">gen</th><th class="num">노드</th><th class="num">엣지</th></tr></thead>
     <tbody>
     {{range .TopShards}}
-      <tr><td class="mono">{{.Pkg}}</td><td class="num">{{.Gen}}</td><td class="num">{{comma .Nodes}}</td><td class="num">{{comma .Edges}}</td></tr>
+      <tr><td><a class="nodelink mono" href="/browse?pkg={{.Pkg}}">{{.Pkg}}</a></td><td class="num">{{.Gen}}</td><td class="num">{{comma .Nodes}}</td><td class="num">{{comma .Edges}}</td></tr>
     {{end}}
     </tbody>
   </table>

@@ -10,7 +10,7 @@
   {{if .Meta.Partial}}<span class="badge warn">partial</span>{{end}}
 </h1>
 <p class="muted small mono" title="{{.ID}}">{{.ID}}</p>
-<p class="muted small mono">{{.Meta.RelPath}}</p>
+<p class="muted small mono">{{if .Pkg}}<a class="nodelink" href="/browse?pkg={{.Pkg}}#{{.FileAnchor}}">{{.Meta.RelPath}}</a>{{else}}{{.Meta.RelPath}}{{end}}</p>
 
 <div class="controls">
   <label>min_conf

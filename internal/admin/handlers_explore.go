@@ -169,11 +169,13 @@ func (s *Server) exploreVM(id string, minConf float32) exploreVM {
 
 type nodeVM struct {
 	pageVM
-	ID      string
-	Found   bool
-	Meta    workspace.NodeMeta
-	Explore exploreVM
-	Code    codeVM
+	ID         string
+	Found      bool
+	Meta       workspace.NodeMeta
+	Pkg        string // 구조 브라우저 링크용 ("" = 그래프에 없음)
+	FileAnchor string
+	Explore    exploreVM
+	Code       codeVM
 }
 
 func (s *Server) handleNode(w http.ResponseWriter, r *http.Request) {
@@ -181,9 +183,10 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request) {
 	minConf := parseMinConf(r)
 	vm := nodeVM{pageVM: s.pageVM("search"), ID: id}
 	meta, ok := s.ws.Meta(id)
-	if !ok {
-		// 그래프에는 있는데 메타가 아직 없는 창(초기 스캔 중) 지원.
-		if info, inGraph := s.ws.GraphInfo(id); inGraph {
+	if info, inGraph := s.ws.GraphInfo(id); inGraph {
+		vm.Pkg = info.Pkg
+		if !ok {
+			// 그래프에는 있는데 메타가 아직 없는 창(초기 스캔 중) 지원.
 			meta = workspace.NodeMeta{
 				RelPath: info.FilePath, StartByte: info.Start, EndByte: info.End,
 				Kind: info.Kind, DisplayName: info.DisplayName, Partial: info.Partial,
@@ -193,6 +196,7 @@ func (s *Server) handleNode(w http.ResponseWriter, r *http.Request) {
 	}
 	vm.Found = ok
 	vm.Meta = meta
+	vm.FileAnchor = fileAnchor(meta.RelPath)
 	if ok {
 		vm.Explore = s.exploreVM(id, minConf)
 		vm.Code = s.codeVM(id)
