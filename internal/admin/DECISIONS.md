@@ -246,6 +246,11 @@ admin은 **읽기 전용**이다 — v1 확정 결정이고, `server.go`의 라�
   전 용어의 `/help` 200, 미등록 용어 404, 라벨 이스케이프.
 - `ego_test.go` — `TestEgoEdgeTypeIsNotColourOnly`, `TestBuildLegendOrderAndDedup`.
 - `logs_test.go` — 오류 행이 클래스와 '오류' 태그로 이중 표시되는지.
+- `dbxref_test.go` — UC-8(코드↔DB 추적). 테이블 노드가 검색되는지, `used_by`
+  한 홉이 JPA 엔티티와 SQL 리터럴 양쪽에 닿는지, 그리고 두 경로의 신뢰도가
+  USE_CASES.md가 설명하는 티어(명시 물리명 1.00 / SQL·ORM 0.90)와 같은지.
+  마지막 단언이 핵심이다 — 티어가 흔들리면 문서가 거짓이 되므로 여기서 먼저
+  실패해야 한다. 픽스처는 `testdata/fixtures/dbxref`를 재사용한다.
 
 ### 남은 후속 작업
 
