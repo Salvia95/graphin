@@ -141,6 +141,11 @@ claude mcp add graphin -- /path/to/bin/graphin \
 | 계측 | graphin-usage 채택 지표(`usage report`와 동일 산식) — 헤드라인·폴백 페어·바이그램·일별 추이 차트 |
 | 설정 | 유효 기동 플래그·모델 스펙·게이트 상태·저장소 용량 (읽기 전용) |
 
+운영자가 각 화면에서 무엇을 확인하고 어떤 값이 정상인지, 이상 신호에 어떤 조치를
+취하는지는 [`internal/admin/USE_CASES.md`](internal/admin/USE_CASES.md)에 유스케이스
+9종으로 정리돼 있다. UI 규격은 [`DESIGN.md`](internal/admin/DESIGN.md),
+graphin 종속 적용 판단은 [`DECISIONS.md`](internal/admin/DECISIONS.md).
+
 v1은 어떤 변경도 수행하지 않는다(전 라우트 GET). 바인드 실패 시 경고만 남기고
 MCP 서버는 계속 동작한다. 페이지는 루프백 바인드 + Host 헤더 검증으로 로컬
 전용이며, 정적 자산은 바이너리에 임베드되어 오프라인에서 완결된다.
