@@ -74,6 +74,11 @@ make build                    # → bin/graphin
 claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project
 ```
 
+> **주의**: 이 방식은 등록한 프로젝트가 **이 체크아웃의 빌드 산출물을 절대경로로
+> 직접 참조**한다 — 저장소에서 `make build`를 돌리면 실행 중인 다른 프로젝트의
+> 바이너리가 교체된다. 플러그인 하나로 설치가 끝나는 자기완결 배포는 설계까지
+> 마쳤고 구현 전이다: [`docs/plugin-distribution.md`](docs/plugin-distribution.md).
+
 에이전트가 `bootstrap_workspace`를 호출하면 인덱싱과 File Watcher가 시작된다.
 `initialize`는 인덱싱과 무관하게 즉시 응답하며, 준비 전 응답에는
 `<system_status state="indexing" lexical_ready=... semantic_ready=... />`가 동봉된다.
