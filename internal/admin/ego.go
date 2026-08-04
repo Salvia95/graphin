@@ -2,6 +2,7 @@ package admin
 
 import (
 	"math"
+	"sort"
 )
 
 // ego-graph: 중심 노드 + 1홉 이웃의 좌우 분할 방사형 SVG. 레이아웃은 Go가
@@ -30,6 +31,15 @@ type egoNode struct {
 	Dashed   bool
 }
 
+// egoLegendItem names one edge colour present in the drawing. Without it the
+// stroke colour would be the only carrier of edge type, which the design
+// system forbids (DESIGN.md §1·§9, DECISIONS.md E2). Confidence already owns
+// the dash/width/opacity channels, so type gets text instead of a pattern.
+type egoLegendItem struct {
+	Type  string // raw — CSS 클래스용
+	Label string // 한국어 라벨
+}
+
 // egoData feeds partials/ego.html.
 type egoData struct {
 	ID         string
@@ -38,9 +48,41 @@ type egoData struct {
 	W, H       float64
 	Uses       []egoNode
 	UsedBy     []egoNode
+	Legend     []egoLegendItem
 	MoreUses   bool
 	MoreUsedBy bool
 	Empty      bool
+}
+
+// buildLegend lists the edge types actually drawn, in the canonical order of
+// typeLabels rather than discovery order, so the legend does not reshuffle
+// when min_conf changes.
+var legendOrder = []string{"call", "import", "extends", "implements", "reference", "foreign_key"}
+
+func buildLegend(groups ...[]egoNode) []egoLegendItem {
+	present := map[string]bool{}
+	for _, g := range groups {
+		for _, n := range g {
+			present[n.Type] = true
+		}
+	}
+	var out []egoLegendItem
+	for _, t := range legendOrder {
+		if present[t] {
+			out = append(out, egoLegendItem{Type: t, Label: typeLabel(t)})
+			delete(present, t)
+		}
+	}
+	// 미등록 유형이 생겨도 범례에서 빠지지 않게 남은 것을 뒤에 붙인다.
+	rest := make([]string, 0, len(present))
+	for t := range present {
+		rest = append(rest, t)
+	}
+	sort.Strings(rest)
+	for _, t := range rest {
+		out = append(out, egoLegendItem{Type: t, Label: typeLabel(t)})
+	}
+	return out
 }
 
 func truncLabel(s string) string {
@@ -128,5 +170,6 @@ func buildEgo(id, display string, uses, usedBy edgeListVM) egoData {
 	}
 	d.Uses = place(uses.Rows, false)
 	d.UsedBy = place(usedBy.Rows, true)
+	d.Legend = buildLegend(d.Uses, d.UsedBy)
 	return d
 }

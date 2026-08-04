@@ -1,0 +1,148 @@
+/* graphin admin — 디자인 토큰 레이어 (DESIGN.md §2)
+   로드 순서: pico.min.css → theme.css → custom.css
+   Pico의 classless 기본형은 그대로 두고 CSS 변수만 오버라이드한다. */
+
+/* Pretendard Std 가변 폰트 — CDN이 아니라 static/에 벤더링(DECISIONS.md D2).
+   CSP default-src 'self'가 외부 폰트를 차단하므로 선택이 아니라 필수다.
+   Std 빌드(KS X 1001 한글 2780자, 292KB)를 쓴다 — Pretendard는 UI 크롬만
+   그리고 코드·식별자는 모노스페이스라 전체 빌드(2.1MB)가 필요 없다.
+   미수록 글자는 아래 스택의 시스템 한글 폰트로 폴백된다. */
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("/static/PretendardStdVariable.woff2") format("woff2-variations");
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── 1. 테마 무관 토큰 ─────────────────────────────────────────────── */
+:root {
+  /* 서체 */
+  --pico-font-family: "Pretendard Variable", Pretendard, -apple-system,
+                      "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --pico-font-family-monospace: "D2Coding", "JetBrains Mono", "SFMono-Regular",
+                                Consolas, monospace;
+  --pico-font-size: 87.5%;            /* 14px 기준 */
+  --pico-line-height: 1.55;
+
+  /* 밀도 */
+  --pico-spacing: 1rem;
+  --pico-block-spacing-vertical: .75rem;
+  --pico-form-element-spacing-vertical: .375rem;
+  --pico-form-element-spacing-horizontal: .625rem;
+  --pico-border-radius: 5px;
+
+  /* 레이아웃 상수 */
+  --key-col: 180px;      /* 키 열 너비, 전 화면 공통 */
+  --indent: 20px;        /* 트리 깊이당 들여쓰기 */
+  --sidebar: 220px;
+}
+
+/* ── 2. 색 토큰 ───────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --c-bg: #f6f7f9;  --c-surface: #ffffff;  --c-surface-2: #f0f2f5;
+  --c-code-bg: #f4f6f8;
+  --c-line: #dfe3e8;  --c-line-strong: #c3cad3;
+  --c-fg: #12161c;  --c-fg-muted: #5a6472;  --c-fg-dim: #8a94a3;
+  --c-accent: #2c5fd6;  --c-accent-bg: #e8eeff;
+  --c-ok:   #17714a;  --c-ok-bg:   #dff3e8;
+  --c-warn: #8a5a00;  --c-warn-bg: #fdf0d5;
+  --c-err:  #b3261e;  --c-err-bg:  #fce8e6;
+  --c-info: #1f6a83;  --c-info-bg: #e0f2f7;
+}
+
+/* 다크 값은 두 경로로 들어온다 — 수동 토글(data-theme)과 OS 설정 추종. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-bg: #0e1116;  --c-surface: #151a21;  --c-surface-2: #1b2129;
+  --c-code-bg: #11161d;
+  --c-line: #262e38;  --c-line-strong: #3a4553;
+  --c-fg: #e6ebf2;  --c-fg-muted: #9aa6b5;  --c-fg-dim: #6c7786;
+  --c-accent: #7aa2f7;  --c-accent-bg: #1b2740;
+  --c-ok:   #5ec98b;  --c-ok-bg:   #14291f;
+  --c-warn: #e0b04a;  --c-warn-bg: #2b2312;
+  --c-err:  #f2807c;  --c-err-bg:  #2e1817;
+  --c-info: #63c1dc;  --c-info-bg: #10262d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --c-bg: #0e1116;  --c-surface: #151a21;  --c-surface-2: #1b2129;
+    --c-code-bg: #11161d;
+    --c-line: #262e38;  --c-line-strong: #3a4553;
+    --c-fg: #e6ebf2;  --c-fg-muted: #9aa6b5;  --c-fg-dim: #6c7786;
+    --c-accent: #7aa2f7;  --c-accent-bg: #1b2740;
+    --c-ok:   #5ec98b;  --c-ok-bg:   #14291f;
+    --c-warn: #e0b04a;  --c-warn-bg: #2b2312;
+    --c-err:  #f2807c;  --c-err-bg:  #2e1817;
+    --c-info: #63c1dc;  --c-info-bg: #10262d;
+  }
+}
+
+/* ── 3. Pico 변수 매핑 ────────────────────────────────────────────────
+   Pico가 자기 테마 블록에서 이 변수들을 다시 선언하므로, 같은 특이도로
+   재선언해야 한다 — theme.css가 pico.min.css 뒤에 로드되니 동일 특이도면
+   이쪽이 이긴다. 아래 두 규칙의 선택자는 Pico의 것과 특이도가 같다:
+     [data-theme=light] / [data-theme=dark]      → (0,1,0)
+     :root:not([data-theme=light]) in @media     → (0,2,0)          */
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  --pico-primary: var(--c-accent);
+  --pico-primary-hover: var(--c-accent);
+  --pico-primary-focus: var(--c-accent-bg);
+  --pico-background-color: var(--c-bg);
+  --pico-card-background-color: var(--c-surface);
+  --pico-card-sectioning-background-color: var(--c-surface-2);
+  --pico-color: var(--c-fg);
+  --pico-muted-color: var(--c-fg-muted);
+  --pico-muted-border-color: var(--c-line);
+  --pico-border-color: var(--c-line);
+  --pico-code-background-color: var(--c-code-bg);
+  --pico-code-color: var(--c-fg-muted);
+  --pico-h1-color: var(--c-fg);
+  --pico-h2-color: var(--c-fg);
+  --pico-h3-color: var(--c-fg);
+  --pico-h4-color: var(--c-fg);
+  --pico-h5-color: var(--c-fg);
+  --pico-h6-color: var(--c-fg);
+  --pico-form-element-background-color: var(--c-surface);
+  --pico-form-element-border-color: var(--c-line-strong);
+  --pico-form-element-color: var(--c-fg);
+  --pico-form-element-focus-color: var(--c-accent);
+  --pico-table-border-color: var(--c-line);
+  --pico-mark-background-color: var(--c-warn-bg);
+  --pico-mark-color: var(--c-fg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pico-primary: var(--c-accent);
+    --pico-primary-hover: var(--c-accent);
+    --pico-primary-focus: var(--c-accent-bg);
+    --pico-background-color: var(--c-bg);
+    --pico-card-background-color: var(--c-surface);
+    --pico-card-sectioning-background-color: var(--c-surface-2);
+    --pico-color: var(--c-fg);
+    --pico-muted-color: var(--c-fg-muted);
+    --pico-muted-border-color: var(--c-line);
+    --pico-border-color: var(--c-line);
+    --pico-code-background-color: var(--c-code-bg);
+    --pico-code-color: var(--c-fg-muted);
+    --pico-h1-color: var(--c-fg);
+    --pico-h2-color: var(--c-fg);
+    --pico-h3-color: var(--c-fg);
+    --pico-h4-color: var(--c-fg);
+    --pico-h5-color: var(--c-fg);
+    --pico-h6-color: var(--c-fg);
+    --pico-form-element-background-color: var(--c-surface);
+    --pico-form-element-border-color: var(--c-line-strong);
+    --pico-form-element-color: var(--c-fg);
+    --pico-form-element-focus-color: var(--c-accent);
+    --pico-table-border-color: var(--c-line);
+    --pico-mark-background-color: var(--c-warn-bg);
+    --pico-mark-color: var(--c-fg);
+  }
+}

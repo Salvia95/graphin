@@ -4,18 +4,20 @@
 {{else}}
 <p class="muted small">최근 {{comma .Total}}건 중 {{comma (len .Rows)}}건 표시 (최신 우선{{if .Filter}}, 필터: <code>{{.Filter}}</code>{{end}})</p>
 {{if .Rows}}
-<table class="logtable">
-  <thead><tr><th>시간</th><th>이벤트</th><th>상세</th></tr></thead>
-  <tbody>
+<div class="log" role="table" aria-label="활동 로그">
+  <div class="row head" role="row">
+    <span class="cell" role="columnheader">시간</span>
+    <span class="cell" role="columnheader">이벤트</span>
+    <span class="cell" role="columnheader">상세</span>
+  </div>
   {{range .Rows}}
-    <tr{{if .Error}} class="logerr"{{end}}>
-      <td class="mono nowrap">{{.TS}}</td>
-      <td class="mono nowrap">{{.Event}}</td>
-      <td class="mono detail">{{.Detail}}</td>
-    </tr>
+  <div class="row{{if .Error}} error{{end}}" role="row">
+    <span class="cell nowrap" role="cell">{{.TS}}</span>
+    <span class="cell nowrap" role="cell">{{.Event}}{{if .Error}} <span class="tag warn">오류</span>{{end}}</span>
+    <span class="cell detail" role="cell">{{.Detail}}</span>
+  </div>
   {{end}}
-  </tbody>
-</table>
+</div>
 {{else}}
 <p class="muted">해당 이벤트 없음</p>
 {{end}}

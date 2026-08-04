@@ -7,8 +7,8 @@
   </ul>
 </nav>
 {{end}}
+{{define "pagehead"}}<h1 class="mono">{{.Pkg}}</h1>{{end}}
 {{define "content"}}
-<h1 class="mono">{{.Pkg}}</h1>
 {{if not .Bootstrapped}}
 {{template "empty_state.html" .}}
 {{else if .Files}}

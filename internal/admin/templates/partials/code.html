@@ -2,9 +2,20 @@
 {{if .Err}}
 <p class="warn small">{{.Err}}</p>
 {{else}}
-<p class="muted small mono">{{.Block.RelPath}}:{{.Block.StartLine}}–{{.Block.EndLine}}
-{{if .Block.Reparsed}} <span class="badge">재파싱됨</span>{{end}}
-{{if .Block.Partial}} <span class="badge warn">부분</span>{{end}}</p>
-<pre class="code">{{.Block.Code}}</pre>
+<div class="code">
+  <header class="codehead">
+    <span class="mono">{{.Block.RelPath}} · L{{.Block.StartLine}}–{{.Block.EndLine}}{{with langOf .Block.RelPath}} · {{.}}{{end}}</span>
+    <span class="codeflags">
+      {{if .Block.Reparsed}}<span class="badge neutral">재파싱됨</span>{{end}}
+      {{if .Block.Partial}}<span class="badge warn">부분</span>{{end}}
+      <button type="button" class="copybtn" data-copy-code aria-label="코드 복사">복사</button>
+    </span>
+  </header>
+  <div class="codebody">
+    {{range codeLines .Block.StartLine .Block.Code}}
+    <div class="line"><span class="ln">{{.N}}</span><span class="src">{{.Text}}</span></div>
+    {{end}}
+  </div>
+</div>
 {{end}}
 {{end}}

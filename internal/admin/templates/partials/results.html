@@ -10,7 +10,7 @@
         <td><a class="nodelink mono" href="/node?id={{.NodeID}}" title="{{.NodeID}}">{{if .Display}}{{.Display}}{{else}}{{simple .NodeID}}{{end}}</a></td>
         <td>{{kindLabel .Kind}}</td>
         <td class="mono muted">{{.RelPath}}</td>
-        <td><span class="badge">{{matchLabel .Match}}</span></td>
+        <td><span class="tag">{{matchLabel .Match}}</span></td>
       </tr>
     {{end}}
     </tbody>

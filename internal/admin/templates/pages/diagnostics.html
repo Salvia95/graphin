@@ -1,6 +1,6 @@
 {{define "title"}}진단 — graphin admin{{end}}
+{{define "pagehead"}}<h1>진단</h1>{{end}}
 {{define "content"}}
-<h1>진단</h1>
 {{if not .Bootstrapped}}
 {{template "empty_state.html" .}}
 {{else}}
@@ -24,8 +24,8 @@
   코드 도메인은 대개 대상이 삭제되었거나 아직 해석되지 않은 흔적이고, DB 도메인은 스냅샷 밖 참조
   (예: supabase <code>auth.users</code>)를 스텁 없이 그대로 남긴 의도적 설계일 수 있습니다.</p>
   <p>
-    <span class="badge{{if gt .Totals.Code 0}} warn{{end}}">코드 {{comma .Totals.Code}}</span>
-    <span class="badge">DB {{comma .Totals.DB}}</span>
+    <span class="badge {{if gt .Totals.Code 0}}warn{{else}}ok{{end}}">코드 {{comma .Totals.Code}}</span>
+    <span class="badge neutral">DB {{comma .Totals.DB}}</span>
     필터:
     <a href="/diagnostics?tab=dangling&filter=all" {{if eq .Filter "all"}}class="on"{{end}}>전체</a> ·
     <a href="/diagnostics?tab=dangling&filter=code" {{if eq .Filter "code"}}class="on"{{end}}>코드만</a> ·
@@ -33,7 +33,7 @@
   </p>
   {{if .Rows}}
   <table>
-    <thead><tr><th>출발 노드</th><th>유형</th><th class="num">신뢰도</th><th>사라진 대상</th><th>도메인</th></tr></thead>
+    <thead><tr><th>출발 노드</th><th>유형</th><th class="num">{{term "confidence" "신뢰도"}}</th><th>사라진 대상</th><th>도메인</th></tr></thead>
     <tbody>
     {{range .Rows}}
       <tr>
@@ -41,7 +41,7 @@
         <td><span class="etype {{.Type}}">{{typeLabel .Type}}</span></td>
         <td class="num"><span class="confbadge {{confClass .Conf}}">{{conf .Conf}}</span></td>
         <td class="mono bad">{{.Target}}</td>
-        <td>{{if .DB}}<span class="badge">DB</span>{{else}}<span class="badge">코드</span>{{end}}</td>
+        <td>{{if .DB}}<span class="tag">DB</span>{{else}}<span class="tag">코드</span>{{end}}</td>
       </tr>
     {{end}}
     </tbody>
@@ -59,6 +59,7 @@
   graphindb 스냅샷의 노드입니다. 소스를 고치면 워처가 자동으로 재인덱싱합니다.</p>
   {{if .Rows}}
   <p><span class="badge warn">{{comma .Total}}개</span></p>
+
   <table>
     <thead><tr><th>노드</th><th>종류</th><th>파일</th></tr></thead>
     <tbody>
@@ -79,14 +80,14 @@
 
 {{define "diag_semantic"}}
 <article class="wide">
-  <dl class="kv">
+  <dl>
     <dt>상태</dt><dd>{{if .Gated}}비활성 (노드 수 게이트){{else if .Ready}}준비됨{{else if .Failure}}사용 불가{{else}}워밍업 중{{end}}</dd>
-    <dt>임베딩 대기</dt><dd>{{.Pending}}</dd>
-    <dt>대기열 깊이</dt><dd>{{.QueueDepth}}</dd>
+    <dt>{{term "embed_pending" "임베딩 대기"}}</dt><dd class="num">{{.Pending}}</dd>
+    <dt>대기열 깊이</dt><dd class="num">{{.QueueDepth}}</dd>
     <dt>대기열 소진</dt><dd>{{if .Drained}}예{{else}}아니오{{end}}</dd>
     {{if .Header}}
     <dt>저장된 벡터 모델</dt><dd>{{.Header.ModelID}}</dd>
-    <dt>저장된 벡터 파일 수</dt><dd>{{comma .HeaderFiles}}</dd>
+    <dt>저장된 벡터 파일 수</dt><dd class="num">{{comma .HeaderFiles}}</dd>
     {{end}}
     {{if .ExpectedModelID}}<dt>설정 기대 모델</dt><dd>{{.ExpectedModelID}}</dd>{{end}}
     {{if .Gated}}<dt>게이트</dt><dd>{{comma .GateNodes}} 노드 &gt; 상한 {{comma .GateMax}}</dd>{{end}}
@@ -103,11 +104,11 @@
 <article class="wide">
   <p class="muted small">'참조됨 (used_by)' 역인덱스는 압축 베이스(compacted base)와 툼스톤 델타 로그로
   관리됩니다. 로그가 10MB를 넘거나 툼스톤 비율이 30%를 넘으면 자동으로 압축됩니다.</p>
-  <dl class="kv">
-    <dt>대상 수</dt><dd>{{comma .Targets}}</dd>
-    <dt>역방향 엣지 수</dt><dd>{{comma .Edges}}</dd>
-    <dt>델타 로그 레코드</dt><dd>{{comma .LogRecords}}</dd>
-    <dt>델타 로그 툼스톤</dt><dd>{{comma .LogTombstones}}</dd>
+  <dl>
+    <dt>{{term "reverse_index" "대상 수"}}</dt><dd class="num">{{comma .Targets}}</dd>
+    <dt>역방향 엣지 수</dt><dd class="num">{{comma .Edges}}</dd>
+    <dt>델타 로그 레코드</dt><dd class="num">{{comma .LogRecords}}</dd>
+    <dt>델타 로그 툼스톤</dt><dd class="num">{{comma .LogTombstones}}</dd>
   </dl>
 </article>
 {{end}}

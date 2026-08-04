@@ -78,3 +78,39 @@ func TestNodePageRendersEgoSVG(t *testing.T) {
 		}
 	}
 }
+
+// 엣지 유형이 색으로만 구분되면 안 된다(DECISIONS.md E2). 범례가 색에
+// 이름을 붙이고, 선 자체도 <title>로 유형을 말한다.
+func TestEgoEdgeTypeIsNotColourOnly(t *testing.T) {
+	s, ws := bootstrappedServer(t)
+	runID := findNode(t, ws, "Flow.run()")
+	body := get(t, s, "/node?id="+url.QueryEscape(runID)).Body.String()
+
+	if !strings.Contains(body, `class="egolegend"`) {
+		t.Fatal("ego legend missing — edge colour would be unlabelled")
+	}
+	if !strings.Contains(body, `<i class="sw call"`) || !strings.Contains(body, "호출") {
+		t.Fatal("legend does not name the call edge type")
+	}
+	if !strings.Contains(body, "<title>호출 · 신뢰도") {
+		t.Fatal("edge lines carry no textual type/confidence title")
+	}
+}
+
+func TestBuildLegendOrderAndDedup(t *testing.T) {
+	uses := []egoNode{{Type: "reference"}, {Type: "call"}, {Type: "call"}}
+	usedBy := []egoNode{{Type: "import"}}
+	got := buildLegend(uses, usedBy)
+	want := []string{"call", "import", "reference"} // legendOrder 고정 순서
+	if len(got) != len(want) {
+		t.Fatalf("legend = %+v", got)
+	}
+	for i, w := range want {
+		if got[i].Type != w {
+			t.Fatalf("legend[%d] = %q, want %q", i, got[i].Type, w)
+		}
+	}
+	if got[0].Label != "호출" {
+		t.Fatalf("legend label not localised: %q", got[0].Label)
+	}
+}

@@ -22,7 +22,8 @@ type browsePkgRow struct {
 
 type browseIndexVM struct {
 	pageVM
-	Rows       []browsePkgRow
+	Tree       []treeRow
+	PkgCount   int
 	TotalNodes int
 	TotalFiles int
 }
@@ -73,17 +74,19 @@ func (s *Server) handleBrowseIndex(w http.ResponseWriter, r *http.Request) {
 		set[n.FilePath] = true
 		return true
 	})
-	vm := browseIndexVM{pageVM: s.pageVM("browse"), TotalNodes: st.Nodes}
+	vm := browseIndexVM{
+		pageVM:     s.pageVM("browse"),
+		Tree:       s.treePackages(),
+		TotalNodes: st.Nodes,
+	}
+	vm.PkgCount = len(vm.Tree)
 	allFiles := map[string]bool{}
 	for _, sh := range st.Shards {
-		row := browsePkgRow{Pkg: sh.Pkg, Nodes: sh.Nodes, Edges: sh.Edges, Files: len(files[sh.Pkg])}
-		vm.Rows = append(vm.Rows, row)
 		for f := range files[sh.Pkg] {
 			allFiles[f] = true
 		}
 	}
 	vm.TotalFiles = len(allFiles)
-	sort.Slice(vm.Rows, func(i, j int) bool { return vm.Rows[i].Pkg < vm.Rows[j].Pkg })
 	s.renderPage(w, "browse.html", vm)
 }
 

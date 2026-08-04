@@ -1,22 +1,42 @@
-/* graphin admin — Pico 위 도메인 커스텀 레이어 */
+/* graphin admin — Pico 위 도메인 커스텀 레이어
+   토큰은 theme.css(DESIGN.md §2). 여기는 컴포넌트와 도메인 클래스만 둔다. */
 
-/* 밀도: 데이터 중심 화면이라 기본보다 한 단계 촘촘하게 */
-html { font-size: 93.75%; }
+/* 타이포그래피 스케일 (DESIGN.md §3) — 4단계를 벗어나지 않는다. */
+h1 { font-size: 1.857rem; font-weight: 800; letter-spacing: -.02em;   /* lv1 26px */
+     margin-bottom: 1rem; line-height: 1.25; }
+h2 { font-size: 1.3rem;   font-weight: 700; letter-spacing: -.01em; } /* lv2 18px */
+h3 { font-size: 1.107rem; font-weight: 650; }                          /* lv3 15.5px */
+main article h2 { font-size: 1.107rem; font-weight: 650; }             /* 카드 제목은 lv3 */
+label, dt { font-size: .929rem; font-weight: 500; }                    /* lv4 13px */
+.meta { font-size: .857rem; font-weight: 500; color: var(--c-fg-dim); }
+.eyebrow { font-size: .821rem; font-weight: 700; letter-spacing: .1em;
+           text-transform: uppercase; color: var(--c-fg-dim); }
+
 th, td { padding: .4rem .6rem; font-size: .9rem; }
-h1 { font-size: 1.35rem; margin-bottom: 1rem; }
 
-/* 도메인 색 10종 + 시맨틱 3종 — 라이트 기본, 다크 오버라이드 */
+/* 시맨틱 3종은 토큰의 별칭 — 기존 규칙이 참조하는 이름을 유지한다. */
 :root {
-  --ok: #2e7d32; --warn: #9a6700; --bad: #c62828;
+  --ok: var(--c-ok); --warn: var(--c-warn); --bad: var(--c-err);
+}
+
+/* 도메인 색 10종 — 상태가 아니라 분류 축이라 5색 제한의 예외(DECISIONS.md E2).
+   색만으로 전달하지 않는다: confbadge는 숫자를, etype은 유형명을 함께 낸다. */
+:root {
   --conf-certain: #2e7d32; --conf-samepkg: #558b2f;
   --conf-imported: #9a6700; --conf-global: #c96a1e;
   --conf-text: #ffffff;
   --edge-call: #1565c0; --edge-import: #607d8b; --edge-extends: #7b1fa2;
   --edge-implements: #5e35b1; --edge-reference: #00838f; --edge-foreign_key: #c2185b;
 }
+[data-theme="dark"] {
+  --conf-certain: #4cc38a; --conf-samepkg: #9ccc65;
+  --conf-imported: #e0c341; --conf-global: #e5a13a;
+  --conf-text: #0e1016;
+  --edge-call: #6ea8fe; --edge-import: #8b91a5; --edge-extends: #b085f5;
+  --edge-implements: #7e57c2; --edge-reference: #4dd0e1; --edge-foreign_key: #f06292;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ok: #4cc38a; --warn: #e5a13a; --bad: #e5534b;
+  :root:not([data-theme]) {
     --conf-certain: #4cc38a; --conf-samepkg: #9ccc65;
     --conf-imported: #e0c341; --conf-global: #e5a13a;
     --conf-text: #0e1016;
@@ -25,68 +45,204 @@ h1 { font-size: 1.35rem; margin-bottom: 1rem; }
   }
 }
 
-/* 상단바 */
-.topbar {
-  position: sticky; top: 0; z-index: 10;
-  background: var(--pico-card-background-color);
-  border-bottom: 1px solid var(--pico-muted-border-color);
+/* ── 레이아웃: 좌측 사이드바 (DESIGN.md §5) ────────────────────────────
+   페이지 프레임은 고정이고 스크롤은 두 곳에서만 일어난다 — 사이드바 내부와
+   .pagebody. 제목·breadcrumb는 스크롤해도 제자리에 남는다(DECISIONS.md §3.5). */
+body {
+  display: grid; grid-template-columns: var(--sidebar) 1fr;
+  height: 100vh; overflow: hidden;
+  background: var(--c-bg);
 }
-.topbar nav { min-height: 3.2rem; }
-.topbar strong em { color: var(--pico-primary); font-style: normal; font-weight: 400; }
-.topbar a[aria-current="page"] {
-  color: var(--pico-primary); font-weight: 700; text-decoration: none;
+
+.sidebar {
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--c-surface);
+  border-right: 1px solid var(--c-line);
+  padding: 16px 0 12px;
 }
-.navsep { border-left: 1px solid var(--pico-muted-border-color); height: 1.2rem; padding: 0; margin: 0 .2rem; }
-.navside form, .navside input[type=search] { margin-bottom: 0; }
-.navside input[type=search] { width: 13rem; height: 2.2rem; font-size: .85rem; }
+.sidebar nav { flex: 1; overflow-y: auto; min-height: 0; padding: 0 12px; }
+/* Pico classless는 nav를 가로 메뉴로 가정한다 — 세로 목록으로 되돌린다.
+   nav ul{display:flex}, aside li{padding}, nav li::before{content:"​"} 삼종. */
+.sidebar nav ul { display: block; list-style: none; margin: 0 0 16px; padding: 0; }
+.sidebar nav li { display: block; margin: 0; padding: 0; }
+.sidebar nav li::before { content: none; }
+.sidebar nav a {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 5px;
+  color: var(--c-fg-muted); text-decoration: none; font-size: .929rem;
+}
+.sidebar nav a:hover { background: var(--c-surface-2); color: var(--c-fg); }
+.sidebar nav a[aria-current="page"] {
+  background: var(--c-accent-bg); color: var(--c-accent); font-weight: 700;
+}
+.sidebar nav .tag { margin-left: auto; }
+.sidebar .eyebrow { margin: 0 0 6px; padding: 0 12px; }
+
+/* 좌상단 = 정체성과 상태 (P3) */
+.ident { padding: 0 24px 12px; border-bottom: 1px solid var(--c-line); margin-bottom: 16px; }
+.ident strong { display: block; font-size: 1.107rem; letter-spacing: -.01em; }
+.ident strong em { color: var(--c-accent); font-style: normal; font-weight: 400; }
+.ident .badge { margin-top: 8px; }
 .rootpath {
-  color: var(--pico-muted-color); font-size: .78rem;
-  max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  display: inline-block; vertical-align: middle;
+  display: block; margin-top: 8px;
+  color: var(--c-fg-dim); font-size: .821rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.navsearch { padding: 0 12px 16px; margin: 0; }
+.navsearch input[type=search] { margin: 0; font-size: .857rem; }
 
-/* 카드: Pico article + 밀도 조정, 그리드는 auto-fit 단일 메커니즘 */
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-main article { padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.sidefoot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px 0; border-top: 1px solid var(--c-line);
+}
+.themetoggle {
+  width: 28px; height: 28px; padding: 0; margin: 0; line-height: 1;
+  border-radius: 5px; border: 1px solid var(--c-line-strong);
+  background: transparent; color: var(--c-fg-muted); cursor: pointer;
+}
+.themetoggle:hover { border-color: var(--c-accent); color: var(--c-accent); }
+
+/* Pico는 body>main에 세로 패딩을 준다 — 고정 프레임에서는 헤더 위에 빈 띠로
+   보이므로 없앤다. 여백은 .pagehead/.pagebody가 직접 준다. */
+body > main { padding-block: 0; }
+main { display: grid; grid-template-rows: auto 1fr; min-width: 0; overflow: hidden; }
+.pagehead {
+  padding: 20px 32px 14px; border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+.pagehead h1 { margin: 0; }
+.pagebody { overflow-y: auto; min-height: 0; padding: 20px 32px 32px; }
+
+/* 카드: Pico article + 밀도 조정, 그리드는 auto-fit 단일 메커니즘.
+   패널 구분은 패널마다 테두리를 두르는 대신 1px 선 + 배경 단차로 한다(§5). */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+main article {
+  padding: 16px; margin-bottom: 16px;
+  border: 1px solid var(--c-line); border-radius: 10px; box-shadow: none;
+}
 .cards > article { margin-bottom: 0; }
-article h2 { font-size: .95rem; color: var(--pico-muted-color); font-weight: 600; margin-bottom: .6rem; }
-article.wide { margin-top: 1rem; }
+/* 카드 제목은 lv3 — 위의 타이포 스케일과 한 곳에서만 정의된다. */
+article h2 { margin-bottom: 12px; color: var(--c-fg); }
+article.wide { margin-top: 0; }
 
-/* kv: 정의 리스트 2열 그리드 — 라벨 열 고정, 값 열 우측 정렬(tabular-nums)
-   → 카드 안 모든 값의 우측 경계와 자릿수가 세로로 맞는다 */
-dl.kv {
-  display: grid; grid-template-columns: minmax(9rem, max-content) 1fr;
-  row-gap: .3rem; column-gap: 1rem; margin: 0; font-size: .9rem;
+/* ── 4.2 키/값 (DESIGN.md §4.2-A) ──────────────────────────────────────
+   키는 sans·muted·--key-col 고정, 값은 mono·전경색. 값 열은 좌측 정렬이
+   기본이고 수치만 .num으로 우측 정렬한다(P5·§3). */
+dl {
+  display: grid; grid-template-columns: var(--key-col) 1fr;
+  gap: .5rem 1.25rem; margin: 0;
 }
-dl.kv dt { color: var(--pico-muted-color); font-weight: 400; margin: 0; }
-dl.kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
-dl.kv dd.warn { color: var(--warn); }
-dl.kv dd a { text-decoration: none; }
-dl.kv dd a:hover { text-decoration: underline; }
-b.warn { color: var(--warn); }
+dt { color: var(--c-fg-muted); font-size: .929rem; margin: 0; }
+dd {
+  margin: 0; font-family: var(--pico-font-family-monospace);
+  font-size: .929rem; font-variant-numeric: tabular-nums; color: var(--c-fg);
+}
+dd.num { text-align: right; }
+dd.str  { color: var(--c-accent); }
+dd.bool { color: var(--c-ok); }
+dd.off  { color: var(--c-err); }
+dd.warn { color: var(--c-warn); }
+dd a { text-decoration: none; }
+dd a:hover { text-decoration: underline; }
+dt code, dt small { font-size: .821rem; font-weight: 400; color: var(--c-fg-dim); }
+/* ── 4.2-C 행 구분형 kv-table (DESIGN.md §4.2-C) ──────────────────────
+   규격의 4열 중 액션 열은 뺀다 — admin은 아무것도 바꾸지 않는다
+   (DECISIONS.md §5). 값이 기본값과 다르면 라벨을 승격하고 원래 값을
+   취소선으로 남긴다(§6). */
+.kv-table { display: grid; grid-template-columns: var(--key-col) 1fr 160px; }
+.kv-table > * {
+  padding: 10px 16px; border-bottom: 1px solid var(--c-line); align-self: center;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.kv-table .head {
+  background: var(--c-surface-2); font-size: 12px;
+  color: var(--c-fg-dim); padding-block: 8px;
+}
+.kv-table .k { color: var(--c-fg-muted); font-size: .929rem; }
+.kv-table .k.changed { color: var(--c-fg); font-weight: 500; }
+.kv-table .k code { font-size: .821rem; color: var(--c-fg-dim); background: none; padding: 0; }
+.kv-table .v {
+  font-family: var(--pico-font-family-monospace); font-size: .929rem;
+  font-variant-numeric: tabular-nums; color: var(--c-fg);
+}
+.kv-table .v.num { text-align: right; }
+.kv-table .src { text-align: right; font-size: 12px; color: var(--c-fg-dim); }
+.kv-table .src s { margin-right: 4px; }
+
+/* 카드처럼 좁은 패널에서는 키 열을 한 단계 줄인다(§2 "조밀한 패널은 150px") */
+.cards dl { --key-col: 150px; gap: .5rem 1rem; }
+b.warn { color: var(--c-warn); }
 
 /* 유틸 */
-.muted { color: var(--pico-muted-color); }
-.small { font-size: .82rem; }
+.muted { color: var(--c-fg-muted); }
+.small { font-size: .857rem; }
 .mono, code, pre { font-family: var(--pico-font-family-monospace, ui-monospace, monospace); }
-.warn { color: var(--warn); }
-.bad { color: var(--bad); }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-td.nowrap { white-space: nowrap; }
+.warn { color: var(--c-warn); }
+.bad { color: var(--c-err); }
+.num, td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.nowrap, .nowrap { white-space: nowrap; }
 
-/* 상태·배지 */
-.state {
-  display: inline-block; padding: .1rem .6rem; border-radius: 999px; font-size: .8rem;
-  border: 1px solid var(--pico-muted-border-color);
+/* ── 4.3 용어 도움말 ⓘ (DESIGN.md §4.3) ──────────────────────────────
+   트리거는 클릭뿐 — hover는 쓰지 않는다(P6). 본문은 htmx가 채운다. */
+.term { position: relative; }
+.help {
+  width: 16px; height: 16px; padding: 0; margin-left: 5px; line-height: 1;
+  font-size: 11px; border-radius: 50%; border: 1px solid var(--c-line-strong);
+  background: transparent; color: var(--c-fg-dim); cursor: pointer;
+  vertical-align: 1px;
 }
-.state-ready { color: var(--ok); border-color: var(--ok); }
-.state-indexing { color: var(--warn); border-color: var(--warn); }
-.state-not_bootstrapped { color: var(--pico-muted-color); }
+.help:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.popover:empty { display: none; }
+.popover {
+  display: block; position: absolute; top: 26px; left: 0; z-index: 20; width: 320px;
+  background: var(--c-surface); border: 1px solid var(--c-line-strong);
+  border-radius: 8px; padding: 14px 16px; font-size: 13px; font-weight: 400;
+  color: var(--c-fg-muted); text-wrap: pretty; text-align: left;
+  letter-spacing: 0; line-height: 1.55; white-space: normal;
+}
+.popover p { margin: 0 0 .5rem; }
+.popover p:last-child { margin-bottom: 0; }
+.popover-title {
+  display: block; margin-bottom: 6px;
+  font-family: var(--pico-font-family-monospace); font-size: 12.5px;
+  color: var(--c-fg); font-weight: 500;
+}
+.popover-more { color: var(--c-fg-dim); font-size: 12px; }
+/* 짧은 용어는 점선 밑줄만 */
+abbr[title] { border-bottom: 1px dotted var(--c-fg-dim); cursor: help; text-decoration: none; }
+
+/* ── 4.1 상태 배지 (DESIGN.md §4.1) ───────────────────────────────────
+   색만으로 상태를 전달하지 않는다 — 항상 점 + 텍스트 라벨. */
 .badge {
-  display: inline-block; padding: .05rem .5rem; border-radius: 999px; font-size: .75rem;
-  border: 1px solid var(--pico-muted-border-color); color: var(--pico-muted-color);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--pico-font-family-monospace); font-size: 12px; font-weight: 500;
+  padding: 3px 9px; border-radius: 4px; border: 1px solid currentColor;
+  line-height: 1.2; letter-spacing: 0; vertical-align: middle;
 }
-.badge.warn { color: var(--warn); border-color: var(--warn); }
+.badge::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+.badge.ok      { color: var(--c-ok);   background: var(--c-ok-bg); }
+.badge.warn    { color: var(--c-warn); background: var(--c-warn-bg); }
+.badge.err     { color: var(--c-err);  background: var(--c-err-bg); }
+.badge.info    { color: var(--c-info); background: var(--c-info-bg); }
+.badge.neutral { color: var(--c-fg-dim); background: var(--c-surface-2);
+                 border-color: var(--c-line-strong); }
+
+/* 점 없는 태그형 — 카운트·부가 표식 */
+.tag {
+  display: inline-block;
+  font-family: var(--pico-font-family-monospace); font-size: 11.5px;
+  padding: 1px 6px; border-radius: 4px;
+  background: var(--c-surface-2); color: var(--c-fg-muted);
+  font-variant-numeric: tabular-nums; letter-spacing: 0;
+}
+.tag.warn { color: var(--c-warn); background: var(--c-warn-bg); }
+.tag.overridden { border: 1px dashed var(--c-line-strong); }
+
+/* 제목 안의 배지는 제목 타이포를 상속하지 않는다 */
+h1 .badge, h2 .badge, h1 .tag, h2 .tag { font-weight: 500; }
 
 /* confidence 배지 (동적 클래스 conf-*) */
 .confbadge {
@@ -108,23 +264,93 @@ td.nowrap { white-space: nowrap; }
 .etype.reference { color: var(--edge-reference); }
 .etype.foreign_key { color: var(--edge-foreign_key); }
 
+/* ── 4.4 계층 트리 (DESIGN.md §4.4) ───────────────────────────────────
+   깊이당 20px 들여쓰기 + 좌측 가이드 선. 노드 라벨은 mono, 종류는 좌측
+   정렬 열, 지표는 우측 정렬 열. 깊이가 깊어질수록 폰트가 작아진다(P2).
+   중첩 <ul>이라 그리드를 트리 전체에 걸 수 없으므로 각 행(.tnode)이 같은
+   컬럼 정의를 공유한다 — 열은 깊이와 무관하게 세로로 맞는다. */
+.tree ul { list-style: none; margin: 0; padding: 0; }
+.tree li { margin: 0; border-left: 1px solid var(--c-line); }
+.tree li[data-depth="0"] { border-left: none; }
+.tree li.collapsed > ul { display: none; }
+
+.treehead, .tnode {
+  display: grid; grid-template-columns: 1fr 92px 84px 76px;
+  align-items: center; gap: 8px;
+}
+.treehead {
+  padding: 8px 12px; border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface-2); color: var(--c-fg-dim); font-size: 12px;
+}
+.tnode { padding: 2px 12px; }
+.tnode:hover { background: var(--c-surface-2); }
+.tlabel { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tlabel code, .tlabel a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tlabel code { background: none; padding: 0; }
+
+.tree li[data-depth="0"] .tlabel { font-size: 14.5px; font-weight: 700; }
+.tree li[data-depth="1"] .tlabel { font-size: 13.5px; font-weight: 600; padding-left: var(--indent); }
+.tree li[data-depth="2"] .tlabel { font-size: 13px;   font-weight: 400; padding-left: calc(var(--indent) * 2); }
+
+.tkind { color: var(--c-fg-muted); font-size: 12px; }
+.tnum  { text-align: right; font-family: var(--pico-font-family-monospace);
+         font-size: 12px; font-variant-numeric: tabular-nums; color: var(--c-fg-muted); }
+.tstate { text-align: right; }
+
+.caret {
+  width: 18px; height: 18px; flex: none; padding: 0; margin: 0; line-height: 1;
+  font-size: 11px; border: none; background: none; cursor: pointer;
+  color: var(--c-fg-dim); border-radius: 3px;
+}
+.caret:hover { color: var(--c-accent); background: var(--c-accent-bg); }
+.caret.leaf { cursor: default; color: var(--c-line-strong); }
+/* 로딩 인디케이터는 캐럿 자리에서만 돈다 — 전역 오버레이 금지(§8) */
+.caret.htmx-request { color: transparent; position: relative; }
+.caret.htmx-request::after {
+  content: ""; position: absolute; inset: 3px;
+  border: 2px solid var(--c-line); border-top-color: var(--c-accent);
+  border-radius: 50%; animation: adminspin .6s linear infinite;
+}
+
 /* 탭 */
 .tabs { display: flex; gap: .35rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .tabs a {
   padding: .3rem .8rem; border-radius: var(--pico-border-radius); text-decoration: none;
-  color: var(--pico-muted-color); border: 1px solid var(--pico-muted-border-color);
+  color: var(--c-fg-muted); border: 1px solid var(--c-line);
 }
-.tabs a.on, .tabs a:hover { color: var(--pico-primary); border-color: var(--pico-primary); }
+.tabs a.on, .tabs a:hover { color: var(--c-accent); border-color: var(--c-accent); }
 a.on { font-weight: 600; }
 
+/* ── 4.7 폼 컨트롤 (DESIGN.md §4.7) ───────────────────────────────────
+   admin은 편집 폼이 없다(DECISIONS.md §5). 검색·필터 입력에만 적용되는
+   서체와 포커스 링 규칙을 가져온다. 포커스 링은 3px accent 글로우이고
+   outline:none을 단독으로 쓰지 않는다(§9). */
+input, select, textarea {
+  font-family: var(--pico-font-family-monospace); font-size: 13px;
+}
+input[type="number"], input.num {
+  width: 110px; text-align: right; font-variant-numeric: tabular-nums;
+}
+:is(input, select, textarea):focus-visible {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-bg);
+  outline: 2px solid transparent; outline-offset: 0;
+}
+:is(a, button, [role="button"]):focus-visible {
+  outline: 2px solid var(--c-accent); outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--c-accent-bg); border-radius: 4px;
+}
+[aria-invalid="true"] { border-color: var(--c-err); }
+.field-error { font-size: 12px; color: var(--c-err); margin-top: 4px; }
+
 /* 컨트롤·목록 */
-.controls { margin: .6rem 0 1rem; color: var(--pico-muted-color); }
+.controls { margin: .6rem 0 1rem; color: var(--c-fg-muted); }
 .controls select { display: inline-block; width: auto; margin: 0 0 0 .4rem; }
 .controls input[type=search] { max-width: 480px; margin-bottom: 0; }
 .edgelist { list-style: none; margin: 0; padding: 0; font-size: .88rem; }
 .edgelist li {
   display: flex; align-items: baseline; gap: .5rem;
-  padding: .25rem 0; border-bottom: 1px dashed var(--pico-muted-border-color);
+  padding: .25rem 0; border-bottom: 1px dashed var(--c-line);
   overflow: hidden;
 }
 .edgelist li:last-child { border-bottom: none; }
@@ -132,31 +358,80 @@ a.on { font-weight: 600; }
 .edgelist li.more { justify-content: center; border-bottom: none; }
 .edgelist button { width: auto; padding: .25rem 1rem; font-size: .85rem; margin: 0; }
 .dangling td { color: var(--bad); }
-pre.code { font-size: .82rem; line-height: 1.45; tab-size: 4; max-height: 34rem; overflow: auto; }
-h2.filepath code { background: none; padding: 0; font-size: .85rem; color: var(--pico-color); }
+/* ── 4.5 소스 뷰어 (DESIGN.md §4.5) ───────────────────────────────────
+   행 번호는 우측 정렬 48px 고정 열. 파일의 실제 행 번호를 쓴다. */
+.code {
+  background: var(--c-code-bg); border: 1px solid var(--c-line);
+  border-radius: 10px; overflow: hidden;
+}
+.codehead {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 12px; border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface-2);
+  font-family: var(--pico-font-family-monospace); font-size: 12.5px;
+  color: var(--c-fg-muted);
+}
+.codeflags { display: flex; align-items: center; gap: 8px; flex: none; }
+.copybtn {
+  width: auto; margin: 0; padding: 2px 10px; font-size: 12px;
+  border-radius: 4px; border: 1px solid var(--c-line-strong);
+  background: transparent; color: var(--c-fg-muted); cursor: pointer;
+}
+.copybtn:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.codebody { max-height: 34rem; overflow: auto; }
+.code .line {
+  display: grid; grid-template-columns: 48px 1fr;
+  font-family: var(--pico-font-family-monospace);
+  font-size: 12.5px; line-height: 1.65;
+}
+.code .ln {
+  text-align: right; padding-right: 14px; color: var(--c-fg-dim);
+  user-select: none; font-variant-numeric: tabular-nums;
+}
+.code .src { padding-left: 12px; white-space: pre; tab-size: 4; }
+.code .line.hl { background: var(--c-warn-bg); }
+.code .line.hl .ln  { color: var(--c-warn); }
+.code .line.hl .src { padding-left: 8px; border-left: 4px solid var(--c-warn); }
+h2.filepath code { background: none; padding: 0; font-size: .85rem; color: var(--c-fg); }
 
 /* usage 차트 */
 .chart { width: 100%; height: auto; display: block; }
-.chart .axis { stroke: var(--pico-muted-border-color); }
+.chart .axis { stroke: var(--c-line); }
 .chart .bar.adoption { fill: var(--ok); }
 .chart .bar.fallback { fill: var(--warn); }
-.chart .chartlabel { fill: var(--pico-muted-color); font-size: 9px; }
+.chart .chartlabel { fill: var(--c-fg-muted); font-size: 9px; }
 .legend { font-weight: 400; font-size: .78rem; margin-left: .6rem; }
 .legend .sw { display: inline-block; width: .7em; height: .7em; margin: 0 .25em 0 .6em; border-radius: 2px; }
 .legend .sw.adoption { background: var(--ok); }
 .legend .sw.fallback { background: var(--warn); }
 .bigram td, .bigram th { padding: .25rem .5rem; }
 
-/* 로그 */
-.logtable { font-size: .8rem; }
-.logtable td.nowrap { white-space: nowrap; }
-.logtable td.detail { word-break: break-all; color: var(--pico-muted-color); }
-.logtable tr.logerr td { color: var(--bad); }
+/* ── 4.6 로그 / 트레이스 (DESIGN.md §4.6) ─────────────────────────────
+   전 열 mono + tabular-nums. 규격은 5열(시간/레벨/메시지/지연/상태)이지만
+   agent-nav.log의 실제 레코드는 시간·이벤트·상세 3열이라 그만큼만 둔다
+   (DECISIONS.md §3.1과 같은 종류의 적용 판단).
+   레벨 표시는 좌측 4px 바 + '오류' 태그 — 색만으로 전달하지 않는다. */
+.log { display: grid; grid-template-columns: 132px 200px 1fr; }
+.log > .row { display: contents; }
+.log .cell {
+  padding: 5px 16px; border-bottom: 1px solid var(--c-line);
+  font-family: var(--pico-font-family-monospace); font-size: 12.5px;
+  font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis;
+}
+.log .head .cell {
+  background: var(--c-surface-2); color: var(--c-fg-dim);
+  font-family: var(--pico-font-family); font-size: 12px; padding-block: 8px;
+}
+.log .num { text-align: right; }
+.log .detail { word-break: break-all; color: var(--c-fg-muted); white-space: normal; }
+.log .row.warn  .cell:first-child { box-shadow: inset 4px 0 0 var(--c-warn); }
+.log .row.error .cell:first-child { box-shadow: inset 4px 0 0 var(--c-err); }
+.log .row.error .cell { color: var(--c-err); }
 
 /* ego-graph SVG */
 #ego svg { width: 100%; height: auto; display: block; }
 #ego a { cursor: pointer; }
-.el { stroke: var(--pico-muted-color); }
+.el { stroke: var(--c-fg-muted); }
 .el.call { stroke: var(--edge-call); }
 .el.import { stroke: var(--edge-import); }
 .el.extends { stroke: var(--edge-extends); }
@@ -164,24 +439,42 @@ h2.filepath code { background: none; padding: 0; font-size: .85rem; color: var(-
 .el.reference { stroke: var(--edge-reference); }
 .el.foreign_key { stroke: var(--edge-foreign_key); }
 .el.edashed { stroke-dasharray: 5 4; }
-.ncirc { fill: var(--pico-card-background-color); stroke: var(--pico-muted-border-color); stroke-width: 1.5; }
-.ego-node:hover .ncirc { stroke: var(--pico-primary); }
-.ncirc.ncenter { fill: var(--pico-primary); stroke: var(--pico-primary); }
+.ncirc { fill: var(--c-surface); stroke: var(--c-line); stroke-width: 1.5; }
+.ego-node:hover .ncirc { stroke: var(--c-accent); }
+.ncirc.ncenter { fill: var(--c-accent); stroke: var(--c-accent); }
 .ncirc.ndangling { fill: none; stroke: var(--bad); stroke-dasharray: 3 3; }
-.nlabel { fill: var(--pico-color); font-size: 12px; }
-.ego-node:hover .nlabel { fill: var(--pico-primary); }
+.nlabel { fill: var(--c-fg); font-size: 12px; }
+.ego-node:hover .nlabel { fill: var(--c-accent); }
 .nlabel.ldangling { fill: var(--bad); }
 .nlabel.lcenter { font-weight: 700; }
-.sidelabel { fill: var(--pico-muted-color); font-size: 12px; letter-spacing: .05em; }
-.morelabel { fill: var(--pico-primary); font-size: 12px; text-decoration: underline; }
+.sidelabel { fill: var(--c-fg-muted); font-size: 12px; letter-spacing: .05em; }
+.morelabel { fill: var(--c-accent); font-size: 12px; text-decoration: underline; }
+
+/* ego 범례 — 엣지 색에 이름을 붙인다(DECISIONS.md E2 해소).
+   선 자체에도 <title>로 유형·신뢰도가 붙어 있어 색 없이도 읽을 수 있다. */
+.egolegend {
+  display: flex; flex-wrap: wrap; gap: 4px 16px;
+  list-style: none; margin: 8px 0 0; padding: 8px 0 0;
+  border-top: 1px solid var(--c-line);
+  font-size: 12px; color: var(--c-fg-muted);
+}
+.egolegend li { display: flex; align-items: center; gap: 6px; }
+.egolegend li.note { margin-left: auto; color: var(--c-fg-dim); }
+.egolegend .sw { width: 14px; height: 0; border-top: 2px solid var(--c-fg-dim); flex: none; }
+.egolegend .sw.call { border-color: var(--edge-call); }
+.egolegend .sw.import { border-color: var(--edge-import); }
+.egolegend .sw.extends { border-color: var(--edge-extends); }
+.egolegend .sw.implements { border-color: var(--edge-implements); }
+.egolegend .sw.reference { border-color: var(--edge-reference); }
+.egolegend .sw.foreign_key { border-color: var(--edge-foreign_key); }
 
 /* 로딩 인디케이터: htmx가 요청 중 부여하는 클래스에 순수 CSS 스피너 */
 .htmx-request { position: relative; opacity: .7; }
 .htmx-request::after {
   content: ""; position: absolute; top: .4rem; right: .4rem;
   width: 1rem; height: 1rem;
-  border: 2px solid var(--pico-muted-border-color);
-  border-top-color: var(--pico-primary); border-radius: 50%;
+  border: 2px solid var(--c-line);
+  border-top-color: var(--c-accent); border-radius: 50%;
   animation: adminspin .6s linear infinite;
 }
 @keyframes adminspin { to { transform: rotate(360deg); } }
@@ -191,10 +484,9 @@ article.notice { border-color: var(--warn); }
 article.notice strong { color: var(--warn); }
 article.notice ul { margin: .4rem 0 0; padding-left: 1.2rem; font-size: .9rem; }
 .ok { color: var(--ok); }
-dl.kv dt small { font-size: .72rem; }
 
 /* breadcrumb·빈 상태 */
 .crumbs { margin-bottom: .2rem; }
 .crumbs ul { font-size: .85rem; }
 article.empty { text-align: center; padding: 2.5rem 1rem; }
-article.empty h2 { font-size: 1.05rem; color: var(--pico-color); }
+article.empty h2 { font-size: 1.05rem; color: var(--c-fg); }
