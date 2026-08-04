@@ -6,8 +6,10 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/Salvia95/graphin/internal/nodeid"
 )
@@ -32,13 +34,68 @@ func funcMap() template.FuncMap {
 		"comma":      comma,
 		"bytesHuman": bytesHuman,
 		"list":       func(vals ...string) []string { return vals },
+		"codeLines":  codeLines,
+		"langOf":     langOf,
+		"add":        func(a, b int) int { return a + b },
+		"term":       termHelp,
 		// 용어 사전 (labels.go): 보이는 텍스트 전용 — 클래스·파라미터는 raw.
 		"stateLabel":   stateLabel,
+		"stateBadge":   stateBadge,
 		"kindLabel":    kindLabel,
 		"typeLabel":    typeLabel,
 		"matchLabel":   matchLabel,
 		"minConfLabel": minConfLabel,
 	}
+}
+
+// termHelp renders a label followed by the ⓘ trigger and its empty popover
+// slot (DESIGN.md §4.3). The body is fetched over htmx on click, so the
+// initial HTML stays small. An unknown key degrades to the bare label rather
+// than shipping a button that would 404 — labels_test guards the keys in use.
+func termHelp(key, label string) template.HTML {
+	esc := template.HTMLEscapeString
+	if _, ok := helpTerms[key]; !ok {
+		return template.HTML(esc(label))
+	}
+	return template.HTML(`<span class="term">` + esc(label) +
+		`<button type="button" class="help" hx-get="/help/` + url.PathEscape(key) +
+		`" hx-target="next .popover" hx-swap="innerHTML" aria-expanded="false"` +
+		` aria-label="` + esc(key) + ` 설명">i</button>` +
+		`<span class="popover" role="tooltip"></span></span>`)
+}
+
+// srcLine is one row of the source viewer: the absolute file line number and
+// its text (DESIGN.md §4.5).
+type srcLine struct {
+	N    int
+	Text string
+}
+
+// codeLines numbers a code block from its real start line so the gutter
+// matches the file, not the excerpt. A trailing newline would otherwise add a
+// phantom empty row, so it is dropped first.
+func codeLines(start int, code string) []srcLine {
+	code = strings.TrimSuffix(code, "\n")
+	if code == "" {
+		return nil
+	}
+	parts := strings.Split(code, "\n")
+	out := make([]srcLine, len(parts))
+	for i, p := range parts {
+		out[i] = srcLine{N: start + i, Text: p}
+	}
+	return out
+}
+
+// langOf labels the code header with the source language. Unknown extensions
+// return "" so the header just omits the segment.
+var langNames = map[string]string{
+	".go": "go", ".java": "java", ".py": "python", ".ts": "typescript",
+	".tsx": "tsx", ".js": "javascript", ".jsx": "jsx", ".sql": "sql",
+}
+
+func langOf(relPath string) string {
+	return langNames[strings.ToLower(path.Ext(relPath))]
 }
 
 func comma(n int) string {

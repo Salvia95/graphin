@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 
 	"github.com/Salvia95/graphin/internal/graph"
 	"github.com/Salvia95/graphin/internal/provision"
@@ -161,9 +163,74 @@ type gateVM struct {
 	Gated bool
 }
 
+// cfgRow is one row of the read-only settings table (DESIGN.md §4.2-C with the
+// action column dropped — admin mutates nothing). Default carries the flag's
+// built-in value so a changed setting can show it struck through (§6).
+type cfgRow struct {
+	Label   string // 한국어 라벨
+	Flag    string // 원어 — CLI 플래그 이름
+	Value   string
+	Default string
+	Note    string // 값에 붙는 짧은 설명 (예: 무제한)
+	Compare bool   // 기본값과 견줄 수 있는 항목인가
+	Mono    bool
+	Num     bool
+}
+
+// Changed reports whether the effective value differs from the flag default.
+// It is a value comparison, not a record of what was typed: passing a flag
+// explicitly with its default value still reads as 기본값.
+func (r cfgRow) Changed() bool { return r.Compare && r.Value != r.Default }
+
+// cfgRows renders the effective config against cmd/graphin's flag defaults.
+// Keep these in sync with main.go — they are duplicated here because the
+// flag set lives in package main and cannot be imported.
+func cfgRows(cfg workspace.ConfigView) []cfgRow {
+	onOff := func(b bool) string {
+		if b {
+			return "켜짐"
+		}
+		return "꺼짐"
+	}
+	dash := func(s string) string {
+		if s == "" {
+			return "—"
+		}
+		return s
+	}
+	// 빈 model-type은 "미지정"이 아니라 provision 기본값으로 동작한다 —
+	// 유효 값을 그대로 보여야 기본값 비교가 거짓말을 하지 않는다.
+	modelType := cfg.ModelType
+	if modelType == "" {
+		modelType = "multilingual_cjk"
+	}
+	semMax := cfgRow{Label: "의미 검색 노드 상한", Flag: "--semantic-max-nodes",
+		Value: comma(cfg.SemanticMaxNodes), Default: comma(40000), Compare: true, Num: true}
+	if cfg.SemanticMaxNodes == 0 {
+		semMax.Note = "무제한"
+	}
+	return []cfgRow{
+		// 워크스페이스 경로에는 견줄 기본값이 없다(기동 시 지정되는 값).
+		{Label: "워크스페이스 경로", Flag: "--workspace", Value: cfg.Root, Mono: true},
+		{Label: "임베딩 모델 종류", Flag: "--model-type",
+			Value: modelType, Default: "multilingual_cjk", Compare: true},
+		{Label: "인덱싱 워커 수", Flag: "--workers",
+			Value: strconv.Itoa(cfg.Workers), Default: strconv.Itoa(runtime.NumCPU()),
+			Compare: true, Num: true},
+		semMax,
+		{Label: "오프라인 모드", Flag: "--offline",
+			Value: onOff(cfg.Offline), Default: onOff(false), Compare: true},
+		{Label: "모델 캐시 경로", Flag: "--model-dir",
+			Value: dash(cfg.ModelDir), Default: "—", Compare: true, Mono: true},
+		{Label: "ONNX Runtime 라이브러리", Flag: "--ort-lib",
+			Value: dash(cfg.OrtLib), Default: "—", Compare: true, Mono: true},
+	}
+}
+
 type settingsVM struct {
 	pageVM
 	Cfg        workspace.ConfigView
+	CfgRows    []cfgRow
 	Spec       *provision.ModelSpec
 	ORTVersion string
 
@@ -196,6 +263,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	vm := settingsVM{
 		pageVM:     s.pageVM("settings"),
 		Cfg:        cfg,
+		CfgRows:    cfgRows(cfg),
 		ORTVersion: provision.ORTVersion,
 		Header:     s.ws.SemanticHeader(),
 		DataDir:    s.ws.Dir,

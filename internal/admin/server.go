@@ -67,6 +67,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /partial/explore", s.handleExplorePartial)
 	s.mux.HandleFunc("GET /partial/edges", s.handleEdgesPartial)
 	s.mux.HandleFunc("GET /browse", s.handleBrowse)
+	s.mux.HandleFunc("GET /partial/tree", s.handleTreePartial)
+	s.mux.HandleFunc("GET /help/{term}", s.handleHelp)
 	s.mux.HandleFunc("GET /diagnostics", s.handleDiagnostics)
 	s.mux.HandleFunc("GET /logs", s.handleLogs)
 	s.mux.HandleFunc("GET /partial/logs", s.handleLogsPartial)

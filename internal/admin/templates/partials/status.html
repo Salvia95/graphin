@@ -4,14 +4,14 @@
 <code>bootstrap_workspace</code>를 호출하면 인덱싱이 시작되고 이 페이지에 데이터가 표시됩니다.</p>
 {{else}}
 <p>
-  <span class="state state-{{.State}}">{{stateLabel .State}}</span>
+  <span class="badge {{stateBadge .State}}">{{stateLabel .State}}</span>
   {{if .SemanticGated}}<span class="badge warn">의미 검색 게이트</span>{{end}}
 </p>
 <progress class="progress" value="{{.Progress}}" max="100">{{.Progress}}%</progress>
-<dl class="kv">
-  <dt>키워드 검색 (lexical)</dt><dd>{{if .LexicalReady}}준비됨{{else}}인덱싱 중…{{end}}</dd>
-  <dt>의미 검색 (semantic)</dt><dd>{{if .SemanticGated}}비활성(게이트){{else if .SemanticReady}}준비됨{{else if .SemFailure}}사용 불가(키워드 폴백){{else}}워밍업…{{end}}</dd>
-  {{if gt .EmbedPending 0}}<dt>임베딩 대기</dt><dd>{{.EmbedPending}}</dd>{{end}}
+<dl>
+  <dt>{{term "lexical" "키워드 검색"}}</dt><dd>{{if .LexicalReady}}준비됨{{else}}인덱싱 중…{{end}}</dd>
+  <dt>{{term "semantic" "의미 검색"}}</dt><dd>{{if .SemanticGated}}비활성(게이트){{else if .SemanticReady}}준비됨{{else if .SemFailure}}사용 불가(키워드 폴백){{else}}워밍업…{{end}}</dd>
+  {{if gt .EmbedPending 0}}<dt>{{term "embed_pending" "임베딩 대기"}}</dt><dd class="num">{{.EmbedPending}}</dd>{{end}}
   {{if .DBSources}}<dt>DB 소스</dt><dd>{{.DBSources}} (스냅샷 {{.DBSnapshots}})</dd>{{end}}
 </dl>
 {{if .SemanticNote}}<p class="warn small">{{.SemanticNote}}</p>

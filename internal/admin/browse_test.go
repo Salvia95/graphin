@@ -44,3 +44,25 @@ func TestFileAnchorSanitizes(t *testing.T) {
 		t.Fatalf("anchor: %s", a)
 	}
 }
+
+// 트리의 숫자 열은 깊이마다 세는 대상이 다르다 — 헤더 한 칸으로 둘 다 부를 수
+// 없으므로 각 칸이 무엇을 센 값인지 밝혀야 한다(USE_CASES.md UC-4).
+func TestTreeMetricNamesWhatItCounts(t *testing.T) {
+	s, _ := bootstrappedServer(t)
+
+	pkgs := get(t, s, "/browse").Body.String()
+	if !strings.Contains(pkgs, `title="노드 `) {
+		t.Error("패키지 행 지표에 '노드 N개' 툴팁이 없다")
+	}
+	files := get(t, s, "/partial/tree?pkg=_root").Body.String()
+	if !strings.Contains(files, `title="노드 `) {
+		t.Error("파일 행 지표에 '노드 N개' 툴팁이 없다")
+	}
+	nodes := get(t, s, "/partial/tree?pkg=_root&file="+url.QueryEscape("Flow.java")).Body.String()
+	if !strings.Contains(nodes, `title="참조 `) {
+		t.Errorf("노드 행 지표는 참조 수인데 '참조 N개' 툴팁이 없다: %s", nodes)
+	}
+	if strings.Contains(nodes, `title="노드 `) {
+		t.Error("노드 행이 지표를 '노드 수'라고 잘못 부른다")
+	}
+}

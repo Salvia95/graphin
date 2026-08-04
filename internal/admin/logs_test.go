@@ -42,7 +42,9 @@ func TestLogsTailFilterAndErrorHighlight(t *testing.T) {
 	s := newTestServer(t, ws)
 
 	rec := get(t, s, "/logs")
-	wantContains(t, rec, http.StatusOK, "watch_batch", "embed_error", "vectors_export", "logerr")
+	// 오류 행은 색만이 아니라 클래스(좌측 바)와 '오류' 태그로 이중 표시된다.
+	wantContains(t, rec, http.StatusOK, "watch_batch", "embed_error", "vectors_export",
+		`class="row error"`, "오류")
 	// 최신 우선: vectors_export가 watch_batch보다 먼저 나와야 한다.
 	body := rec.Body.String()
 	if strings.Index(body, "vectors_export") > strings.LastIndex(body, "watch_batch") {

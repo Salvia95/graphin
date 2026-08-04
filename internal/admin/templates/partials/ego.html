@@ -20,9 +20,9 @@
 {{else}}
 <svg viewBox="0 0 {{.W}} {{.H}}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ego graph">
   <g>
-    {{range .UsedBy}}<line x1="{{.X}}" y1="{{.Y}}" x2="{{$.CX}}" y2="{{$.CY}}" class="el {{.Type}}{{if .Dashed}} edashed{{end}}" stroke-width="{{.StrokeW}}" opacity="{{.Opacity}}"/>
+    {{range .UsedBy}}<line x1="{{.X}}" y1="{{.Y}}" x2="{{$.CX}}" y2="{{$.CY}}" class="el {{.Type}}{{if .Dashed}} edashed{{end}}" stroke-width="{{.StrokeW}}" opacity="{{.Opacity}}"><title>{{typeLabel .Type}} · 신뢰도 {{conf .Conf}}</title></line>
     {{end}}
-    {{range .Uses}}<line x1="{{$.CX}}" y1="{{$.CY}}" x2="{{.X}}" y2="{{.Y}}" class="el {{.Type}}{{if .Dashed}} edashed{{end}}" stroke-width="{{.StrokeW}}" opacity="{{.Opacity}}"/>
+    {{range .Uses}}<line x1="{{$.CX}}" y1="{{$.CY}}" x2="{{.X}}" y2="{{.Y}}" class="el {{.Type}}{{if .Dashed}} edashed{{end}}" stroke-width="{{.StrokeW}}" opacity="{{.Opacity}}"><title>{{typeLabel .Type}} · 신뢰도 {{conf .Conf}}</title></line>
     {{end}}
   </g>
   {{range .UsedBy}}{{template "egonode.html" .}}{{end}}
@@ -37,5 +37,11 @@
   {{if .MoreUsedBy}}<a href="#edgelists"><text x="30" y="{{.H}}" dy="-14" class="morelabel">…더 있음 (목록)</text></a>{{end}}
   {{if .MoreUses}}<a href="#edgelists"><text x="{{.W}}" y="{{.H}}" dy="-14" dx="-30" text-anchor="end" class="morelabel">…더 있음 (목록)</text></a>{{end}}
 </svg>
+{{if .Legend}}
+<ul class="egolegend" aria-label="엣지 유형 범례">
+  {{range .Legend}}<li><i class="sw {{.Type}}" aria-hidden="true"></i>{{.Label}}</li>{{end}}
+  <li class="note">파선·가는 선 = 낮은 신뢰도</li>
+</ul>
+{{end}}
 {{end}}
 {{end}}
