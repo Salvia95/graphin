@@ -1,9 +1,15 @@
 {
   "name": "graphin",
+  "description": "graphin — a local codebase-navigation MCP server for AI coding agents, and its adoption instrumentation.",
   "owner": {
     "name": "Salvia95"
   },
   "plugins": [
+    {
+      "name": "graphin",
+      "source": "./plugin/graphin",
+      "description": "Local codebase-navigation MCP server with progressive disclosure (search_hybrid → explore_graph → read_code) over Java/Kotlin/Python/JS/TS and RDB schema snapshots. Downloads and verifies its own binary; no checkout required."
+    },
     {
       "name": "graphin-usage",
       "source": "./plugin/graphin-usage",

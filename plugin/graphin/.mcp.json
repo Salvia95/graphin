@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "graphin": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/graphin-launch.sh",
+      "env": {
+        "GRAPHIN_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}",
+        "GRAPHIN_ADMIN_ADDR": "${user_config.admin_addr}",
+        "GRAPHIN_MODEL_TYPE": "${user_config.model_type}",
+        "GRAPHIN_OFFLINE": "${user_config.offline}",
+        "GRAPHIN_MODEL_DIR": "${user_config.model_dir}",
+        "GRAPHIN_SEMANTIC_MAX_NODES": "${user_config.semantic_max_nodes}",
+        "GRAPHIN_WORKSPACE_SUBDIR": "${user_config.workspace_subdir}",
+        "GRAPHIN_BINARY_PATH": "${user_config.binary_path}"
+      }
+    }
+  }
+}

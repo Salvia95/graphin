@@ -1,0 +1,59 @@
+{
+  "name": "graphin",
+  "description": "Local codebase-navigation MCP server: search_hybrid → explore_graph → read_code progressive disclosure over a tree-sitter graph of Java/Kotlin/Python/JS/TS and RDB schema snapshots. Ships its own binary and adoption instrumentation.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Salvia95",
+    "url": "https://github.com/Salvia95"
+  },
+  "homepage": "https://github.com/Salvia95/graphin",
+  "repository": "https://github.com/Salvia95/graphin",
+  "license": "Apache-2.0",
+  "keywords": [
+    "code-search",
+    "code-navigation",
+    "mcp",
+    "tree-sitter",
+    "graph",
+    "token-efficiency"
+  ],
+  "userConfig": {
+    "admin_addr": {
+      "type": "string",
+      "title": "Admin page address",
+      "description": "Loopback address for the read-only admin page, e.g. 127.0.0.1:7466. Empty disables it. This value is global to every project — for a per-project address, write one into <project>/.graphin/admin-addr, which wins over this setting."
+    },
+    "model_type": {
+      "type": "string",
+      "title": "Embedding model",
+      "description": "english_optimal | multilingual_cjk. Leave empty to use the server default (multilingual_cjk)."
+    },
+    "offline": {
+      "type": "boolean",
+      "title": "Offline mode",
+      "description": "Never download models or the ONNX runtime; use only local artifacts. Pair with Model directory.",
+      "default": false
+    },
+    "model_dir": {
+      "type": "directory",
+      "title": "Model directory",
+      "description": "Local directory holding the ONNX model and tokenizer. Required for air-gapped machines running in offline mode."
+    },
+    "semantic_max_nodes": {
+      "type": "number",
+      "title": "Semantic search node ceiling",
+      "description": "Disable semantic search above this node count; lexical search stays on. Empty uses the server default (40000). 0 means no limit.",
+      "min": 0
+    },
+    "workspace_subdir": {
+      "type": "string",
+      "title": "Workspace subdirectory",
+      "description": "Index this subdirectory instead of the project root, e.g. backend. Leave empty for the whole project."
+    },
+    "binary_path": {
+      "type": "file",
+      "title": "graphin binary",
+      "description": "Use this binary instead of downloading one. The landing spot for developers running their own build, air-gapped machines, and platforms without a published release."
+    }
+  }
+}
