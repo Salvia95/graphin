@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # ubuntu-22.04, not -latest: the release build pins its glibc floor and CI
+    # should compile against something no newer than what we ship.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # tree-sitter and its five grammar bindings are cgo; a build without a C
+      # toolchain would fail here rather than at some later, stranger place.
+      - name: Toolchain
+        run: |
+          go version
+          cc --version | head -1
+          echo "CGO_ENABLED=$(go env CGO_ENABLED)"
+
+      - run: go vet ./...
+
+      - run: go test ./...
+
+      # Concurrency-heavy packages only — the full suite under -race is slow
+      # and adds nothing for the single-threaded parsers.
+      - run: make test-race
+
+  shellcheck:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # No -s override: the plugin's hooks and launcher declare #!/bin/sh and
+      # shellcheck reads that, so bashisms in them are caught. Forcing -s sh
+      # would instead flag scripts/fetch-flatc.sh, which is deliberately bash.
+      #
+      # This is the only thing standing between a syntax error in a hook and a
+      # silent no-op: hook stderr is swallowed and every path exits 0.
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          # shellcheck disable=SC2046  # paths in this repo have no spaces
+          shellcheck $(git ls-files '*.sh')
