@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -32,7 +33,16 @@ type Options struct {
 	ModelDir   string // local model source override (--model-dir)
 	OrtLib     string // explicit shared library path (--ort-lib)
 	BaseURL    string // test hook: rewrites artifact URL hosts when set
+	Platform   string // test hook: "<goos>/<goarch>"; empty = this binary's
 	Log        *obs.Logger
+}
+
+// platform resolves which ORT pin applies, honouring the test hook.
+func (o Options) platform() string {
+	if o.Platform != "" {
+		return o.Platform
+	}
+	return PlatformKey(runtime.GOOS, runtime.GOARCH)
 }
 
 // Paths is the resolved set the semantic engine needs.
@@ -108,8 +118,12 @@ func resolveFile(a Artifact, opt Options) (string, error) {
 }
 
 // resolveORT yields a verified libonnxruntime path: --ort-lib wins (used
-// as-is, §2.2 폐쇄망), otherwise the pinned archive is fetched and the
-// shared object extracted.
+// as-is, §2.2 폐쇄망), otherwise the archive pinned for this platform is
+// fetched and its shared object extracted.
+//
+// The --ort-lib check comes first on purpose: it is the only way a platform
+// without a pin can still run semantic search, so the platform lookup must
+// not reject the caller before that escape hatch is read.
 func resolveORT(opt Options) (string, error) {
 	if opt.OrtLib != "" {
 		if _, err := os.Stat(opt.OrtLib); err != nil {
@@ -117,18 +131,23 @@ func resolveORT(opt Options) (string, error) {
 		}
 		return opt.OrtLib, nil
 	}
-	libDest := filepath.Join(opt.RuntimeDir, ORTLibName)
+	goos, goarch, _ := strings.Cut(opt.platform(), "/")
+	art, libName, err := ORTFor(goos, goarch)
+	if err != nil {
+		return "", err
+	}
+	libDest := filepath.Join(opt.RuntimeDir, libName)
 	if _, err := os.Stat(libDest); err == nil {
 		return libDest, nil
 	}
 
-	tgz := filepath.Join(opt.RuntimeDir, ORT.Name)
-	if verifyFile(tgz, ORT.SHA256) != nil {
+	tgz := filepath.Join(opt.RuntimeDir, art.Name)
+	if verifyFile(tgz, art.SHA256) != nil {
 		found := false
 		if opt.CacheDir != "" {
-			src := filepath.Join(opt.CacheDir, ORT.Name)
-			if verifyFile(src, ORT.SHA256) == nil {
-				if err := copyVerified(src, tgz, ORT.SHA256); err != nil {
+			src := filepath.Join(opt.CacheDir, art.Name)
+			if verifyFile(src, art.SHA256) == nil {
+				if err := copyVerified(src, tgz, art.SHA256); err != nil {
 					return "", err
 				}
 				found = true
@@ -136,18 +155,18 @@ func resolveORT(opt Options) (string, error) {
 		}
 		if !found {
 			if opt.Offline {
-				return "", fmt.Errorf("%w: %s", ErrOffline, ORT.Name)
+				return "", fmt.Errorf("%w: %s", ErrOffline, art.Name)
 			}
-			if err := download(ORT, tgz, opt); err != nil {
+			if err := download(art, tgz, opt); err != nil {
 				return "", err
 			}
 			if opt.CacheDir != "" {
 				_ = os.MkdirAll(opt.CacheDir, 0o755)
-				_ = copyVerified(tgz, filepath.Join(opt.CacheDir, ORT.Name), ORT.SHA256)
+				_ = copyVerified(tgz, filepath.Join(opt.CacheDir, art.Name), art.SHA256)
 			}
 		}
 	}
-	if err := extractORTLib(tgz, libDest); err != nil {
+	if err := extractORTLib(tgz, libDest, libName); err != nil {
 		return "", err
 	}
 	_ = os.Remove(tgz) // keep runtime/ lean; the cache retains the archive
@@ -230,8 +249,9 @@ func copyVerified(src, dest, wantSHA string) error {
 	return store.WriteFileAtomic(dest, b, 0o644)
 }
 
-// extractORTLib pulls the versioned .so out of the release tarball.
-func extractORTLib(tgz, dest string) error {
+// extractORTLib pulls the versioned shared object named libName out of the
+// release tarball.
+func extractORTLib(tgz, dest, libName string) error {
 	f, err := os.Open(tgz)
 	if err != nil {
 		return err
@@ -251,7 +271,7 @@ func extractORTLib(tgz, dest string) error {
 		if err != nil {
 			return err
 		}
-		if filepath.Base(hdr.Name) != ORTLibName || hdr.Typeflag != tar.TypeReg {
+		if filepath.Base(hdr.Name) != libName || hdr.Typeflag != tar.TypeReg {
 			continue
 		}
 		b, err := io.ReadAll(tr)
@@ -260,5 +280,5 @@ func extractORTLib(tgz, dest string) error {
 		}
 		return store.WriteFileAtomic(dest, b, 0o755)
 	}
-	return fmt.Errorf("%s not found in %s", ORTLibName, tgz)
+	return fmt.Errorf("%s not found in %s", libName, tgz)
 }
