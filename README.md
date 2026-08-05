@@ -12,7 +12,11 @@ AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
 ```
 
 지원 언어: **Java, Kotlin, Python, JavaScript, TypeScript**(JSX/TSX 포함,
-tree-sitter). 대상 플랫폼: Linux/macOS.
+tree-sitter). 배포 플랫폼: **linux/amd64 · linux/arm64**. macOS·Windows는
+소스 빌드로 동작하지만 onnxruntime 1.26.0 핀이 없어 의미 검색은 `--ort-lib`로
+직접 지정해야 하며(없으면 lexical 검색만), darwin/amd64는 해당 릴리스 에셋
+자체가 없다. 현재 실행 중인 바이너리가 어느 쪽인지는
+`graphin version --json`의 `semantic_supported`로 확인한다.
 
 JS/TS는 파일 경로 기반 모듈 ID(`src/order/service.ts` →
 `src.order.service.OrderService`)를 사용하며, 상대 경로 import·re-export·
@@ -103,6 +107,10 @@ lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직
 
 `--workspace <path>`(필수) · `--model-type` · `--offline` · `--model-dir` ·
 `--ort-lib` · `--workers <n>` · `--verbose` · `--admin-addr <host:port>`
+
+서브커맨드: `dbimport` · `usage` · `eval` · `version`. `graphin version --json`은
+버전·커밋·`os`/`arch`·ORT 버전과 **이 플랫폼에서 의미 검색이 가능한지**
+(`semantic_supported`)를 한 줄로 낸다.
 
 시멘틱 모델(e5 계열 INT8 ONNX)과 onnxruntime 1.26.0은 최초 부트스트랩 시
 SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts` 캐시).

@@ -4,7 +4,15 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 동작하게 만든다. 사용자가 저장소를 클론하거나 바이너리 경로를 손으로 배선하지
 않는다.
 
-**상태: 설계만 완료, 미구현.** §2부터 순서대로 구현한다.
+**상태 (2026-08-05): Phase 0~4 완료, Phase 5부터 미구현.** 저장소는 public,
+라이선스는 Apache-2.0, CI·릴리스 워크플로와 `plugin/graphin/`이 모두 들어왔다.
+**첫 릴리스는 아직 실행하지 않았다** — 그때 `install/manifest.json`이 생기고
+플러그인이 자기완결이 된다. §11의 실측 7건 중 5건이 해결됐고 그 결과가 §6에
+반영되어 있다.
+
+남은 것: Phase 5(`graphin-guide`) · Phase 6(마이그레이션: `graphin-usage` 묘비화,
+`internal/usage/run.go:60` 진단 문자열) · Phase 7(README 설치 절차 교체) ·
+첫 릴리스 실행.
 
 ## 0. 문제
 
@@ -15,9 +23,9 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 ```
 
 그 결과 **모든 소비 프로젝트가 개발자의 체크아웃을 가리킨다.** 실측된 사고:
-`kinder` 프로젝트가 `/home/tipa/projects/graphin/bin/graphin`을 등록한 상태에서
-저장소에 `make build`를 돌리자 **실행 중이던 kinder 세션의 바이너리가 교체됐다**
-(`/proc/<pid>/exe → /home/tipa/projects/graphin/bin/graphin (deleted)`). 프로세스는
+어떤 소비 프로젝트가 `<graphin-체크아웃>/bin/graphin`을 등록한 상태에서
+저장소에 `make build`를 돌리자 **실행 중이던 그 세션의 바이너리가 교체됐다**
+(`/proc/<pid>/exe → <graphin-체크아웃>/bin/graphin (deleted)`). 프로세스는
 옛 inode를 물고 계속 돌았고, 사용자는 옛 UI를 보면서 그 사실을 알 방법이 없었다.
 
 정적 에셋이 `embed.FS`로 바이너리에 들어가므로 이 결합은 admin UI 전체에 걸린다.
@@ -30,7 +38,8 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 | D2 | v1 플랫폼 = **linux/amd64 + linux/arm64** | 두 조합 모두 ORT 1.26.0 에셋이 존재한다. darwin/amd64는 ORT 빌드 자체가 없다 |
 | D3 | 플러그인 **2개 분리** — `graphin`(MCP+admin+계측) / `graphin-guide`(SKILL+에이전트) | [usage-spec](usage-spec.md) §8이 유도 스킬 동봉을 v2로 연기했다. 무개입 베이스라인은 한번 섞이면 복구 불가 |
 | D4 | 바이너리 = **릴리스 다운로드 → `go install` 폴백** | D1 덕에 `go install`이 자기완결적으로 성립한다 — 소스 사본도 체크아웃 참조도 필요 없다 |
-| D5 | admin **기본 비활성**, `userConfig`로 주소를 지정할 때만 기동 | 여러 프로젝트 동시 사용 시 포트 충돌 회피 |
+| D5 | admin **기본 비활성**, 주소를 지정할 때만 기동. 우선순위는 `<ws>/.graphin/admin-addr` **파일 → `userConfig`** | plugin option은 CC 2.1.207부터 **user settings에서만** 읽힌다(§11-7). 즉 `admin_addr`는 프로젝트별로 줄 수 없는 전역 값 하나여서, 켜는 순간 모든 프로젝트가 같은 포트를 노린다. 파일 override가 그 구멍을 메우면서도 §12의 "자동 포트 할당 금지"를 지킨다 |
+| D6 | 라이선스 = **Apache-2.0** (2026-08-05 확정, `LICENSE` 커밋됨) | 특허 조항이 있어 기업 채택 마찰이 적고, tree-sitter·onnxruntime 등 의존성 생태계의 관행과 맞는다 |
 
 ### 근거가 되는 플랫폼 사실
 
@@ -51,11 +60,14 @@ ORT가 없어도 바이너리는 동작한다 — `warmupSemantic`(`internal/wor
 
 ## 2. Phase 0 — 선행 (코드 없음)
 
-1. **저장소 public 전환.** 라이선스 파일이 없으므로 공개 전 결정이 필요하다.
-2. `README.md:23`의 "대상 플랫폼: Linux/macOS"를 사실에 맞게 정정한다. macOS를
-   뒷받침하는 코드 경로가 현재 없다(§4).
+1. ~~라이선스 결정~~ → **Apache-2.0 확정, `LICENSE` 커밋 완료**(D6). 저작권자
+   표기는 `Salvia95` — 법인/실명이 필요하면 그 줄만 고치면 된다.
+2. ~~`README.md:23` 플랫폼 표기 정정~~ → **완료.** 배포 타깃(linux/amd64·arm64)과
+   그 밖 플랫폼에서 `--ort-lib` 없이는 lexical-only라는 사실을 명시했다.
+3. ~~저장소 public 전환~~ → **완료** (2026-08-05). 이로써 D1·D4가 성립한다:
+   릴리스 에셋을 인증 없이 받을 수 있고 `go install` 폴백이 자기완결적이다.
 
-## 3. Phase 1 — 버전 식별
+## 3. Phase 1 — 버전 식별 ✅ 구현 완료
 
 대상: `cmd/graphin/main.go`, `Makefile`
 
@@ -65,27 +77,37 @@ ORT가 없어도 바이너리는 동작한다 — `warmupSemantic`(`internal/wor
 `0.1.0-dev`로 찍히는 전형적 사고의 원인이다.
 
 ```go
-// main.go:23
+// main.go:31
 var version = "dev"
 var commit = ""
 var buildDate = ""
 ```
 
+**`go install` 경로가 이 셋을 비운다 — 폴백이 없으면 설치가 실패한다.**
+`go install …/cmd/graphin@v1.0.0`로 만든 바이너리에는 `-ldflags`가 아예 붙지
+않아 `version`이 `dev`로 남는다. §6.2 4단계가 그 값을 보고 방금 설치한
+정상 바이너리를 거부하게 된다. `buildIdentity()`가 `debug.ReadBuildInfo()`의
+`Main.Version`(모듈 버전)과 `vcs.revision`으로 폴백한다.
+
 ### 3.2 `version`은 서브커맨드로
 
-`flag.Parse()`가 57행, `--workspace` 필수 검증이 59행이다. `flag.Bool("version", …)`로
+`flag.Parse()`가 76행, `--workspace` 필수 검증이 79행이다. `flag.Bool("version", …)`로
 만들면 `graphin --version`이 `--workspace is required`로 exit 2 한다. 기존
-`dbimport`/`eval`/`usage` 디스패치(28·33·38행) 옆에 둔다:
+`dbimport`/`eval`/`usage` 디스패치(47·52·57행) 옆에 둔다:
 
 ```go
 if len(os.Args) > 1 && (os.Args[1] == "version" || os.Args[1] == "--version") {
     // plain : graphin 1.0.0 linux/amd64 (abc1234, 2026-08-04)
-    // --json: {"version","commit","os","arch","ort","semantic_supported"}
+    //         미지원 플랫폼이면 뒤에 [lexical only: …]가 붙는다
+    // --json: {"version","commit","build_date","os","arch","ort","semantic_supported"}
 }
 ```
 
 `runtime.GOOS`/`GOARCH`와 **이 플랫폼에 ORT 핀이 있는지**를 함께 낸다 —
 `/graphin:doctor`가 그 한 줄로 끝나고, 사용자는 의미 검색이 왜 꺼졌는지 안다.
+`--json` 키 집합은 `install.sh`와 doctor가 파싱하는 계약이라
+`cmd/graphin/version_test.go`가 고정한다. 알 수 없는 인자는 exit 2 +
+**stdout 무출력**(파서가 엉뚱한 단어를 버전으로 읽는 것보다 오류가 낫다).
 
 ### 3.3 Makefile
 
@@ -105,45 +127,65 @@ build:
 > `dlopen`으로 연다. 정적 바이너리는 `dlopen`을 못 하므로 의미 검색이 **워밍업
 > 시점에만** 깨진다 — 가장 발견하기 어려운 자리다.
 
-### 3.4 부수 개선
+### 3.4 부수 개선 ✅
 
-`main.go:107`의 admin 실패 메시지에 조치를 덧붙인다. 현재는
-`admin page unavailable: bind: address already in use`만 나오고 다음 행동이 없다.
-`admin_addr` 플러그인 설정을 바꾸라고 지목한다.
+admin 바인드 실패 메시지가 주소를 바꿀 수 있는 **세 자리를 모두** 지목한다:
+`--admin-addr` 플래그, 플러그인의 `admin_addr` 옵션, 그리고 D5의
+`<ws>/.graphin/admin-addr` 파일.
 
-## 4. Phase 2 — provision 플랫폼 인지
+## 4. Phase 2 — provision 플랫폼 인지 ✅ 구현 완료
 
 대상: `internal/provision/{manifest.go, pins.go, download.go, provision_test.go}`
 
 현재 `manifest.go`는 `onnxruntime-linux-x64-1.26.0.tgz` 하나를 무조건 받는다.
 **`runtime.GOOS`/`GOARCH` 분기가 저장소 전체에 0건이다.**
 
-- `manifest.go` — 단일 `ORT` var → `ortByPlatform map[string]Artifact`
-  (`"linux/amd64"`, `"linux/arm64"`). `ORTLibName` 상수도 플랫폼별 값으로 바꾼다
-  (macOS는 `libonnxruntime.<ver>.dylib`, Linux는 `libonnxruntime.so.<ver>`).
-- `pins.go` — aarch64 아카이브 SHA256 추가. 기존 주석 규약(2026-07-21 기록) 유지.
-- `download.go` — `resolveORT`(113행)와 `extractORTLib`(234·254행)이 패키지 레벨
-  `ORT`/`ORTLibName`을 캡처하므로, 해석된 `Artifact`와 lib 이름을 인자로 넘긴다.
+- `manifest.go` — 단일 `ORT` var → `ortByPlatform map[string]ortPlatform`
+  (`"linux/amd64"`, `"linux/arm64"`). 아카이브와 **그 안의 lib 이름이 한 쌍으로
+  묶여 있다** — macOS는 `libonnxruntime.<ver>.dylib`, Linux는
+  `libonnxruntime.so.<ver>`로 갈리기 때문이다. 접근자는 `ORTFor(goos, goarch)`와
+  `SemanticSupported(goos, goarch)`.
+- `pins.go` — aarch64 SHA256 `34ff1c2d…be01a` 추가(2026-08-05 실측). 기존 주석
+  규약(2026-07-21 기록) 유지.
+  **리눅스 두 타깃의 `.so` 이름은 동일하다**(`libonnxruntime.so.1.26.0`, 아카이브
+  실측) — 그래서 v1은 lib 이름이 실질적으로 하나지만, 구조는 darwin을 위해
+  플랫폼별로 열어 뒀다.
+- `download.go` — `resolveORT`/`extractORTLib`이 해석된 `Artifact`와 lib 이름을
+  인자로 받는다. **`--ort-lib` 검사는 플랫폼 조회보다 앞에 둔다** — 핀 없는
+  플랫폼이 의미 검색을 쓸 수 있는 유일한 통로라, 플랫폼 조회가 먼저 거부하면
+  탈출구가 막힌다. `Options.Platform`은 `BaseURL`과 같은 성격의 테스트 훅이다.
 - **`ErrUnsupportedPlatform` 신설** — 핀이 없는 플랫폼에서 404 다운로드 오류 대신
-  이것을 반환해야 `warmupSemantic`이 이해 가능한 사유를 남긴다.
-- `provision_test.go` — 모든 키가 64-hex SHA와 `ORTVersion` 일치 URL을 갖는지,
-  미지원 플랫폼이 `ErrUnsupportedPlatform`을 내는지 테이블 테스트.
+  이것을 반환해야 `warmupSemantic`이 이해 가능한 사유를 남긴다. 메시지에 반드시
+  플랫폼 키를 넣는다(운영자가 `semantic_unavailable` 로그에서 읽는 값이다).
+- `provision_test.go` — 핀 테이블의 모든 키가 `<goos>/<goarch>` 꼴이고 64-hex
+  SHA와 `ORTVersion` 일치 URL·lib 이름을 갖는지, D2가 약속한 두 플랫폼이 실제로
+  들어 있는지, darwin/amd64가 `ErrUnsupportedPlatform`을 내는지, 그 위에서도
+  `--ort-lib`가 이기는지.
 
 > darwin 핀을 추가할 때 **아카이브 안의 dylib 경로를 실제로 조회한 뒤** 적을 것.
 > 관례상 `lib/libonnxruntime.1.26.0.dylib`이지만 확인 없이 적으면 안 된다.
 
 Windows zip 지원은 이 단계에서 넣지 않는다 — 런처 문제가 풀리기 전까지 사장 코드다.
 
-## 5. Phase 3 — CI와 릴리스
-
-현재 `.github/`가 아예 없다.
+## 5. Phase 3 — CI와 릴리스 ✅ 워크플로 작성 완료 (첫 릴리스 미실행)
 
 ### 5.1 CI 먼저 — `.github/workflows/ci.yml`
 
-`go vet ./...` · `go test ./...` · `make test-race` · **`shellcheck -s sh`**.
+`go vet ./...` · `go test ./...` · `make test-race` · **shellcheck**.
 
-이 설계의 스크립트는 전부 POSIX `sh`이고 훅에서 문법 오류가 조용히 삼켜지므로,
+훅에서 문법 오류가 조용히 삼켜지므로(모든 경로가 `exit 0`, stderr도 버려진다)
 shellcheck가 그것을 잡는 유일한 장치다.
+
+**`-s sh`를 강제하지 않는다 — 셰방으로 판별시킨다.** 플러그인의 훅과 런처는
+`#!/bin/sh`를 선언하므로 셰방 판별만으로 bashism이 잡힌다. 반대로 `-s sh`를
+강제하면 의도적으로 bash인 `scripts/fetch-flatc.sh`가 `SC3040`(pipefail)로
+걸린다 — 실측 확인.
+
+러너는 `ubuntu-22.04`로 고정한다. CI가 릴리스보다 새로운 glibc로 컴파일하면
+CI 통과가 배포 가능성을 뜻하지 않게 된다.
+
+> 워크플로 자체는 `actionlint`로 검증한다(run 블록의 shellcheck 포함).
+> `go run github.com/rhysd/actionlint/cmd/actionlint@latest`
 
 ### 5.2 릴리스 — `.github/workflows/release.yml`
 
@@ -152,32 +194,41 @@ shellcheck가 그것을 잡는 유일한 장치다.
 하는데, 마켓플레이스는 태그된 트리에서 플러그인을 제공하기 때문이다.
 
 ```
-job build (matrix):
-  linux-amd64 → ubuntu-22.04 (또는 debian:bullseye 컨테이너)
-  linux-arm64 → ubuntu-24.04-arm   # 네이티브 arm64 러너 — 크로스 툴체인 불필요
+job build (matrix, 둘 다 debian:bullseye 컨테이너 안에서):
+  linux-amd64 → ubuntu-22.04
+  linux-arm64 → ubuntu-22.04-arm   # 네이티브 arm64 러너 — 크로스 툴체인 불필요
   env: CGO_ENABLED=1
-  go build -trimpath -ldflags "-X main.version=${{inputs.version}} -X main.commit=$GITHUB_SHA" -o graphin ./cmd/graphin
-  tar -czf graphin_${VER}_${OS}_${ARCH}.tar.gz graphin
+  make build VERSION=$VER COMMIT=… BUILDDATE=…   # 빌드 플래그의 단일 출처는 Makefile
+  ./graphin version --json 로 자기 검증 → tar -czf graphin_${VER}_linux_${ARCH}.tar.gz
 
 job publish (needs: build):
+  버전 입력 semver 검증 · 기존 태그 재사용 거부
   sha256sum *.tar.gz > SHA256SUMS
-  → plugin/graphin/install/manifest.json 생성
-  → plugin/graphin/.claude-plugin/plugin.json 버전 갱신
+  → plugin/graphin/install/manifest.json 생성 (jq)
+  → plugin/graphin/.claude-plugin/plugin.json 버전 갱신 (없으면 notice 후 건너뜀)
   → main에 커밋, 그 커밋에 v${VER} 태그
-  → gh release create v${VER} --target <sha> *.tar.gz SHA256SUMS
+  → gh release create v${VER} *.tar.gz SHA256SUMS
 ```
 
 에셋은 태그된 커밋의 *부모*에서 빌드된다. 둘의 차이는 매니페스트와 플러그인 버전
-뿐이고 어느 쪽도 컴파일러에 닿지 않는다. **다음 사람이 "고치지" 않도록 워크플로에
-주석으로 남길 것.**
+뿐이고 어느 쪽도 컴파일러에 닿지 않는다. **다음 사람이 "고치지" 않도록 워크플로
+맨 위에 주석으로 남겼다.**
+
+빌드 잡의 **자기 검증 단계가 이 워크플로의 핵심 안전장치**다. `version --json`이
+`version == 입력값 && arch == 매트릭스 && semantic_supported`를 만족하지 못하면
+거기서 멈춘다 — `-ldflags`가 조용히 빗나간 바이너리(§3.1)가 릴리스로 나가는 경로를
+막는다. `objdump -T`로 실제 glibc 하한도 로그에 남긴다.
+
+`plugin.json`이 아직 없는 Phase 4 이전에도 이 워크플로는 돈다(버전 갱신만 건너뛴다).
 
 > **크로스 컴파일은 선택지가 아니다.** `go-tree-sitter`와 문법 바인딩 5종이 벤더링된
 > C를 cgo로 컴파일하고 `onnxruntime_go`가 `-ldl`을 쓴다. `CGO_ENABLED=1`과 C
 > 툴체인이 필수라 OS별 네이티브 러너가 유일한 답이다.
 
-> **glibc 바닥이 가장 유력한 실패 지점.** `ubuntu-latest`(24.04, glibc 2.39)에서
-> 빌드하면 Debian 12·RHEL 9·AL2023에서 `GLIBC_2.38 not found`가 난다. bullseye
-> 컨테이너(glibc 2.31)나 최소 `ubuntu-22.04`로 고정한다.
+> **glibc 바닥이 가장 유력한 실패 지점 — `ubuntu-22.04`도 충분하지 않다.**
+> `ubuntu-latest`(24.04, glibc 2.39)는 물론이고, 러너 이미지에서 직접 빌드하면
+> 22.04라도 glibc 2.35가 하한이 되어 **RHEL 9·AL2023(둘 다 2.34)이 깨진다.**
+> 그래서 두 아키텍처 모두 `debian:bullseye` 컨테이너(2.31) 안에서 빌드한다.
 
 ### 5.3 `plugin/graphin/install/manifest.json`
 
@@ -203,18 +254,26 @@ job publish (needs: build):
 커밋백 루프가 사라지고 무결성이 "태그된 트리를 신뢰"에서 실제 서명으로 올라간다.
 v1에서는 사용자 머신에 바이너리 의존성이 하나 더 생기므로 보류.
 
-## 6. Phase 4 — `plugin/graphin/`
+## 6. Phase 4 — `plugin/graphin/` ✅ 구현 완료
 
 ```
 plugin/graphin/
 ├── .claude-plugin/plugin.json
 ├── .mcp.json
 ├── bin/graphin-launch.sh
-├── install/{manifest.json, install.sh}
+├── install/install.sh          # manifest.json은 릴리스 워크플로가 커밋한다
 ├── hooks/{hooks.json, session-start.sh, usage.sh}
 ├── commands/{report.md, setup.md, doctor.md, admin.md}
 └── README.md
 ```
+
+`install/manifest.json`은 **저장소에 없다** — §5.2의 publish 잡이 생성해 커밋한다.
+첫 릴리스 이전에는 `install.sh`가 그 사실을 사유로 적고 `binary_path`를 쓰라고
+안내한다(추측해서 설치하지 않는다).
+
+검증: `claude plugin validate plugin/graphin --strict`(마켓플레이스는
+`claude plugin validate . --strict`) · `shellcheck` · `go test ./e2e/ -run
+'TestLauncherArgv|TestPluginUsageHook'`.
 
 ### 6.1 바이너리 설치 위치
 
@@ -254,6 +313,7 @@ ${CLAUDE_PLUGIN_DATA}/
    command -v go && cc/gcc/clang 존재 확인
    GOTOOLCHAIN=auto CGO_ENABLED=1 go install …/cmd/graphin@v$VER
    → `graphin version --json`으로 버전 확인 후 채택 (source="go-install")
+   ldflags가 없는 경로라 §3.1의 ReadBuildInfo 폴백이 여기서 값을 만든다.
    go.mod가 go 1.26.5라 구버전 Go는 GOTOOLCHAIN=auto로 자가 승급해야 한다.
    사용자 환경에 GOTOOLCHAIN=local이 있으면 실패하므로 감지해 안내한다.
 5. 실패: state/last-error.txt에 사유와 조치를 쓰고 exit 1
@@ -329,6 +389,18 @@ ${CLAUDE_PLUGIN_DATA}/
 
 `--workspace`는 `${CLAUDE_PROJECT_DIR}`로 해결된다.
 
+**실측 반영 (CC 2.1.221 기준):**
+
+- `GRAPHIN_PLUGIN_ROOT`/`GRAPHIN_PLUGIN_DATA` 별칭은 **불필요하다.** stdio 서버의
+  env에는 `CLAUDE_PLUGIN_ROOT`·`CLAUDE_PLUGIN_DATA`가 자동 주입된다. 런처가 그대로
+  읽는다.
+- **`.mcp.json`이 참조하는 `${user_config.KEY}`는 전부 `plugin.json`의 `userConfig`에
+  선언돼 있어야 하고, `required: true`를 붙이면 안 된다.** 미선언 키나
+  `required`+`default` 없는 키는 빈 문자열이 아니라 **예외**가 되고, 서버 설정
+  전체가 로드에 실패한다(`Plugin option "x" isn't set`). 선언된 optional 키는
+  미설정 시 **빈 문자열**로 렌더된다 — §6.5의 `val()`이 기대하는 그대로다.
+- boolean은 `"true"`/`"false"` 문자열로 렌더된다.
+
 ### 6.5 런처 (`bin/graphin-launch.sh`)
 
 책임: ① 바이너리 해석(없으면 설치 호출) ② 워크스페이스 해석 ③ argv 조립 ④ `exec`.
@@ -336,10 +408,11 @@ ${CLAUDE_PLUGIN_DATA}/
 ```sh
 #!/bin/sh
 set -eu
-DATA="${GRAPHIN_PLUGIN_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/graphin}"
-ROOT="${GRAPHIN_PLUGIN_ROOT:?}"
+DATA="${CLAUDE_PLUGIN_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/graphin}"
+ROOT="${CLAUDE_PLUGIN_ROOT:?}"
 
-# 미설정 user_config가 빈 문자열인지 리터럴로 남는지 미확인 — 양쪽 다 미설정으로 본다.
+# 미설정 user_config는 빈 문자열로 렌더된다(실측). 리터럴 잔존 케이스는 선언된
+# 키에서는 발생하지 않지만, 값싼 보험으로 남긴다.
 val() { case "$1" in ""|'${'*) return 1;; esac; printf '%s' "$1"; }
 
 BIN="$(val "${GRAPHIN_BINARY_PATH:-}" || true)"; [ -n "${BIN:-}" ] || BIN="$DATA/bin/graphin"
@@ -352,7 +425,12 @@ WS="${GRAPHIN_PROJECT_DIR:-$PWD}"
 sub="$(val "${GRAPHIN_WORKSPACE_SUBDIR:-}" || true)"; [ -n "${sub:-}" ] && WS="$WS/$sub"
 
 set -- --workspace "$WS"
-v="$(val "${GRAPHIN_ADMIN_ADDR:-}" || true)" && [ -n "${v:-}" ] && set -- "$@" --admin-addr "$v"
+# D5: 프로젝트별 파일이 전역 옵션을 이긴다. plugin option은 user settings에만
+# 저장되므로 이 파일이 없으면 모든 프로젝트가 같은 포트를 노린다.
+v=""
+[ -r "$WS/.graphin/admin-addr" ] && v="$(head -n1 "$WS/.graphin/admin-addr" | tr -d '[:space:]')"
+[ -n "$v" ] || v="$(val "${GRAPHIN_ADMIN_ADDR:-}" || true)"
+[ -n "${v:-}" ] && set -- "$@" --admin-addr "$v"
 # … model-type / model-dir / semantic-max-nodes 동일 패턴 …
 case "$(printf '%s' "${GRAPHIN_OFFLINE:-}" | tr 'A-Z' 'a-z')" in 1|true|yes|on) set -- "$@" --offline;; esac
 
@@ -361,17 +439,38 @@ exec "$BIN" "$@"
 
 **두 규칙을 어기면 프로토콜이 깨진다:**
 
-- **`exec`로 넘긴다.** MCP 전송은 `os.Stdin`/`os.Stdout` 생 stdio다(`main.go:119`).
+- **`exec`로 넘긴다.** MCP 전송은 `os.Stdin`/`os.Stdout` 생 stdio다(`main.go:149`).
   중간에 버퍼링하거나 재포맷하는 래퍼가 남으면 프로토콜이 오염된다.
 - **stdout에 절대 쓰지 않는다.** 진단은 stderr로만.
+
+### 6.5.1 구현하며 확정된 것
+
+- `userConfig` 필드 스키마는 `.strict()`다: `type`(`string`|`number`|`boolean`|
+  `directory`|`file`) · `title` · `description`이 필수이고 `required` · `default` ·
+  `multiple` · `sensitive` · `min` · `max`가 선택. **모르는 필드는 거부된다.**
+  키는 `^[A-Za-z_]\w*$`여야 한다(`CLAUDE_PLUGIN_OPTION_<KEY>`가 되기 때문).
+- `model_type`·`semantic_max_nodes`에는 **`default`를 주지 않았다.** 기본값을
+  적어 두면 서버의 기본값과 두 벌이 되어 언젠가 어긋난다. 비워 두면 플래그 자체가
+  붙지 않아 서버 기본값이 유일한 출처로 남는다.
+- 매니페스트 파서는 jq가 없는 사용자 머신을 가정해 `sed`/`awk`로 짰다. 우리가
+  생성한 레이아웃만 읽는 전용 리더이고, 실제 `jq` 출력으로 검증했다.
+- 오래된 버전 파일은 정리한다(각 25MB). 실행 중인 파일을 unlink해도 리눅스에서는
+  안전하고, 그 때문에 끊기는 `binpath`는 §6.7의 해석 순서가 자가 치유한다.
 
 ### 6.6 `plugin.json` userConfig
 
 `admin_addr`(기본 `""` = 비활성) · `model_type` · `offline` · `model_dir` ·
 `semantic_max_nodes` · `workspace_subdir` · `binary_path`.
 
+**일곱 개 전부 `required: false`여야 한다**(§6.4 실측). 하나라도 required로
+선언하고 사용자가 값을 비워 두면 서버 설정이 통째로 로드에 실패한다.
+
 `binary_path`는 **자기 체크아웃 빌드를 계속 쓰려는 개발자의 착지점**이다. 플러그인이
 단일 등록 지점으로 남으면서도 바이너리는 어디서든 올 수 있다.
+
+`admin_addr`는 **전역 값 하나**다(user settings에만 저장, CC 2.1.207+). 프로젝트별
+주소는 `<ws>/.graphin/admin-addr` 파일이 담당한다(D5). 우선순위와 두 자리 모두를
+바인드 실패 메시지가 지목한다(§3.4).
 
 ### 6.7 계측 훅 이동 — 해석 순서를 바꿔야 한다
 
@@ -392,6 +491,11 @@ exec "$BIN" "$@"
 파일)를 쓴다. 업그레이드가 그 파일을 정리하면 `binpath`는 없는 곳을 가리키고,
 계측이 죽으며 `usage report`는 "인덱스는 있는데 이벤트가 없다"만 출력한다.
 심볼릭 링크를 위에 두면 자가 치유된다.
+
+`$CLAUDE_PLUGIN_OPTION_<KEY>`를 쓰는 것은 편의가 아니라 **강제**다. 훅의
+shell-form `command`가 `${user_config.*}`를 참조하면 치환값이 셸로 재파싱되는
+것을 막기 위해 **플러그인 로드 자체가 에러로 실패한다**(실측). 값은 훅 환경의
+`CLAUDE_PLUGIN_OPTION_<KEY>`로만 읽는다.
 
 아울러 `usage.sh` 가드가 `$CLAUDE_PLUGIN_OPTION_WORKSPACE_SUBDIR`를 존중하게 한다 —
 이제 서버와 훅이 한 플러그인에 있으므로 워크스페이스 설정을 공유할 수 있고,
@@ -423,16 +527,42 @@ plugin/graphin-guide/
 
 ### 8.1 기존 수동 등록과의 충돌 — 최대 리스크
 
-플러그인도 `graphin` 키로 MCP 서버를 등록한다. 사용자 스코프
-`claude mcp add graphin`과 충돌할 때 무엇이 이기는지 **공식 문서에 없다. 릴리스 전
-실측 필수**(§11-1).
+**실측 결과: 섀도잉이 아니라 중복이다. 그리고 조용히 반쪽이 죽는다.**
+
+Claude Code는 플러그인 MCP 서버를 억제할 때 **`command`+`args`가 같은지만** 본다
+(env는 비교에서 제외 — CC 2.1.152 체인지로그가 명시). 수동 등록은 바이너리를
+직접 부르고 플러그인은 런처 스크립트를 부르므로 **커맨드가 달라 억제가 걸리지
+않는다.** 둘 다 뜬다.
+
+그 결과가 나쁘다: 같은 워크스페이스를 두 프로세스가 잡으려 하고, 늦게 뜬 쪽이
+`workspace.go:198`의 `lock.Acquire`에서 `ErrLockHeld`를 받는다. 에이전트에게는
+도구 두 벌이 보이는데 한 벌은 인덱싱을 못 한다.
 
 - `/graphin:doctor`가 `claude mcp list`를 확인해 비-플러그인 `graphin` 등록이 있으면
-  경고한다. 출시 후 가장 유력한 지원 이슈이고, 감지 비용은 싸다.
+  경고한다. **선택이 아니라 필수다.**
 - README에 제거 절차를 명시: `claude mcp remove graphin -s {local,user,project}`.
-- 충돌이 파괴적으로 밝혀지면 서버 키를 바꾸는 것이 대안이지만, 그러면 도구 이름이
-  `mcp__graphin__*`에서 바뀌어 SKILL 산문과 사용자 습관이 함께 깨진다. 문서로 푸는
-  쪽을 우선한다.
+- 서버 키를 바꾸는 것은 대안이 못 된다 — 아래 8.1.1대로 **도구 이름은 어차피
+  바뀐다.**
+
+#### 8.1.1 도구 이름은 플러그인화의 불가피한 귀결이다
+
+플러그인이 제공하는 MCP 서버는 레지스트리 키가 `plugin:<플러그인>:<서버>`가 되고,
+도구 이름은 `mcp__` + (키에서 `[^a-zA-Z0-9_-]`를 `_`로 치환) + `__` + 도구명이다.
+따라서:
+
+```
+mcp__graphin__search_hybrid  →  mcp__plugin_graphin_graphin__search_hybrid
+```
+
+영향 범위는 다행히 좁다:
+
+- **계측: 무사.** `internal/usage/event.go:55`의 `^mcp__.+__([a-zA-Z0-9_]+)$`
+  접미사 매칭이 그대로 통과한다([usage-spec](usage-spec.md) §3).
+- **SKILL: 무사.** 산문이 `search_hybrid` 같은 맨 이름만 쓴다.
+- **고칠 곳**: `examples/agents/graphin-explorer.md`의 주석(25행)이
+  `mcp__graphin__*`를 언급한다. `disallowedTools`는 이름 비의존이라 그대로 둔다.
+- 훅 matcher를 쓸 일이 생기면 `mcp__plugin_graphin_graphin__.*` 꼴이어야 한다
+  (CC 2.1.195부터 하이픈 식별자는 정확 매칭).
 
 ### 8.2 `graphin-usage` 기존 설치
 
@@ -449,32 +579,37 @@ plugin/graphin-guide/
 
 ### 8.3 `.graphin/binpath`
 
-`main.go:80-83`의 기록은 **유지한다.** 갱신하지 않은 기존 `graphin-usage` 설치가
+`main.go:96-101`의 기록은 **유지한다.** 갱신하지 않은 기존 `graphin-usage` 설치가
 의존한다. 해석 순서만 §6.7처럼 바꾼다.
 
 ## 9. Phase 7 — 문서
 
 - `README.md` — 설치 절차(96–100·126–133행)를 `/plugin install graphin@graphin`으로
-  교체, 23행 플랫폼 표기 정정, 최소 Claude Code 버전 명시.
+  교체, ~~23행 플랫폼 표기 정정~~(완료), **최소 Claude Code 2.1.83** 명시(§11-7).
 - [usage-spec.md](usage-spec.md) — §1 트리 갱신, §8에 D3 결정(유도 분리 유지) 기록.
 - 각 플러그인 README.
 
 ## 10. 검증
 
 ```sh
-# Phase 1
-make build && ./bin/graphin version --json        # dev가 아니어야 한다
+# Phase 1 ✅  dev가 아니어야 하고, semantic_supported가 이 플랫폼과 맞아야 한다
+make build && ./bin/graphin version --json
+go test ./cmd/graphin/                            # --json 키 집합 계약
 
-# Phase 2
+# Phase 2 ✅  핀 테이블 well-formed + 미지원 플랫폼이 명시적 오류를 내는지
 go test ./internal/provision/
 
-# Phase 3 — 구형 glibc에서 실행되는지가 핵심
+# Phase 3 — 워크플로 문법·run 블록은 actionlint로 (푸시 전)
+go run github.com/rhysd/actionlint/cmd/actionlint@latest
+# 릴리스 후, 구형 glibc에서 실행되는지가 핵심
 docker run --rm -v $PWD:/w debian:12 /w/graphin version
 
 # Phase 4 — 로컬 플러그인 개발 모드
 claude --plugin-dir ./plugin/graphin
-#   /mcp 에서 graphin 연결 확인 → search_hybrid 호출
+#   /mcp 에서 graphin 연결 확인 → 도구 이름이 mcp__plugin_graphin_graphin__* 인지 (§8.1.1)
 #   admin_addr 설정 후 페이지 확인 → 빈 값으로 되돌려 비활성 확인
+#   <ws>/.graphin/admin-addr 가 전역 admin_addr를 이기는지 (D5)
+#   SessionStart 훅과 MCP spawn 중 무엇이 먼저인지 관찰 (§11-2)
 
 # Phase 5
 claude --plugin-dir ./plugin/graphin-guide
@@ -486,22 +621,30 @@ claude --plugin-dir ./plugin/graphin-guide
 /plugin install graphin@graphin
 ```
 
-## 11. 구현 전에 반드시 실측할 것 (추측 금지)
+## 11. 실측 (추측 금지)
 
-1. **수동 `claude mcp add graphin`과 플러그인 제공 `graphin`의 충돌 동작.**
-   섀도잉인지 중복인지 오류인지. 출시 후 가장 유력한 지원 이슈다.
-2. **MCP spawn과 SessionStart 훅의 순서.** 설계는 순서 무관이지만 첫 실행 UX가
-   갈린다(매끄러운가, 재연결이 필요한가).
-3. **`skills: [graphin]`이 플러그인 제공 스킬을 맨 이름으로 해석하는지.**
-   네임스페이싱(`graphin-guide:graphin`)이 필요할 수 있다. 조용히 실패하면
-   에이전트가 도구 레퍼런스를 통째로 잃고 산문으로 퇴화한다.
-4. **플러그인 제공 MCP 도구가 추가 네임스페이싱되는지**(`mcp__graphin__*` 여부).
-   계측은 [usage-spec](usage-spec.md) §3이 접미사 매칭을 규정해 무사하지만, SKILL
-   산문과 도구 화이트리스트는 영향받는다.
-5. **`${user_config.KEY}`가 미설정일 때** 빈 문자열인지 리터럴이 남는지, `boolean`이
-   `true`/`1` 중 무엇으로 렌더되는지. §6.5의 `val()` 가드가 양쪽을 막지만 확인한다.
-6. **darwin ORT 아카이브 안의 dylib 경로**(v1.1). 관례에서 추정하지 말고 조회한다.
-7. **`${CLAUDE_PLUGIN_DATA}`·`userConfig`의 최소 Claude Code 버전.** 최근 기능이다.
+측정 방법: 설치된 Claude Code 2.1.221 바이너리의 플러그인 로더 코드와 공식
+CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모크로 넘긴다.
+
+| # | 항목 | 결과 (2026-08-05, CC 2.1.221) |
+|---|---|---|
+| 1 | 수동 등록과의 충돌 | ✅ **중복.** 억제는 `command`+`args` 동일 시에만(env 제외). 런처 경유라 커맨드가 달라 둘 다 뜨고, 늦은 쪽이 `ErrLockHeld` → §8.1 |
+| 2 | MCP spawn vs SessionStart 순서 | ⏳ 미해결. 설계는 순서 무관(런처가 권위) — Phase 4 스모크에서 첫 실행 UX만 확인 |
+| 3 | `skills: [graphin]` 해석 | ⏳ 미해결. Phase 5 스모크. 조용히 실패하면 에이전트가 도구 레퍼런스를 잃는다 |
+| 4 | 도구 네임스페이싱 | ✅ **바뀐다.** `mcp__plugin_graphin_graphin__*` → §8.1.1. 계측·SKILL은 무사 |
+| 5 | 미설정 `${user_config.KEY}` | ✅ 선언된 optional 키는 **빈 문자열**. 미선언·`required`+`default` 없음은 **예외로 서버 로드 실패**. boolean은 `"true"`/`"false"` → §6.4 |
+| 6 | darwin dylib 경로 | ⏳ v1.1. 관례에서 추정하지 말고 조회한다 |
+| 7 | 최소 CC 버전 | ✅ **2.1.83** (`userConfig`). `${CLAUDE_PLUGIN_DATA}`는 2.1.78. 2.1.207부터 plugin option은 **user settings에서만** 읽힘 → D5 |
+
+추가로 확인된 것:
+
+- 훅의 shell-form `command`에서 `${user_config.*}` 참조는 **로드 실패**를 부른다.
+  `$CLAUDE_PLUGIN_OPTION_<KEY>`가 유일한 경로다(§6.7).
+- stdio 서버 env에는 `CLAUDE_PLUGIN_ROOT`·`CLAUDE_PLUGIN_DATA`가 자동 주입된다(§6.4).
+- `${CLAUDE_PLUGIN_DATA}` 실경로는 `~/.claude/plugins/data/<플러그인>-<마켓플레이스>/`
+  — 이 머신의 `graphin-usage-graphin`으로 확인. 즉 `graphin-graphin`이 맞다.
+- `Setup` 훅 이벤트가 존재하나 `--init`/`--init-only`/`--maintenance`에서만 발화하므로
+  세션 설치 경로를 대체하지 못한다. `/graphin:setup`의 보조로는 쓸 수 있다.
 
 ## 12. 하지 말 것
 
