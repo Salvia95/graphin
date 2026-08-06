@@ -26,7 +26,13 @@ ERRFILE="$STATE/last-error.txt"
 
 mkdir -p "$BINDIR" "$STATE" "$DATA/logs"
 
-log() { printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1"; }
+# GRAPHIN_INSTALL_CALLER identifies which entry point ran us. The launcher and
+# the SessionStart hook race by design (their order is unspecified), and
+# without this the log cannot say which one won — the difference is whether a
+# first run is smooth or needs an /mcp reconnect.
+CALLER="${GRAPHIN_INSTALL_CALLER:-direct}"
+
+log() { printf '[%s] (%s) %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$CALLER" "$1"; }
 
 # fail writes the reason where three different readers look for it: the
 # launcher prints it to stderr, /graphin:doctor reads the file, and the log

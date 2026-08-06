@@ -30,7 +30,8 @@ fi
 
 mkdir -p "$DATA/logs" 2> /dev/null || exit 0
 
-if "$ROOT/install/install.sh" >> "$DATA/logs/install.log" 2>&1; then
+if GRAPHIN_INSTALL_CALLER=session-start "$ROOT/install/install.sh" \
+  >> "$DATA/logs/install.log" 2>&1; then
   exit 0
 fi
 

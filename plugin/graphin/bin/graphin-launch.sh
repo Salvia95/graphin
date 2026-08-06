@@ -46,7 +46,7 @@ else
   # no fork — cheap enough to run on every server start.
   if [ ! -x "$BIN" ] || ! cmp -s "$ROOT/install/manifest.json" "$DATA/state/manifest.json"; then
     mkdir -p "$DATA/logs"
-    if ! "$ROOT/install/install.sh" >>"$DATA/logs/install.log" 2>&1; then
+    if ! GRAPHIN_INSTALL_CALLER=launcher "$ROOT/install/install.sh" >>"$DATA/logs/install.log" 2>&1; then
       if [ -r "$DATA/state/last-error.txt" ]; then
         cat "$DATA/state/last-error.txt" >&2
       else
