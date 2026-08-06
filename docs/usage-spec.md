@@ -24,7 +24,7 @@ graphin의 실패가 아니다.
 ## 1. 플러그인 구조와 설치
 
 계측은 서버와 **같은 플러그인**에 있다. 별도 플러그인이던 `graphin-usage`는
-0.2.0에서 폐기됐다([plugin-distribution](plugin-distribution.md) §8.2) — 서버와
+제거됐다([plugin-distribution](plugin-distribution.md) §8.2) — 서버와
 훅이 한 플러그인에 있어야 워크스페이스 설정을 공유하고, 훅이 플러그인이 설치한
 바이너리를 곧장 찾을 수 있다.
 

@@ -14,11 +14,6 @@
       "name": "graphin-guide",
       "source": "./plugin/graphin-guide",
       "description": "Usage guidance for graphin: a skill teaching progressive-disclosure navigation, and a read-only explorer subagent that returns cited summaries. Separate from the graphin plugin on purpose — installing it is what distinguishes guided use from the no-guidance baseline."
-    },
-    {
-      "name": "graphin-usage",
-      "source": "./plugin/graphin-usage",
-      "description": "DEPRECATED — instrumentation moved into the graphin plugin. Install graphin@graphin instead. Updating to 0.2.0 removes this plugin's hook so it stops duplicating events."
     }
   ]
 }

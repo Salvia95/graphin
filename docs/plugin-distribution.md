@@ -7,7 +7,7 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 **상태 (2026-08-06): Phase 0~7 전부 완료. v0.1.0 → v0.2.0 릴리스 완료.**
 저장소는 public, 라이선스는 Apache-2.0, CI·릴리스 워크플로와 두 플러그인
 (`graphin` · `graphin-guide`)이 들어왔고, 플러그인은 자기완결이다. 옛
-`graphin-usage`는 묘비가 됐다. **설치와 업그레이드가 모두 실측으로
+`graphin-usage`는 제거됐다. **설치와 업그레이드가 모두 실측으로
 확인됐다**(§10.1·§10.2).
 
 **목표는 달성됐고 실측으로 확인됐다**(§10.1): 마켓플레이스 설치 → 콜드 스타트
@@ -49,9 +49,7 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 
 ### 근거가 되는 플랫폼 사실
 
-ONNX Runtime 1.26.0 릴리스 에셋 실측:
-
-2026-08-06에 릴리스의 에셋 목록을 직접 조회해 재확인했다:
+ONNX Runtime 1.26.0 릴리스 에셋 실측 (에셋 목록을 직접 조회, 2026-08-06 재확인):
 
 | 타깃 | ORT 에셋 | 의미 검색 | 릴리스 바이너리 |
 |---|---|---|---|
@@ -149,7 +147,7 @@ admin 바인드 실패 메시지가 주소를 바꿀 수 있는 **세 자리를 
 **`runtime.GOOS`/`GOARCH` 분기가 저장소 전체에 0건이다.**
 
 - `manifest.go` — 단일 `ORT` var → `ortByPlatform map[string]ortPlatform`
-  (`"linux/amd64"`, `"linux/arm64"`). 아카이브와 **그 안의 lib 이름이 한 쌍으로
+  (`"linux/amd64"`, `"linux/arm64"`, `"darwin/arm64"`). 아카이브와 **그 안의 lib 이름이 한 쌍으로
   묶여 있다** — macOS는 `libonnxruntime.<ver>.dylib`, Linux는
   `libonnxruntime.so.<ver>`로 갈리기 때문이다. 접근자는 `ORTFor(goos, goarch)`와
   `SemanticSupported(goos, goarch)`.
@@ -166,9 +164,9 @@ admin 바인드 실패 메시지가 주소를 바꿀 수 있는 **세 자리를 
   이것을 반환해야 `warmupSemantic`이 이해 가능한 사유를 남긴다. 메시지에 반드시
   플랫폼 키를 넣는다(운영자가 `semantic_unavailable` 로그에서 읽는 값이다).
 - `provision_test.go` — 핀 테이블의 모든 키가 `<goos>/<goarch>` 꼴이고 64-hex
-  SHA와 `ORTVersion` 일치 URL·lib 이름을 갖는지, D2가 약속한 두 플랫폼이 실제로
+  SHA와 `ORTVersion` 일치 URL·lib 이름을 갖는지, 약속한 세 플랫폼이 실제로
   들어 있는지, darwin/amd64가 `ErrUnsupportedPlatform`을 내는지, 그 위에서도
-  `--ort-lib`가 이기는지.
+  `--ort-lib`가 이기는지. 추출기의 dSYM 디코이 회귀 테스트도 여기 있다(§4.1).
 
 #### 4.1 darwin/arm64 핀 (v1.1) — 조회가 버그를 하나 잡았다
 
@@ -532,8 +530,8 @@ exec "$BIN" "$@"
 
 ### 6.7 계측 훅 이동 — 해석 순서를 바꿔야 한다
 
-`plugin/graphin-usage/hooks/handler.sh` → `plugin/graphin/hooks/usage.sh`.
-바이너리 해석 순서를 다음으로 바꾼다:
+훅이 옛 `graphin-usage` 플러그인에서 `plugin/graphin/hooks/usage.sh`로 옮겨
+왔다(그 플러그인은 §8.2에서 제거됨). 바이너리 해석 순서를 다음으로 바꾼다:
 
 ```
 1. $GRAPHIN_BIN
@@ -557,7 +555,7 @@ shell-form `command`가 `${user_config.*}`를 참조하면 치환값이 셸로 �
 
 아울러 `usage.sh` 가드가 `$CLAUDE_PLUGIN_OPTION_WORKSPACE_SUBDIR`를 존중하게 한다 —
 이제 서버와 훅이 한 플러그인에 있으므로 워크스페이스 설정을 공유할 수 있고,
-`plugin/graphin-usage/README.md` §3이 기록한 상향 탐색 한계가 해소된다.
+옛 플러그인이 트러블슈팅 항목으로 안고 있던 상향 탐색 한계가 해소된다.
 
 ## 7. Phase 5 — `plugin/graphin-guide/` ✅ 구현 완료
 
@@ -634,9 +632,17 @@ mcp__graphin__search_hybrid  →  mcp__plugin_graphin_graphin__search_hybrid
 `internal/usage/stream.go:77-81`이 읽기 시점에 `tool_use_id`로 디듀프하므로
 **지표는 무해하고 디스크만 낭비된다.** 따라서 점진 마이그레이션이 안전하다.
 
-`graphin-usage` 0.2.0을 묘비로 냈다 — `hooks/`를 통째로 삭제(중복 중단),
+먼저 `graphin-usage` 0.2.0을 묘비로 냈다 — `hooks/`를 통째로 삭제(중복 중단),
 `commands/report.md`는 `/graphin:report`로 안내, description·README를
-deprecated로. 갱신하지 않은 사용자는 계속 동작한다(시끄러울 뿐).
+deprecated로.
+
+**그리고 2026-08-07에 플러그인을 통째로 제거했다**(디렉터리·마켓플레이스 항목
+모두). 묘비는 "갱신하지 않은 설치를 이관시키는" 장치인데, 이 시점의 사용자가
+저장소 소유자 한 명뿐이고 이미 이관을 마쳤으므로 이관 대상이 없었다. 남겨 두면
+마켓플레이스에 죽은 항목이 하나 늘 뿐이다.
+
+> 사용자층이 넓어진 뒤였다면 묘비를 한동안 유지해야 한다 — 제거는 갱신하지 않은
+> 설치를 고아로 만든다. "사용자가 나뿐"이라는 전제가 이 결정을 싸게 만들었다.
 
 **`handler.sh`도 함께 지웠다.** `hooks.json`이 없으면 호출되지 않는 죽은
 스크립트다. 다만 그 위에 있던 e2e 픽스처 스위트(가드·malformed·bash 검색·결과
@@ -651,8 +657,10 @@ admin `/usage` 페이지의 빈 상태(→ `/plugin install graphin@graphin`),
 
 ### 8.3 `.graphin/binpath`
 
-`main.go:96-101`의 기록은 **유지한다.** 갱신하지 않은 기존 `graphin-usage` 설치가
-의존한다. 해석 순서만 §6.7처럼 바꾼다.
+`main.go:96-101`의 기록은 **유지한다.** 옛 플러그인은 사라졌지만 이것을 쓰는
+경로가 남아 있다 — `claude mcp add`로 직접 등록한 서버는 플러그인이 설치한
+바이너리를 쓰지 않으므로 `${CLAUDE_PLUGIN_DATA}/bin/graphin`이 없고, 훅은
+§6.7 순서의 4단계인 binpath로 내려온다. 해석 순서만 §6.7처럼 바꾼다.
 
 ## 9. Phase 7 — 문서 ✅ 구현 완료
 
@@ -663,7 +671,7 @@ admin `/usage` 페이지의 빈 상태(→ `/plugin install graphin@graphin`),
   다시 부르기 때문이다. admin 절도 프로젝트별 `admin-addr` 파일 방식으로 바꿨다.
 - [usage-spec.md](usage-spec.md) — §1 트리를 `plugin/graphin/`으로 갱신,
   §6 릴리스 게이트와 네임스페이싱을 `/graphin:report`로, §8 D3 기록.
-- 각 플러그인 README 3종(`graphin`·`graphin-guide`·`graphin-usage` 묘비).
+- 각 플러그인 README(`graphin`·`graphin-guide`).
   프라이버시 표(무엇을 기록하고 무엇을 기록하지 않는가)는 묘비가 가리키는
   `plugin/graphin/README.md`로 옮겼다 — 링크만 남기고 내용을 잃으면 안 된다.
 
@@ -764,7 +772,7 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
   `$CLAUDE_PLUGIN_OPTION_<KEY>`가 유일한 경로다(§6.7).
 - stdio 서버 env에는 `CLAUDE_PLUGIN_ROOT`·`CLAUDE_PLUGIN_DATA`가 자동 주입된다(§6.4).
 - `${CLAUDE_PLUGIN_DATA}` 실경로는 `~/.claude/plugins/data/<플러그인>-<마켓플레이스>/`
-  — 이 머신의 `graphin-usage-graphin`으로 확인. 즉 `graphin-graphin`이 맞다.
+  — 설치 후 `graphin-graphin`으로 실측 확인.
 - `Setup` 훅 이벤트가 존재하나 `--init`/`--init-only`/`--maintenance`에서만 발화하므로
   세션 설치 경로를 대체하지 못한다. `/graphin:setup`의 보조로는 쓸 수 있다.
 

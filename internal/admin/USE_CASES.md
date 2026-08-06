@@ -74,7 +74,7 @@ flowchart TB
 | 노드 상세 | Q2, Q3 | ego-graph, uses/used_by with confidence, exact source slice |
 | 진단 | Q2 | dangling edges, partial nodes, semantic status, reverse-index stats |
 | 로그 | Q1, Q2 | `agent-nav.log` tail — watcher batches, re-index, embedding events |
-| 계측 | Q3 | adoption / fallback metrics from the `graphin-usage` plugin |
+| 계측 | Q3 | adoption / fallback metrics from the `graphin` plugin's PostToolUse hook |
 | 설정 | Q2 | effective startup flags vs defaults, model spec, gate, disk footprint |
 
 ---
@@ -254,7 +254,7 @@ query underperforms.
 
 **Trigger** Weekly review; or deciding whether graphin is worth keeping.
 
-**Requires** the `graphin-usage` Claude Code plugin installed — otherwise 계측
+**Requires** the `graphin` Claude Code plugin installed (its PostToolUse hook) — otherwise 계측
 shows an empty state. It is observation-only by design; it never intervenes in
 agent behaviour, because intervening would corrupt the very signal it measures.
 

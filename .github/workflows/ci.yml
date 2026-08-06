@@ -60,3 +60,58 @@ jobs:
           shellcheck --version
           # shellcheck disable=SC2046  # paths in this repo have no spaces
           shellcheck $(git ls-files '*.sh')
+
+  # graphin-guide has no release pipeline of its own: the marketplace serves it
+  # straight from main, and Claude Code offers an update ONLY when plugin.json's
+  # version field changes — it does not compare commits (measured 2026-08-06:
+  # `plugin update` reported "already at the latest version" on a tree that had
+  # moved on). So editing the skill without bumping the version ships the change
+  # to nobody, silently and forever. This job is what makes that noisy.
+  #
+  # The graphin plugin needs no such guard: the release workflow stamps its
+  # version, and a release is its delivery step.
+  guide-version:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a version bump when graphin-guide changes
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -eu
+          manifest=plugin/graphin-guide/.claude-plugin/plugin.json
+          version_of() { sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' | head -n1; }
+
+          # A brand-new branch reports an all-zero "before"; nothing to compare.
+          case "${BASE:-}" in
+            "" | 0000000000000000000000000000000000000000)
+              echo "::notice::no base commit to diff against — skipping"
+              exit 0
+              ;;
+          esac
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "::notice::base ${BASE} not in this clone — skipping"
+            exit 0
+          fi
+
+          if [ -z "$(git diff --name-only "$BASE" HEAD -- plugin/graphin-guide/)" ]; then
+            echo "graphin-guide untouched"
+            exit 0
+          fi
+
+          old="$(git show "$BASE:$manifest" 2>/dev/null | version_of || true)"
+          new="$(version_of < "$manifest")"
+          if [ -z "$old" ]; then
+            echo "::notice::graphin-guide manifest is new — nothing to compare"
+            exit 0
+          fi
+          if [ "$old" = "$new" ]; then
+            echo "::error file=${manifest}::graphin-guide changed but its version is still ${new}. Claude Code only offers an update when this field changes, so users would never receive the edit. Bump it."
+            git diff --name-only "$BASE" HEAD -- plugin/graphin-guide/ | sed 's/^/  changed: /'
+            exit 1
+          fi
+          echo "graphin-guide ${old} → ${new}"
