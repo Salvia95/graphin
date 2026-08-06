@@ -67,8 +67,15 @@ stdout은 절대 비운다(출력이 있으면 Claude Code가 해석하려 든�
 `merkle.json`은 초기 스캔이 완료된 뒤 `persistIndexesLocked`에서만 기록된다
 (internal/workspace/indexer.go) — "인덱싱이 실제로 끝난 워크스페이스"의 프록시.
 
-한계: 워크스페이스가 프로젝트 루트보다 **아래**에 있으면 walk-up이 못 찾는다
-→ `GRAPHIN_USAGE_ROOT`로 지정한다.
+한계 둘:
+
+- 워크스페이스가 프로젝트 루트보다 **아래**에 있으면 walk-up이 못 찾는다 →
+  `GRAPHIN_USAGE_ROOT` 또는 플러그인의 `workspace_subdir` 옵션으로 지정한다.
+- **워크스페이스의 최초 `bootstrap_workspace` 호출은 구조적으로 기록되지
+  않는다.** 마커는 초기 스캔이 끝나야 생기는데 그 호출의 PostToolUse는 그보다
+  먼저 발화하기 때문이다(2026-08-06 실측: 3콜 중 2건 기록). 의도된 동작이지만
+  `g_boot` 카운트는 워크스페이스당 1회씩 적게 잡힌다 — 헤드라인 4종은
+  `g_boot`을 쓰지 않으므로 영향이 없다.
 
 ### 2.2 바이너리 해석 — binpath 사이드카
 

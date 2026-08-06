@@ -9,12 +9,13 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 `graphin-guide`)이 들어왔고, v0.1.0이 발행되어 `install/manifest.json`이
 커밋됐다 — 플러그인은 자기완결이다. 옛 `graphin-usage`는 0.2.0 묘비가 됐다.
 
-**목표는 달성됐다**: 체크아웃도 자격증명도 없는 머신에서
-`/plugin install graphin@graphin` 하나로 설치가 끝난다.
+**목표는 달성됐고 실측으로 확인됐다**(§10.1): 마켓플레이스 설치 → 콜드 스타트
+7.8초 → `search_hybrid`/`read_code` 정상 → 계측 기록까지 한 줄로 이어졌고, 그
+전 과정이 **로컬 체크아웃을 한 번도 참조하지 않았다.** §11의 실측 7건 중
+darwin dylib 경로(v1.1)를 뺀 6건이 해결됐다.
 
-남은 것은 실사용으로만 확인되는 것들뿐이다 — §11-2(MCP spawn과 SessionStart
-순서), §10 마지막 항목(제3의 머신에서의 설치), 그리고 v1.1 후보(darwin 핀,
-서명, admin `:0` + 주소 파일).
+남은 것은 v1.1 후보뿐이다 — darwin/arm64 핀, `SHA256SUMS` 서명(cosign/minisign),
+admin `:0` + 주소 파일.
 
 ## 0. 문제
 
@@ -349,8 +350,20 @@ ${CLAUDE_PLUGIN_DATA}/
 서버가 먼저 뜨면 설치 직후 첫 세션이 깨진다. 순서에 무관하도록 설계한다:
 
 - `bin/graphin-launch.sh`가 **권위** — 바이너리가 없으면 자기가 동기 설치 후 `exec`.
-- SessionStart 훅은 **예열기** — 보통 먼저 이겨서 다운로드를 MCP 기동 타임아웃
-  밖으로 밀어낸다.
+- SessionStart 훅은 **예열기**.
+
+> **실측(2026-08-06): 예열기는 이기지 못한다.** 콜드 스타트 2회 모두 런처가
+> 설치했다(`install.log`의 `(launcher)`). 즉 동기 설치가 예외 경로가 아니라
+> **정상 경로**다. 그래도 첫 실행은 매끄러웠다 — 25MB 다운로드를 포함해 세션
+> 전체가 7.8초, 기동 타임아웃에 걸리지 않았다.
+>
+> 훅을 지우지는 않는다. MCP 서버가 뜨지 않는 경우(세션 중 플러그인 활성화,
+> MCP 비활성 구성)에 남는 유일한 설치 경로이고, 느린 링크에서는 순서가 뒤집힐
+> 수 있다. 다만 **"보통 훅이 이긴다"를 전제로 설계를 단순화하면 안 된다.**
+>
+> 진 훅은 아무것도 로깅하지 않으므로(잠금 획득 후 재확인에서 조용히 빠진다)
+> 이 관측은 "런처가 일을 했다"를 증명할 뿐 "훅이 돌지 않았다"를 증명하지는
+> 않는다. 구분이 필요해지면 훅에 무조건 로깅을 한 줄 넣어야 한다.
 - 훅은 모든 경로에서 `exit 0`. 실패는 `additionalContext`로 산문 전달해 Claude가
   사용자에게 말하게 한다.
 - 훅 `matcher`에서 `compact`를 제외한다 — 압축이 25MB 다운로드를 불러선 안 된다.
@@ -659,11 +672,31 @@ claude --plugin-dir ./plugin/graphin
 claude --plugin-dir ./plugin/graphin-guide
 #   에이전트의 skills:[graphin] 이 실제로 해석되는지 확인 (§11-3)
 
-# Phase 7 — 유일하게 목표를 증명하는 테스트
-# graphin 체크아웃도 자격증명도 없는 머신에서:
+# Phase 7 ✅ — 유일하게 목표를 증명하는 테스트
 /plugin marketplace add Salvia95/graphin
 /plugin install graphin@graphin
 ```
+
+### 10.1 전 구간 실측 (2026-08-06, v0.1.0)
+
+마켓플레이스 설치부터 도구 호출까지 한 줄로 이어졌다. 설치물은
+`~/.claude/plugins/cache/graphin/`에 있고 **로컬 체크아웃을 한 번도 참조하지
+않는다**(경로 grep 0건). 바이너리는 공개 릴리스에서 인증 없이 받았다.
+
+| 항목 | 결과 |
+|---|---|
+| 콜드 스타트 첫 세션 | 7.8초, 런처가 설치, 타임아웃·재연결 없음 |
+| MCP 도구 이름 | `mcp__plugin_graphin_graphin__*` 5종 — §8.1.1 예측대로 |
+| bootstrap → search → read | 정상. `src.order.OrderService.cancel_paid_order` 도달 |
+| 계측 | 이벤트 기록, `usage report`가 채택 100%·퍼널 준수 100% 출력 |
+| admin | `<ws>/.graphin/admin-addr` 생성 → 페이지 응답, 삭제 → 비활성 |
+| `skills: [graphin]` | 에이전트가 SKILL의 첫 헤딩을 그대로 인용 — 주입 확인 |
+
+**`binpath` 함정이 실물로 재현됐다.** 워크스페이스의 `.graphin/binpath`에는
+심볼릭 링크가 아니라 `…/bin/graphin-0.1.0-linux-amd64`가 적혔다 —
+`os.Executable()`이 링크를 해석하기 때문이다(§6.7). 다음 업그레이드가 그 파일을
+정리하면 binpath는 없는 곳을 가리킨다. 해석 순서에서 링크를 위에 둔 것이
+추론이 아니라 **관측된 필요**임이 확인됐다.
 
 ## 11. 실측 (추측 금지)
 
@@ -673,7 +706,7 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
 | # | 항목 | 결과 (2026-08-05, CC 2.1.221) |
 |---|---|---|
 | 1 | 수동 등록과의 충돌 | ✅ **중복.** 억제는 `command`+`args` 동일 시에만(env 제외). 런처 경유라 커맨드가 달라 둘 다 뜨고, 늦은 쪽이 `ErrLockHeld` → §8.1 |
-| 2 | MCP spawn vs SessionStart 순서 | ⏳ 미해결. 설계는 순서 무관(런처가 권위) — Phase 4 스모크에서 첫 실행 UX만 확인 |
+| 2 | MCP spawn vs SessionStart 순서 | ✅ **런처가 이긴다.** 콜드 스타트 2회 모두 `install.log`가 `(launcher)`를 찍었다. 첫 실행은 매끄럽다 — 다운로드 포함 세션 전체 7.8초, MCP 기동 타임아웃도 `/mcp` 재연결도 없었다. 설계의 예상("훅이 보통 먼저 이겨 다운로드를 기동 밖으로 민다")과 **반대**이고, 그래서 "런처가 권위"라는 보험이 실제로 값을 했다 → §6.3 |
 | 3 | `skills: [graphin]` 해석 | ✅ **맨 이름으로 동작한다.** 해석기는 ①정확 일치 → ②`<에이전트 네임스페이스>:<이름>` → ③`:<이름>` 접미사 순이라, 플러그인 에이전트는 ②에서 같은 플러그인의 스킬을 먼저 집는다. 실패해도 완전 침묵이 아니라 `Skill '…' specified in frontmatter was not found` 경고를 남긴다 |
 | 4 | 도구 네임스페이싱 | ✅ **바뀐다.** `mcp__plugin_graphin_graphin__*` → §8.1.1. 계측·SKILL은 무사 |
 | 5 | 미설정 `${user_config.KEY}` | ✅ 선언된 optional 키는 **빈 문자열**. 미선언·`required`+`default` 없음은 **예외로 서버 로드 실패**. boolean은 `"true"`/`"false"` → §6.4 |
