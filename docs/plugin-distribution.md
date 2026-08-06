@@ -4,19 +4,21 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 동작하게 만든다. 사용자가 저장소를 클론하거나 바이너리 경로를 손으로 배선하지
 않는다.
 
-**상태 (2026-08-06): Phase 0~7 전부 완료, v0.1.0 릴리스 완료.** 저장소는 public,
-라이선스는 Apache-2.0, CI·릴리스 워크플로와 두 플러그인(`graphin` ·
-`graphin-guide`)이 들어왔고, v0.1.0이 발행되어 `install/manifest.json`이
-커밋됐다 — 플러그인은 자기완결이다. 옛 `graphin-usage`는 0.2.0 묘비가 됐다.
+**상태 (2026-08-06): Phase 0~7 전부 완료. v0.1.0 → v0.2.0 릴리스 완료.**
+저장소는 public, 라이선스는 Apache-2.0, CI·릴리스 워크플로와 두 플러그인
+(`graphin` · `graphin-guide`)이 들어왔고, 플러그인은 자기완결이다. 옛
+`graphin-usage`는 묘비가 됐다. **설치와 업그레이드가 모두 실측으로
+확인됐다**(§10.1·§10.2).
 
 **목표는 달성됐고 실측으로 확인됐다**(§10.1): 마켓플레이스 설치 → 콜드 스타트
 7.8초 → `search_hybrid`/`read_code` 정상 → 계측 기록까지 한 줄로 이어졌고, 그
 전 과정이 **로컬 체크아웃을 한 번도 참조하지 않았다.** §11의 실측 7건이 전부
 해결됐다.
 
-**v1.1 진행 중**: darwin/arm64 ORT 핀 완료(§4.1) — Apple Silicon에서
-`go install`로 만든 바이너리가 의미 검색까지 동작한다. 남은 후보는 macOS 릴리스
-바이너리(러너 추가), `SHA256SUMS` 서명(cosign/minisign), admin `:0` + 주소 파일.
+**v1.1**: darwin/arm64 ORT 핀 완료(§4.1), v0.2.0으로 배포됨 — Apple Silicon에서
+`go install`로 만든 바이너리가 이제 의미 검색까지 동작한다. 남은 후보는 macOS
+릴리스 바이너리(러너 추가로 Go 툴체인 요구가 사라진다), `SHA256SUMS`
+서명(cosign/minisign), admin `:0` + 주소 파일.
 
 ## 0. 문제
 
@@ -718,9 +720,28 @@ claude --plugin-dir ./plugin/graphin-guide
 
 **`binpath` 함정이 실물로 재현됐다.** 워크스페이스의 `.graphin/binpath`에는
 심볼릭 링크가 아니라 `…/bin/graphin-0.1.0-linux-amd64`가 적혔다 —
-`os.Executable()`이 링크를 해석하기 때문이다(§6.7). 다음 업그레이드가 그 파일을
-정리하면 binpath는 없는 곳을 가리킨다. 해석 순서에서 링크를 위에 둔 것이
-추론이 아니라 **관측된 필요**임이 확인됐다.
+`os.Executable()`이 링크를 해석하기 때문이다(§6.7).
+
+### 10.2 업그레이드 실측 (0.1.0 → 0.2.0)
+
+플러그인을 0.2.0으로 갱신한 뒤 첫 세션에서 전 과정이 자동으로 돌았다:
+
+```
+(launcher) installing graphin 0.2.0 for linux/amd64
+(launcher) downloading …/v0.2.0/graphin_0.2.0_linux_amd64.tar.gz
+(launcher) pruned  …/bin/graphin-0.1.0-linux-amd64
+(launcher) installed graphin 0.2.0 … at …/bin/graphin-0.2.0-linux-amd64
+```
+
+세션 5.0초. 매니페스트 byte 비교가 갱신을 감지했고, 링크가 갈아끼워졌으며 옛
+25MB 파일이 정리됐다. 계측도 끊기지 않았다(이벤트 3 → 7).
+
+**binpath 위험 구간은 생각보다 좁다.** 서버는 기동할 때마다 binpath를 다시
+쓰므로, 그 워크스페이스에서 서버가 한 번 뜨면 스스로 치유된다 — 실측에서도
+업그레이드 직후 binpath가 곧바로 `graphin-0.2.0-…`을 가리켰다. 따라서 §6.7의
+해석 순서가 실제로 값을 하는 경우는 **서버는 뜨지 않는데 훅은 발화하는**
+상황(MCP 기동 실패, 프로젝트별 MCP 비활성)으로 좁혀진다. 드물지만 그때는
+계측이 통째로 죽으므로 순서는 그대로 둔다 — `e2e/plugin_test.go`가 고정한다.
 
 ## 11. 실측 (추측 금지)
 
