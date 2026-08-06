@@ -12,7 +12,9 @@ import (
 
 func TestUsagePageMissingData(t *testing.T) {
 	s := newTestServer(t, newTestWS(t, nil))
-	wantContains(t, get(t, s, "/usage"), http.StatusOK, "계측 데이터가 없습니다", "graphin-usage")
+	// The empty state has to name the way out, not just the absence.
+	wantContains(t, get(t, s, "/usage"), http.StatusOK,
+		"계측 데이터가 없습니다", "/plugin install graphin@graphin", "/graphin:doctor")
 }
 
 func TestUsagePageRendersReport(t *testing.T) {

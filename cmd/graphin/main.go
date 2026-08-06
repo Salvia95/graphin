@@ -53,7 +53,7 @@ func main() {
 		os.Exit(runEval(os.Args[2:]))
 	}
 	// Subcommand: `graphin usage ingest|report` — adoption instrumentation
-	// (docs/usage-spec.md). ingest is the graphin-usage plugin's hook sink.
+	// (docs/usage-spec.md). ingest is the graphin plugin's PostToolUse sink.
 	if len(os.Args) > 1 && os.Args[1] == "usage" {
 		os.Exit(usage.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}

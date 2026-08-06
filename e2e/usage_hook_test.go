@@ -1,8 +1,13 @@
 package e2e
 
-// Black-box acceptance for the graphin-usage plugin hook (docs/usage-spec.md
-// §7): exec the real handler.sh with fixture PostToolUse stdin against temp
-// workspaces. Every case asserts the hook contract — exit 0, empty stdout.
+// Black-box acceptance for the instrumentation hook (docs/usage-spec.md §7):
+// exec the real hook with fixture PostToolUse stdin against temp workspaces.
+// Every case asserts the hook contract — exit 0, empty stdout.
+//
+// The hook moved from the retired graphin-usage plugin into plugin/graphin
+// (plugin-distribution §6.7); this suite followed it rather than staying
+// behind on a dead script. Behaviour specific to the move — resolution order
+// and workspace_subdir — is covered in plugin_test.go.
 
 import (
 	"bytes"
@@ -15,7 +20,7 @@ import (
 
 const (
 	usageFixtures = "../testdata/fixtures/usage"
-	handlerRel    = "../plugin/graphin-usage/hooks/handler.sh"
+	handlerRel    = "../plugin/graphin/hooks/usage.sh"
 )
 
 func TestUsageHookHandler(t *testing.T) {
@@ -28,7 +33,7 @@ func TestUsageHookHandler(t *testing.T) {
 	}
 	bin := buildGraphin(t)
 
-	// run executes handler.sh with the fixture (its __CWD__ rewritten to cwd)
+	// run executes the hook with the fixture (its __CWD__ rewritten to cwd)
 	// and the given env overrides, asserting the never-block contract.
 	run := func(t *testing.T, fixture, cwd, projectDir string, extraEnv ...string) {
 		t.Helper()

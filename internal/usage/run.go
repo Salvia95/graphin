@@ -57,7 +57,7 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 		path = filepath.Join(root, ".graphin", "usage")
 		if _, err := os.Stat(path); err != nil {
 			fmt.Fprintf(stderr, "graphin usage: index present but no usage events at %s —\n"+
-				"  graphin-usage 플러그인이 설치되어 발화 중인지 확인하라 (plugin/graphin-usage/README.md 트러블슈팅)\n", path)
+				"  graphin 플러그인의 PostToolUse 훅이 발화 중인지 확인하라 (/graphin:doctor)\n", path)
 			return 1
 		}
 	}

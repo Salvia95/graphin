@@ -3,8 +3,9 @@
 {{define "content"}}
 {{if .Missing}}
 <p class="muted">계측 데이터가 없습니다 <span class="mono small">({{.Dir}})</span></p>
-<p class="muted small">graphin-usage 플러그인(PostToolUse 훅)이 설치된 세션에서 툴콜이 쌓이면
-여기에 채택/폴백 지표가 표시됩니다. 설치: 저장소 마켓플레이스에서 <code>graphin-usage</code>.</p>
+<p class="muted small">graphin 플러그인의 PostToolUse 훅이 설치된 세션에서 툴콜이 쌓이면
+여기에 채택/폴백 지표가 표시됩니다. 설치: <code>/plugin install graphin@graphin</code>,
+진단: <code>/graphin:doctor</code>.</p>
 {{else}}
 
 <div class="cards">

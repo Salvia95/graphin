@@ -15,7 +15,7 @@ const (
 	maxStdin    = 8 << 20 // hook stdin cap; read_code responses can be large
 	maxLine     = 8 << 10 // keep O_APPEND writes atomic on local filesystems
 	maxStr      = 300     // per-string payload truncation (privacy + size)
-	maxWalkUp   = 8       // marker walk-up bound, matches handler.sh
+	maxWalkUp   = 8       // marker walk-up bound, matches the usage hook
 	rotateBytes = 32 << 20
 	markerRel   = ".graphin/merkle.json"
 )

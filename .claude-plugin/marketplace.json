@@ -18,7 +18,7 @@
     {
       "name": "graphin-usage",
       "source": "./plugin/graphin-usage",
-      "description": "Passive adoption instrumentation for the graphin MCP server: logs tool-call sequences in graphin-indexed projects; report via `graphin usage report`."
+      "description": "DEPRECATED — instrumentation moved into the graphin plugin. Install graphin@graphin instead. Updating to 0.2.0 removes this plugin's hook so it stops duplicating events."
     }
   ]
 }

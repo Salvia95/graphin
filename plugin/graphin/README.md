@@ -96,8 +96,27 @@ claude mcp remove graphin -s project
 `/graphin:doctor`가 바이너리 출처·플랫폼 지원·인덱스 상태·중복 등록을 한 번에
 점검한다. 설치를 다시 하려면 `/graphin:setup`.
 
-## 계측
+## 계측 (무엇을 기록하나)
 
 PostToolUse 훅이 툴콜 시퀀스를 `<워크스페이스>/.graphin/usage/events.jsonl`에
-기록한다(32MiB 회전, 로컬 전용, 외부 전송 없음). 집계는 `/graphin:report`.
-자세한 내용은 [docs/usage-spec.md](../../docs/usage-spec.md).
+기록한다 — gitignore된 `.graphin/` 안, **로컬 전용, 외부 전송 없음**, 32MiB 회전.
+집계는 `/graphin:report`.
+
+| 기록한다 | 기록하지 않는다 |
+|---|---|
+| 툴 이름, graphin 쿼리·node_id | **Bash 전체 커맨드라인** |
+| Grep/Glob 패턴 | 파일 내용 |
+| Read/Edit 파일 경로(루트 상대) | 툴 응답 본문 |
+| Bash의 "검색인가" 여부와 그 검색 패턴 | (예외: graphin 검색 결과 id 최대 5개) |
+
+문자열은 300자에서 잘린다. graphin 인덱스(`.graphin/merkle.json`)가 없는
+프로젝트에서는 훅이 즉시 종료하고 아무것도 기록하지 않으므로, user 스코프로
+설치해도 다른 프로젝트를 건드리지 않는다.
+
+**관찰이 개입과 섞이지 않게 되어 있다.** 이 플러그인은 에이전트 행동을 유도하지
+않는다 — 유도는 별도의 [`graphin-guide`](../graphin-guide/README.md)이고, 설치
+여부가 곧 "유도 없는 베이스라인"과의 경계다.
+
+이벤트가 안 쌓일 때는 `/graphin:doctor`가 훅 발화 여부까지 점검한다. 워크스페이스가
+프로젝트 루트보다 아래에 있으면 `workspace_subdir` 옵션을 설정해야 훅이 찾는다.
+설계 전문: [docs/usage-spec.md](../../docs/usage-spec.md).
