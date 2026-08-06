@@ -4,11 +4,10 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 동작하게 만든다. 사용자가 저장소를 클론하거나 바이너리 경로를 손으로 배선하지
 않는다.
 
-**상태 (2026-08-05): Phase 0~4 완료, Phase 5부터 미구현.** 저장소는 public,
-라이선스는 Apache-2.0, CI·릴리스 워크플로와 `plugin/graphin/`이 모두 들어왔다.
-**첫 릴리스는 아직 실행하지 않았다** — 그때 `install/manifest.json`이 생기고
-플러그인이 자기완결이 된다. §11의 실측 7건 중 5건이 해결됐고 그 결과가 §6에
-반영되어 있다.
+**상태 (2026-08-06): Phase 0~4 완료 + v0.1.0 릴리스 완료. Phase 5부터 미구현.**
+저장소는 public, 라이선스는 Apache-2.0, CI·릴리스 워크플로와 `plugin/graphin/`이
+들어왔고, **v0.1.0이 발행되어 `install/manifest.json`이 커밋됐다 — 플러그인은
+이제 자기완결이다.** §11의 실측 7건 중 5건이 해결됐고 그 결과가 §6에 반영되어 있다.
 
 남은 것: Phase 5(`graphin-guide`) · Phase 6(마이그레이션: `graphin-usage` 묘비화,
 `internal/usage/run.go:60` 진단 문자열) · Phase 7(README 설치 절차 교체) ·
@@ -220,6 +219,23 @@ job publish (needs: build):
 막는다. `objdump -T`로 실제 glibc 하한도 로그에 남긴다.
 
 `plugin.json`이 아직 없는 Phase 4 이전에도 이 워크플로는 돈다(버전 갱신만 건너뛴다).
+
+#### 5.2.1 v0.1.0 실행으로 확인된 것 (2026-08-06)
+
+첫 실행이 한 번에 통과했고, 미지수였던 넷이 함께 풀렸다:
+
+- **`ubuntu-22.04-arm` 러너가 존재한다**(public 저장소 무료 티어). arm64 네이티브
+  빌드에 크로스 툴체인이 필요 없다.
+- **`debian:bullseye` 컨테이너 안에서 Node 24 액션이 돈다.** 러너가 컨테이너에
+  주입하는 Node가 glibc 2.31에서 동작한다(v4 액션들이 Node 20 deprecation으로
+  Node 24에 강제 실행되는 상태였다).
+- **워크플로의 `permissions: contents: write`가 저장소 기본값 `read`를 덮는다.**
+  저장소 설정은 상한이 아니라 기본값이다 — publish 잡의 커밋·태그 푸시가 성립한다.
+- **실측 glibc 하한은 2.17이다.** bullseye가 2.31인데도 cgo가 실제로 요구하는
+  심볼이 그보다 낮아, 사실상 현행 리눅스 전부를 덮는다.
+
+산출물도 설계대로다: 태그 `v0.1.0`은 매니페스트 커밋을, 바이너리가 보고하는
+`commit`은 그 **부모**를 가리킨다. `SHA256SUMS`와 매니페스트의 해시가 일치한다.
 
 > **크로스 컴파일은 선택지가 아니다.** `go-tree-sitter`와 문법 바인딩 5종이 벤더링된
 > C를 cgo로 컴파일하고 `onnxruntime_go`가 `-ldl`을 쓴다. `CGO_ENABLED=1`과 C
@@ -603,6 +619,11 @@ go test ./internal/provision/
 go run github.com/rhysd/actionlint/cmd/actionlint@latest
 # 릴리스 후, 구형 glibc에서 실행되는지가 핵심
 docker run --rm -v $PWD:/w debian:12 /w/graphin version
+
+# Phase 4 ✅ 실제 릴리스에서 설치되는지 — 빈 데이터 디렉터리로 전 과정을 돌린다
+CLAUDE_PLUGIN_ROOT=$PWD/plugin/graphin CLAUDE_PLUGIN_DATA=$(mktemp -d) \
+  sh plugin/graphin/install/install.sh
+#   v0.1.0 실측: 첫 설치 2.7초, 두 번째 실행은 7ms 무출력(빠른 경로)
 
 # Phase 4 — 로컬 플러그인 개발 모드
 claude --plugin-dir ./plugin/graphin
