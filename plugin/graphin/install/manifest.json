@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "version": "0.1.0",
+  "repo": "Salvia95/graphin",
+  "tag": "v0.1.0",
+  "platforms": {
+    "linux/amd64": {
+      "asset": "graphin_0.1.0_linux_amd64.tar.gz",
+      "sha256": "b0635b73de95b064ae9244f4032d08689543737e5cbcd534f438c710bf9e6be4",
+      "bin": "graphin"
+    },
+    "linux/arm64": {
+      "asset": "graphin_0.1.0_linux_arm64.tar.gz",
+      "sha256": "eed26ab0bc716c6963a73a63b57741dc1a7d2e7d202c24962e6e3f07a306fc1c",
+      "bin": "graphin"
+    }
+  },
+  "go_install": {
+    "module": "github.com/Salvia95/graphin/cmd/graphin",
+    "min_go": "1.26.5"
+  },
+  "notes": {
+    "darwin/amd64": "no onnxruntime 1.26.0 build exists; semantic search unavailable"
+  }
+}
