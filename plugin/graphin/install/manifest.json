@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "repo": "Salvia95/graphin",
-  "tag": "v0.1.0",
+  "tag": "v0.2.0",
   "platforms": {
     "linux/amd64": {
-      "asset": "graphin_0.1.0_linux_amd64.tar.gz",
-      "sha256": "b0635b73de95b064ae9244f4032d08689543737e5cbcd534f438c710bf9e6be4",
+      "asset": "graphin_0.2.0_linux_amd64.tar.gz",
+      "sha256": "22fa08bcdcdb5ce107254f23732adf0e4fe276f035891a1db89435bd6c3ad690",
       "bin": "graphin"
     },
     "linux/arm64": {
-      "asset": "graphin_0.1.0_linux_arm64.tar.gz",
-      "sha256": "eed26ab0bc716c6963a73a63b57741dc1a7d2e7d202c24962e6e3f07a306fc1c",
+      "asset": "graphin_0.2.0_linux_arm64.tar.gz",
+      "sha256": "5ffaabac7d0521d9389c0e6220e418661dd790b328e739aab0bdbc459991f5c1",
       "bin": "graphin"
     }
   },
@@ -20,6 +20,7 @@
     "min_go": "1.26.5"
   },
   "notes": {
+    "darwin/arm64": "no release binary; the go_install fallback builds one and semantic search works (ORT is pinned for this platform)",
     "darwin/amd64": "no onnxruntime 1.26.0 build exists; semantic search unavailable"
   }
 }
