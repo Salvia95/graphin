@@ -70,18 +70,46 @@ client·SQL 0.9 / 클래스명 관례 0.8, 레지스트리 실존 대상 한정 
 Supabase의 RLS·트리거 사이드카와 Oracle(Atlas inspect 참고)은 수기 작성한다.
 tbls의 virtual relation은 `enforced:false` 논리 참조로 변환된다.
 
-## 빌드 & 등록
+## 설치
 
-```sh
-make build                    # → bin/graphin
-# Claude Code 등록 예시
-claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project
+Claude Code 플러그인 하나면 된다. 저장소를 클론할 필요도, 바이너리 경로를 손으로
+배선할 필요도 없다 — 플러그인이 자기 바이너리를 받아 SHA256으로 검증하고 실행한다.
+
+```
+/plugin marketplace add Salvia95/graphin
+/plugin install graphin@graphin
 ```
 
-> **주의**: 이 방식은 등록한 프로젝트가 **이 체크아웃의 빌드 산출물을 절대경로로
-> 직접 참조**한다 — 저장소에서 `make build`를 돌리면 실행 중인 다른 프로젝트의
-> 바이너리가 교체된다. 플러그인 하나로 설치가 끝나는 자기완결 배포는 설계까지
-> 마쳤고 구현 전이다: [`docs/plugin-distribution.md`](docs/plugin-distribution.md).
+**요구사항: Claude Code 2.1.83 이상.** 설치 후 `/graphin:doctor`가 설치 상태·플랫폼
+지원·인덱스를 한 번에 점검한다. 옵션(관리자 페이지 주소, 모델, 폐쇄망 등)은
+`/plugin` → Manage → graphin → Configure. 자세한 내용:
+[`plugin/graphin/README.md`](plugin/graphin/README.md).
+
+탐색 유도(스킬 + 읽기 전용 서브에이전트)는 **별도 플러그인**이다. 계측 베이스라인을
+보존하려는 의도적 분리다:
+
+```
+/plugin install graphin-guide@graphin
+```
+
+> 이미 `claude mcp add graphin`으로 수동 등록해 뒀다면 **지워야 한다.** Claude Code는
+> 커맨드가 다르면 중복으로 보지 않아 둘 다 뜨고, 같은 워크스페이스 락을 두고 다투다
+> 뒤에 뜬 쪽이 반쪽으로 죽는다. `claude mcp remove graphin -s {local,user,project}`.
+> `/graphin:doctor`가 이 상태를 감지한다.
+
+### 직접 빌드 (개발자)
+
+```sh
+make build                    # → bin/graphin, version/commit 스탬프 포함
+./bin/graphin version --json  # 버전·플랫폼·의미 검색 가능 여부
+```
+
+빌드한 바이너리를 플러그인에 물리려면 `binary_path` 옵션을 그 경로로 지정한다.
+플러그인이 단일 등록 지점으로 남으면서 바이너리만 자기 빌드가 된다 — `claude mcp add`로
+절대경로를 등록하면 **다른 프로젝트가 이 체크아웃을 직접 참조**하게 되어,
+`make build` 한 번에 실행 중이던 다른 세션의 바이너리가 교체된다.
+
+배포 설계 전문: [`docs/plugin-distribution.md`](docs/plugin-distribution.md).
 
 에이전트가 `bootstrap_workspace`를 호출하면 인덱싱과 File Watcher가 시작된다.
 `initialize`는 인덱싱과 무관하게 즉시 응답하며, 준비 전 응답에는
@@ -127,7 +155,8 @@ SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts
 ├── lockfile                            # PID + 3s heartbeat
 ├── agent-nav.log                       # JSONL 구조화 로그
 ├── binpath                             # 서버 바이너리 절대경로 (usage 훅의 해석용)
-└── usage/events.jsonl                  # graphin-usage 플러그인의 툴콜 이벤트 (32MiB 회전)
+├── admin-addr                          # 이 프로젝트의 admin 주소 (선택, 전역 옵션보다 우선)
+└── usage/events.jsonl                  # 계측 훅의 툴콜 이벤트 (32MiB 회전)
 ```
 
 ## 관리자 페이지 (admin)
@@ -137,11 +166,15 @@ MCP 서버에 내장된 읽기 전용 로컬 웹 페이지. 사람이 브라우�
 라이브 워크스페이스를 본다.
 
 ```sh
-# MCP 등록 인자에 플래그 추가 (루프백 주소만 허용)
-claude mcp add graphin -- /path/to/bin/graphin \
-  --workspace /path/to/project --admin-addr 127.0.0.1:7466
-# 브라우저에서 http://127.0.0.1:7466
+# 이 프로젝트에서만 켠다 (루프백 주소만 허용). /graphin:admin 이 대신 해 준다
+mkdir -p .graphin && echo "127.0.0.1:7466" > .graphin/admin-addr
+# /mcp 에서 graphin 재연결 후 http://127.0.0.1:7466
 ```
+
+프로젝트 파일 대신 플러그인의 `admin_addr` 옵션으로도 켤 수 있지만, 그 값은 user
+settings에만 저장되는 **전역 값 하나**다 — 여러 프로젝트에서 동시에 쓰면 전부 같은
+포트를 노린다. 그래서 프로젝트 파일이 전역 옵션을 이긴다. 포트는 자동 할당하지
+않는다: 조용한 포트 드리프트가 눈에 보이는 바인드 실패보다 나쁘다.
 
 | 화면 | 내용 |
 |---|---|
@@ -151,7 +184,7 @@ claude mcp add graphin -- /path/to/bin/graphin \
 | 노드 상세 | ego-graph SVG(1홉, confidence 기반 스타일), uses/used_by 목록(min_conf 필터·커서 페이지네이션), 코드 뷰 |
 | 진단 | 끊어진(dangling) 엣지(코드/DB 필터), partial 노드, semantic 상태, 역인덱스 통계 |
 | 로그 | `agent-nav.log` tail(3s 갱신) — 워처 배치·재인덱싱·임베딩 이벤트, 에러 강조·이벤트 필터 |
-| 계측 | graphin-usage 채택 지표(`usage report`와 동일 산식) — 헤드라인·폴백 페어·바이그램·일별 추이 차트 |
+| 계측 | 채택 지표(`usage report`와 동일 산식) — 헤드라인·폴백 페어·바이그램·일별 추이 차트 |
 | 설정 | 유효 기동 플래그·모델 스펙·게이트 상태·저장소 용량 (읽기 전용) |
 
 운영자가 각 화면에서 무엇을 확인하고 어떤 값이 정상인지, 이상 신호에 어떤 조치를
@@ -185,21 +218,29 @@ search → explore 1-hop → read_code 스팬을 ranked `(path,start,end)` JSONL
 벤치 공식 스코어러(`eval.py`) 몫이며, 하니스는 제출 파일과 `summary.md`만
 만든다. 설계·가설: [`docs/phase7-spec.md`](docs/phase7-spec.md) §3.
 
-## 채택 계측 (graphin-usage 플러그인)
+## 채택 계측
 
-실세션에서 graphin이 채택되는지/어디서 폴백하는지 재는 Claude Code 플러그인.
-PostToolUse 훅이 인덱싱된 프로젝트의 툴콜을 `.graphin/usage/events.jsonl`에
-쌓고, 인접 시퀀스에서 헤드라인 4종 — 채택(`graphin → Read/Edit`), 폴백
-(`graphin → Grep`, same-intent 쌍은 인덱스 개선의 실측 재현 케이스),
-늦은 전환, 발견 실패 — 을 집계한다.
+실세션에서 graphin이 채택되는지/어디서 폴백하는지 잰다. `graphin` 플러그인의
+PostToolUse 훅이 인덱싱된 프로젝트의 툴콜을 `.graphin/usage/events.jsonl`에 쌓고,
+인접 시퀀스에서 헤드라인 4종 — 채택(`graphin → Read/Edit`), 폴백(`graphin → Grep`,
+same-intent 쌍은 인덱스 개선의 실측 재현 케이스), 늦은 전환, 발견 실패 — 을 집계한다.
 
 ```sh
-claude --plugin-dir ./plugin/graphin-usage   # 로컬 시험 (세션 한정)
-graphin usage report [--since 72h] [--json]  # 집계 (세션 안: /graphin-usage:report)
+graphin usage report [--since 72h] [--json]   # 세션 안에서는 /graphin:report
 ```
 
-설치·프라이버시·트러블슈팅: [`plugin/graphin-usage/README.md`](plugin/graphin-usage/README.md) ·
-설계: [`docs/usage-spec.md`](docs/usage-spec.md).
+로컬 전용이고 외부로 나가지 않는다. Bash 전체 커맨드라인·파일 내용·툴 응답 본문은
+기록하지 않는다 — 기록 항목 전체와 트러블슈팅은
+[`plugin/graphin/README.md`](plugin/graphin/README.md), 설계는
+[`docs/usage-spec.md`](docs/usage-spec.md).
+
+유도(스킬·서브에이전트)를 [`graphin-guide`](plugin/graphin-guide/README.md)로 떼어
+둔 것은 **이 지표 때문이다.** 한 플러그인에 섞으면 "유도 없이 얼마나 쓰이는가"라는
+베이스라인이 사라지고, 그건 한번 섞이면 복구되지 않는다.
+
+> `graphin-usage` 플러그인은 0.2.0에서 폐기됐다(계측이 `graphin`으로 합쳐졌다).
+> 쓰고 있었다면 `graphin@graphin`을 설치하고 제거하면 된다 — 쌓인 이벤트는 같은
+> 파일이라 그대로 남는다.
 
 ## 개발
 

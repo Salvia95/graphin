@@ -23,24 +23,29 @@ graphin의 실패가 아니다.
 
 ## 1. 플러그인 구조와 설치
 
+계측은 서버와 **같은 플러그인**에 있다. 별도 플러그인이던 `graphin-usage`는
+0.2.0에서 폐기됐다([plugin-distribution](plugin-distribution.md) §8.2) — 서버와
+훅이 한 플러그인에 있어야 워크스페이스 설정을 공유하고, 훅이 플러그인이 설치한
+바이너리를 곧장 찾을 수 있다.
+
 ```
-plugin/graphin-usage/
-├── .claude-plugin/plugin.json   # name "graphin-usage"
+plugin/graphin/
+├── .claude-plugin/plugin.json   # name "graphin", userConfig 7종
 ├── hooks/
-│   ├── hooks.json               # PostToolUse, matcher "*"
-│   └── handler.sh               # sh 가드 + graphin 바이너리 해석
-├── commands/report.md           # /graphin-usage:report
-└── README.md
+│   ├── hooks.json               # PostToolUse matcher "*" + SessionStart
+│   └── usage.sh                 # sh 가드 + graphin 바이너리 해석
+├── commands/report.md           # /graphin:report
+└── …                            # 서버·런처·설치기는 plugin-distribution §6
 ```
 
-- 로컬 개발: `claude --plugin-dir /path/to/graphin/plugin/graphin-usage`
-  (해당 세션 한정). 정식 설치는 마켓플레이스 경유.
+- 로컬 개발: `claude --plugin-dir /path/to/graphin/plugin/graphin`
+  (해당 세션 한정). 정식 설치는 `/plugin install graphin@graphin`.
 - **핫리로드 함정**: `hooks.json`/`plugin.json` 변경은 자동 반영되지 않는다 —
-  `/reload-plugins` 또는 재시작 필요. 반면 `handler.sh`와 graphin 바이너리는
+  `/reload-plugins` 또는 재시작 필요. 반면 `usage.sh`와 graphin 바이너리는
   **매 툴콜마다 fresh 실행**되므로 수정이 즉시 먹는다. 개발 루프에서 리로드가
   필요한 건 훅 *설정* 변경뿐이다.
 - 커맨드는 플러그인 이름으로 네임스페이스된다: `/report`가 아니라
-  **`/graphin-usage:report`**. 모든 문서·유도 문구는 이 형태로 쓴다.
+  **`/graphin:report`**. 모든 문서·유도 문구는 이 형태로 쓴다.
 
 ## 2. 훅 핸들러와 가드
 
@@ -52,7 +57,7 @@ stdout은 절대 비운다(출력이 있으면 Claude Code가 해석하려 든�
 유저 스코프로 설치되면 훅은 graphin을 쓰지 않는 프로젝트에서도 발화한다.
 가드 없이는 인덱스도 없는 프로젝트의 Grep이 폴백률 분모에 섞인다.
 
-`handler.sh` 1단계 (fork 없는 순수 sh builtins, 비대상 프로젝트 ~수 ms):
+`usage.sh` 1단계 (fork 없는 순수 sh builtins, 비대상 프로젝트 ~수 ms):
 
 1. 시작점 `d` = `$GRAPHIN_USAGE_ROOT` → 없으면 `$CLAUDE_PROJECT_DIR` → 없으면 exit 0
 2. `d`에서 최대 8단계 walk-up 하며 `$d/.graphin/merkle.json` 존재 확인, 없으면 exit 0
@@ -67,11 +72,25 @@ stdout은 절대 비운다(출력이 있으면 Claude Code가 해석하려 든�
 
 ### 2.2 바이너리 해석 — binpath 사이드카
 
-graphin은 `claude mcp add graphin -- /abs/path/bin/graphin …`처럼 절대경로로
-등록되는 관행이라 PATH에 없는 경우가 흔하다. 이를 위해 서버가 기동 시
-`<ws>/.graphin/binpath`에 `os.Executable()`을 best-effort 기록한다.
-핸들러의 해석 순서: `$GRAPHIN_BIN` → `<root>/.graphin/binpath` → `command -v
-graphin` → 전부 실패 시 exit 0 (침묵 — §5 진단으로 가시화).
+graphin은 PATH에 없는 경우가 흔하다. 서버가 기동 시
+`<ws>/.graphin/binpath`에 `os.Executable()`을 best-effort 기록하는 것은 그
+때문이고, 플러그인 배포 이후에도 **유지한다** — 갱신하지 않은 옛 설치와
+직접 등록한 서버가 그것에 의존한다.
+
+해석 순서(전부 실패 시 exit 0, 침묵 — §5 진단으로 가시화):
+
+1. `$GRAPHIN_BIN`
+2. `$CLAUDE_PLUGIN_OPTION_BINARY_PATH` — 사용자가 지정한 자기 빌드
+3. `${CLAUDE_PLUGIN_DATA}/bin/graphin` — 플러그인이 설치한 **심볼릭 링크**
+4. `<root>/.graphin/binpath` — 레거시
+5. `command -v graphin`
+
+**3이 4보다 위인 것이 핵심이다.** `os.Executable()`은 리눅스에서
+`/proc/self/exe`를 읽어 **심볼릭 링크를 해석**하므로, 링크로 기동된 서버는
+binpath에 버전 박힌 실제 파일(`graphin-0.1.0-linux-amd64`)을 쓴다. 다음
+업그레이드가 그 파일을 정리하면 binpath는 없는 곳을 가리키고, 계측이 조용히
+죽으며 `usage report`는 "인덱스는 있는데 이벤트가 없다"만 출력한다. 링크를
+위에 두면 자가 치유된다 — `e2e/plugin_test.go`가 이 순서를 고정한다.
 
 ### 2.3 인제스트 — `graphin usage ingest`
 
@@ -182,9 +201,9 @@ graphin usage report [--log <dir|file>] [--since <YYYY-MM-DD|72h>] [--json] [--t
 
 - **상시 컨텍스트 비용**: 훅은 출력이 없는 한 harness-only(상시 0)이고,
   커맨드 1개가 ~100–200 tok을 더한다. **릴리스 게이트**:
-  `claude plugin details graphin-usage`로 상시 비용이 커맨드 1개분을 넘지
-  않음을 확인한 뒤 배포한다.
-- **네임스페이싱**: 호출형은 항상 `/graphin-usage:report`.
+  `claude plugin details graphin`으로 상시 비용을 확인한 뒤 배포한다. 다만
+  `graphin`은 커맨드가 4개(report·setup·doctor·admin)이므로 기준선은 그만큼이다.
+- **네임스페이싱**: 호출형은 항상 `/graphin:report`.
 - **기업 환경**: 관리자가 `allowManagedHooksOnly`를 켜면 사용자·프로젝트·
   플러그인 훅이 차단된다. 예외는 관리형 설정 `enabledPlugins`로 강제 활성화된
   플러그인의 훅뿐 — 사내 배포는 관리형 마켓플레이스 등재 경로를 탄다.
@@ -194,8 +213,8 @@ graphin usage report [--log <dir|file>] [--since <YYYY-MM-DD|72h>] [--json] [--t
 1. 비-graphin 프로젝트: 훅이 아무 파일도 만들지 않고 체감 지연이 없다.
 2. graphin 프로젝트: Grep/Read/graphin 콜이 각각 스키마대로 1줄씩 쌓인다.
 3. `graphin usage report`가 헤드라인 4종 + same-intent 폴백 쌍을 출력한다.
-4. `make vet test` 그린 (유닛 + e2e handler.sh 블랙박스).
-5. `claude plugin details`의 상시 비용이 커맨드 1개분 이내.
+4. `make vet test` 그린 (유닛 + e2e 훅 블랙박스).
+5. `claude plugin details graphin`의 상시 비용이 커맨드 4개분 이내(훅은 0).
 
 ## 8. 열린 질문
 

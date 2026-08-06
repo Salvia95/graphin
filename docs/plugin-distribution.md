@@ -4,15 +4,17 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 동작하게 만든다. 사용자가 저장소를 클론하거나 바이너리 경로를 손으로 배선하지
 않는다.
 
-**상태 (2026-08-06): Phase 0~5 완료 + v0.1.0 릴리스 완료. Phase 6부터 미구현.**
-저장소는 public, 라이선스는 Apache-2.0, CI·릴리스 워크플로와 두 플러그인
-(`graphin` · `graphin-guide`)이 들어왔고, **v0.1.0이 발행되어
-`install/manifest.json`이 커밋됐다 — 플러그인은 이제 자기완결이다.**
-§11의 실측 7건 중 6건이 해결됐고 그 결과가 §6·§7에 반영되어 있다.
+**상태 (2026-08-06): Phase 0~7 전부 완료, v0.1.0 릴리스 완료.** 저장소는 public,
+라이선스는 Apache-2.0, CI·릴리스 워크플로와 두 플러그인(`graphin` ·
+`graphin-guide`)이 들어왔고, v0.1.0이 발행되어 `install/manifest.json`이
+커밋됐다 — 플러그인은 자기완결이다. 옛 `graphin-usage`는 0.2.0 묘비가 됐다.
 
-남은 것: Phase 6(마이그레이션: `graphin-usage` 묘비화,
-`internal/usage/run.go:60` 진단 문자열) · Phase 7(README 설치 절차 교체) ·
-§11-2(MCP spawn과 SessionStart 순서 — 실제 설치로만 관측 가능).
+**목표는 달성됐다**: 체크아웃도 자격증명도 없는 머신에서
+`/plugin install graphin@graphin` 하나로 설치가 끝난다.
+
+남은 것은 실사용으로만 확인되는 것들뿐이다 — §11-2(MCP spawn과 SessionStart
+순서), §10 마지막 항목(제3의 머신에서의 설치), 그리고 v1.1 후보(darwin 핀,
+서명, admin `:0` + 주소 파일).
 
 ## 0. 문제
 
@@ -545,7 +547,7 @@ plugin/graphin-guide/
 **넣지 않았다.** D3로 베이스라인이 이미 보존되고, 전후 비교는 설치일 기준
 `usage report --since`로 낼 수 있어 훅 하나를 더 다는 값을 못 한다.
 
-## 8. Phase 6 — 마이그레이션
+## 8. Phase 6 — 마이그레이션 ✅ 구현 완료
 
 ### 8.1 기존 수동 등록과의 충돌 — 최대 리스크
 
@@ -587,30 +589,44 @@ mcp__graphin__search_hybrid  →  mcp__plugin_graphin_graphin__search_hybrid
 - 훅 matcher를 쓸 일이 생기면 `mcp__plugin_graphin_graphin__.*` 꼴이어야 한다
   (CC 2.1.195부터 하이픈 식별자는 정확 매칭).
 
-### 8.2 `graphin-usage` 기존 설치
+### 8.2 `graphin-usage` 기존 설치 ✅ 완료
 
 두 플러그인이 공존하면 PostToolUse가 2회 발화한다. 그러나
 `internal/usage/stream.go:77-81`이 읽기 시점에 `tool_use_id`로 디듀프하므로
 **지표는 무해하고 디스크만 낭비된다.** 따라서 점진 마이그레이션이 안전하다.
 
-`graphin-usage` 0.2.0을 묘비로 낸다 — `hooks/hooks.json` 삭제(중복 중단),
-`commands/report.md`는 `/graphin:report`를 가리키게, description을 deprecated로.
-갱신하지 않은 사용자는 계속 동작한다(시끄러울 뿐).
+`graphin-usage` 0.2.0을 묘비로 냈다 — `hooks/`를 통째로 삭제(중복 중단),
+`commands/report.md`는 `/graphin:report`로 안내, description·README를
+deprecated로. 갱신하지 않은 사용자는 계속 동작한다(시끄러울 뿐).
 
-`internal/usage/run.go:60`의 진단 문자열이 `plugin/graphin-usage/README.md`를
-가리키므로 함께 고친다.
+**`handler.sh`도 함께 지웠다.** `hooks.json`이 없으면 호출되지 않는 죽은
+스크립트다. 다만 그 위에 있던 e2e 픽스처 스위트(가드·malformed·bash 검색·결과
+id 추출·순차 append)는 **살아 있는 `plugin/graphin/hooks/usage.sh`로 옮겼다** —
+죽은 스크립트를 테스트를 붙들기 위해 남겨 두는 것은 거꾸로다. 레거시 binpath
+해석 경로도 그 스위트가 계속 덮는다.
+
+사용자에게 보이는 문자열 중 옛 플러그인을 가리키던 셋도 함께 고쳤다:
+`internal/usage/run.go`의 "no usage events" 진단(→ `/graphin:doctor`),
+admin `/usage` 페이지의 빈 상태(→ `/plugin install graphin@graphin`),
+`cmd/graphin/main.go`의 binpath 주석.
 
 ### 8.3 `.graphin/binpath`
 
 `main.go:96-101`의 기록은 **유지한다.** 갱신하지 않은 기존 `graphin-usage` 설치가
 의존한다. 해석 순서만 §6.7처럼 바꾼다.
 
-## 9. Phase 7 — 문서
+## 9. Phase 7 — 문서 ✅ 구현 완료
 
-- `README.md` — 설치 절차(96–100·126–133행)를 `/plugin install graphin@graphin`으로
-  교체, ~~23행 플랫폼 표기 정정~~(완료), **최소 Claude Code 2.1.83** 명시(§11-7).
-- [usage-spec.md](usage-spec.md) — §1 트리 갱신, §8에 D3 결정(유도 분리 유지) 기록.
-- 각 플러그인 README.
+- `README.md` — "빌드 & 등록"을 **"설치"**로 교체했다. 첫 화면이
+  `/plugin install graphin@graphin`이고 최소 Claude Code 2.1.83을 명시한다.
+  `make build`는 개발자 절이 되었고, 자기 빌드를 쓰는 길은 `claude mcp add`가
+  아니라 `binary_path` 옵션이라고 못 박았다 — 절대경로 등록이 §0의 사고를
+  다시 부르기 때문이다. admin 절도 프로젝트별 `admin-addr` 파일 방식으로 바꿨다.
+- [usage-spec.md](usage-spec.md) — §1 트리를 `plugin/graphin/`으로 갱신,
+  §6 릴리스 게이트와 네임스페이싱을 `/graphin:report`로, §8 D3 기록.
+- 각 플러그인 README 3종(`graphin`·`graphin-guide`·`graphin-usage` 묘비).
+  프라이버시 표(무엇을 기록하고 무엇을 기록하지 않는가)는 묘비가 가리키는
+  `plugin/graphin/README.md`로 옮겼다 — 링크만 남기고 내용을 잃으면 안 된다.
 
 ## 10. 검증
 
