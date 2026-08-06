@@ -199,10 +199,12 @@ graphin usage report [--log <dir|file>] [--since <YYYY-MM-DD|72h>] [--json] [--t
 
 ## 8. 열린 질문
 
-- **유도 스킬 동봉은 v2로 연기.** `examples/skills/graphin/SKILL.md`를 같은
-  플러그인에 넣으면 측정과 개입이 섞여 v1 베이스라인이 오염된다. v1로
-  무개입 베이스라인을 확보한 뒤, v2에서 스킬을 넣고 전후 비교하는 것이
-  실험적으로 깨끗하다.
+- **유도 스킬은 별도 플러그인으로 분리했다** — 해결됨
+  ([plugin-distribution](plugin-distribution.md) D3). 스킬과 에이전트는
+  `plugin/graphin-guide/`에 있고, 계측은 `plugin/graphin/`에 있다. 한 플러그인에
+  섞으면 측정과 개입이 섞여 베이스라인이 오염되는데, 그건 **한번 섞이면 복구가
+  안 된다** — 설치 여부로 갈리게 두면 무개입 베이스라인이 계속 관측 가능하다.
+  전후 비교는 guide 설치 시점을 경계로 `usage report --since`로 낸다.
 - 로그 프루닝(`--prune-before`) — v1은 32MiB 회전만.
 - `PostToolBatch` 활용(배치 경계 정밀화) — v1은 `parallel` 휴리스틱으로 충분.
 - DB 스키마 질의(`db.` node_id) 채택률 분리 집계.

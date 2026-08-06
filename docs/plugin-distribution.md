@@ -4,14 +4,15 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 동작하게 만든다. 사용자가 저장소를 클론하거나 바이너리 경로를 손으로 배선하지
 않는다.
 
-**상태 (2026-08-06): Phase 0~4 완료 + v0.1.0 릴리스 완료. Phase 5부터 미구현.**
-저장소는 public, 라이선스는 Apache-2.0, CI·릴리스 워크플로와 `plugin/graphin/`이
-들어왔고, **v0.1.0이 발행되어 `install/manifest.json`이 커밋됐다 — 플러그인은
-이제 자기완결이다.** §11의 실측 7건 중 5건이 해결됐고 그 결과가 §6에 반영되어 있다.
+**상태 (2026-08-06): Phase 0~5 완료 + v0.1.0 릴리스 완료. Phase 6부터 미구현.**
+저장소는 public, 라이선스는 Apache-2.0, CI·릴리스 워크플로와 두 플러그인
+(`graphin` · `graphin-guide`)이 들어왔고, **v0.1.0이 발행되어
+`install/manifest.json`이 커밋됐다 — 플러그인은 이제 자기완결이다.**
+§11의 실측 7건 중 6건이 해결됐고 그 결과가 §6·§7에 반영되어 있다.
 
-남은 것: Phase 5(`graphin-guide`) · Phase 6(마이그레이션: `graphin-usage` 묘비화,
+남은 것: Phase 6(마이그레이션: `graphin-usage` 묘비화,
 `internal/usage/run.go:60` 진단 문자열) · Phase 7(README 설치 절차 교체) ·
-첫 릴리스 실행.
+§11-2(MCP spawn과 SessionStart 순서 — 실제 설치로만 관측 가능).
 
 ## 0. 문제
 
@@ -517,7 +518,7 @@ shell-form `command`가 `${user_config.*}`를 참조하면 치환값이 셸로 �
 이제 서버와 훅이 한 플러그인에 있으므로 워크스페이스 설정을 공유할 수 있고,
 `plugin/graphin-usage/README.md` §3이 기록한 상향 탐색 한계가 해소된다.
 
-## 7. Phase 5 — `plugin/graphin-guide/`
+## 7. Phase 5 — `plugin/graphin-guide/` ✅ 구현 완료
 
 D3에 따라 분리한다. **베이스라인 보존이 목적이므로 `graphin` 플러그인에 넣지 않는다.**
 
@@ -525,19 +526,24 @@ D3에 따라 분리한다. **베이스라인 보존이 목적이므로 `graphin`
 plugin/graphin-guide/
 ├── .claude-plugin/plugin.json
 ├── skills/graphin/SKILL.md      # examples/skills/graphin/SKILL.md 이동
-└── agents/graphin-explorer.md   # examples/agents/graphin-explorer.md 이동
+├── agents/graphin-explorer.md   # examples/agents/graphin-explorer.md 이동
+└── README.md
 ```
 
 - SKILL의 "EXAMPLE / TEMPLATE — 복사해 쓰라" HTML 주석 제거(이제 배포물이다).
-- 에이전트 19행이 `examples/skills/graphin/SKILL.md`를 참조 — 경로 갱신.
-- 에이전트의 `disallowedTools`는 **그대로 둔다.** 플러그인이 서버 키를 `graphin`으로
-  고정해도 플러그인 제공 MCP 도구가 추가 네임스페이싱되는지 미확인이라(§11-4),
-  화이트리스트로 바꾸면 기동 실패 위험이 있다.
-- `examples/`는 플러그인을 가리키는 얇은 포인터로 남기거나 삭제한다. 두 벌 유지 금지.
+  본문은 한 글자도 바꾸지 않았다.
+- 에이전트의 `disallowedTools`는 **그대로 둔다.** 이유는 바뀌었다 — §11-4가
+  해결되어 플러그인 도구가 `mcp__plugin_graphin_graphin__*`임이 확정됐지만,
+  화이트리스트로 적으면 **직접 등록한 서버에서는 그 이름이 아니다.** 이름에
+  의존하지 않는 쪽이 두 경우 모두에서 옳다. 주석을 이 사실로 갱신했다.
+- `examples/`는 플러그인을 가리키는 포인터 README만 남기고 두 파일을 삭제했다.
+  사본이 갈라지면 어느 쪽이 진짜인지 알 수 없게 된다.
+- `skills/`·`agents/`는 기본 폴더라 `plugin.json`에 경로를 적지 않았다. 적으면
+  기본 폴더 탐색이 꺼져(`shadowed-by-manifest`) 두 곳을 동기화해야 한다.
 
-`graphin-guide` 설치 시점을 `<ws>/.graphin/usage/guidance.json`에
-`{"plugin","version","since"}`로 기록해 두면 `usage report --since`로 유도 전후를
-분리해 볼 수 있다. D3로 베이스라인은 이미 보존되므로 선택 사항이다.
+`graphin-guide` 설치 시점을 `<ws>/.graphin/usage/guidance.json`에 기록하는 안은
+**넣지 않았다.** D3로 베이스라인이 이미 보존되고, 전후 비교는 설치일 기준
+`usage report --since`로 낼 수 있어 훅 하나를 더 다는 값을 못 한다.
 
 ## 8. Phase 6 — 마이그레이션
 
@@ -575,8 +581,9 @@ mcp__graphin__search_hybrid  →  mcp__plugin_graphin_graphin__search_hybrid
 - **계측: 무사.** `internal/usage/event.go:55`의 `^mcp__.+__([a-zA-Z0-9_]+)$`
   접미사 매칭이 그대로 통과한다([usage-spec](usage-spec.md) §3).
 - **SKILL: 무사.** 산문이 `search_hybrid` 같은 맨 이름만 쓴다.
-- **고칠 곳**: `examples/agents/graphin-explorer.md`의 주석(25행)이
-  `mcp__graphin__*`를 언급한다. `disallowedTools`는 이름 비의존이라 그대로 둔다.
+- ~~고칠 곳: 에이전트 주석의 `mcp__graphin__*` 언급~~ → Phase 5에서 갱신 완료
+  (`plugin/graphin-guide/agents/graphin-explorer.md`). `disallowedTools`는 이름
+  비의존이라 그대로 둔다 — 직접 등록한 서버에서는 이름이 또 다르기 때문이다.
 - 훅 matcher를 쓸 일이 생기면 `mcp__plugin_graphin_graphin__.*` 꼴이어야 한다
   (CC 2.1.195부터 하이픈 식별자는 정확 매칭).
 
@@ -651,7 +658,7 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
 |---|---|---|
 | 1 | 수동 등록과의 충돌 | ✅ **중복.** 억제는 `command`+`args` 동일 시에만(env 제외). 런처 경유라 커맨드가 달라 둘 다 뜨고, 늦은 쪽이 `ErrLockHeld` → §8.1 |
 | 2 | MCP spawn vs SessionStart 순서 | ⏳ 미해결. 설계는 순서 무관(런처가 권위) — Phase 4 스모크에서 첫 실행 UX만 확인 |
-| 3 | `skills: [graphin]` 해석 | ⏳ 미해결. Phase 5 스모크. 조용히 실패하면 에이전트가 도구 레퍼런스를 잃는다 |
+| 3 | `skills: [graphin]` 해석 | ✅ **맨 이름으로 동작한다.** 해석기는 ①정확 일치 → ②`<에이전트 네임스페이스>:<이름>` → ③`:<이름>` 접미사 순이라, 플러그인 에이전트는 ②에서 같은 플러그인의 스킬을 먼저 집는다. 실패해도 완전 침묵이 아니라 `Skill '…' specified in frontmatter was not found` 경고를 남긴다 |
 | 4 | 도구 네임스페이싱 | ✅ **바뀐다.** `mcp__plugin_graphin_graphin__*` → §8.1.1. 계측·SKILL은 무사 |
 | 5 | 미설정 `${user_config.KEY}` | ✅ 선언된 optional 키는 **빈 문자열**. 미선언·`required`+`default` 없음은 **예외로 서버 로드 실패**. boolean은 `"true"`/`"false"` → §6.4 |
 | 6 | darwin dylib 경로 | ⏳ v1.1. 관례에서 추정하지 말고 조회한다 |

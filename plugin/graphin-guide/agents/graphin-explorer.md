@@ -15,15 +15,15 @@ color: cyan
 ---
 
 <!--
-  EXAMPLE / TEMPLATE SUBAGENT.
-  Pairs with examples/skills/graphin/SKILL.md, which is injected whole via the
-  `skills:` field above — so this prompt never repeats tool syntax. Copy both
-  into your project and trim to taste.
+  Pairs with the `graphin` skill in this plugin, which the `skills:` field
+  above injects whole — so this prompt never repeats tool syntax.
 
-  `disallowedTools` rather than `tools`: an explicit `tools` list would have to
-  name the graphin MCP tools, whose names depend on the server name you
-  registered (`mcp__graphin__*`). Denying the three write tools keeps the
-  agent read-only while inheriting whatever graphin tools exist.
+  `disallowedTools` rather than `tools`, and that is deliberate. An explicit
+  `tools` allowlist would have to spell the graphin MCP tool names, which are
+  not stable across how the server was registered: a plugin-provided server is
+  namespaced to `mcp__plugin_graphin_graphin__*`, while a hand-registered one
+  is `mcp__<whatever key you chose>__*`. Denying the three write tools keeps
+  the agent read-only while inheriting whichever graphin tools exist.
 -->
 
 # Role

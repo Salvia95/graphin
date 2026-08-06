@@ -11,6 +11,11 @@
       "description": "Local codebase-navigation MCP server with progressive disclosure (search_hybrid → explore_graph → read_code) over Java/Kotlin/Python/JS/TS and RDB schema snapshots. Downloads and verifies its own binary; no checkout required."
     },
     {
+      "name": "graphin-guide",
+      "source": "./plugin/graphin-guide",
+      "description": "Usage guidance for graphin: a skill teaching progressive-disclosure navigation, and a read-only explorer subagent that returns cited summaries. Separate from the graphin plugin on purpose — installing it is what distinguishes guided use from the no-guidance baseline."
+    },
+    {
       "name": "graphin-usage",
       "source": "./plugin/graphin-usage",
       "description": "Passive adoption instrumentation for the graphin MCP server: logs tool-call sequences in graphin-indexed projects; report via `graphin usage report`."

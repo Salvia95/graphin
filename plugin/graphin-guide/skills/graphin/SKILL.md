@@ -10,13 +10,6 @@ description: >-
   an entry point, tracing data flow, or mapping code ↔ DB relationships.
 ---
 
-<!--
-  EXAMPLE / TEMPLATE SKILL.
-  This describes how an agent *uses* graphin, treating it as a black box. Copy it
-  into your own project (or a sub-agent's skill set) and trim/extend to taste.
-  It assumes a graphin MCP server is registered and pointed at your workspace.
--->
-
 # Graphin — codebase navigation for agents
 
 Graphin is a local MCP server that turns a repository into a searchable graph of
