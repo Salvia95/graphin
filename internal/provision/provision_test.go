@@ -1,6 +1,9 @@
 package provision
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -120,8 +123,8 @@ func TestORTPinsWellFormed(t *testing.T) {
 			t.Errorf("%s: pinned but SemanticSupported says no", key)
 		}
 	}
-	// Every platform v1 promises must actually be pinned (D2).
-	for _, key := range []string{"linux/amd64", "linux/arm64"} {
+	// Every platform we promise must actually be pinned (D2 + v1.1 darwin).
+	for _, key := range []string{"linux/amd64", "linux/arm64", "darwin/arm64"} {
 		if _, ok := ortByPlatform[key]; !ok {
 			t.Errorf("%s missing from the pin table", key)
 		}
@@ -166,6 +169,101 @@ func TestOrtLibOverridesUnsupportedPlatform(t *testing.T) {
 	}
 	if got != lib {
 		t.Fatalf("resolveORT = %q, want %q", got, lib)
+	}
+}
+
+// writeTarGz builds a gzipped tar from name→content pairs, in order.
+func writeTarGz(t *testing.T, dest string, entries [][2]string) {
+	t.Helper()
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	for _, e := range entries {
+		hdr := &tar.Header{
+			Name: e[0], Mode: 0o755, Size: int64(len(e[1])), Typeflag: tar.TypeReg,
+		}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write([]byte(e[1])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dest, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestExtractORTLibIgnoresDSYMDecoy: the macOS archive ships a second regular
+// file with the identical base name under
+// libonnxruntime.<ver>.dylib.dSYM/Contents/Resources/DWARF/. A base-name match
+// would take whichever tar order puts first — here the decoy — and install
+// 52MB of debug symbols as the shared library. That failure surfaces only at
+// dlopen during semantic warmup, so it has to be impossible by construction.
+func TestExtractORTLibIgnoresDSYMDecoy(t *testing.T) {
+	const lib = "libonnxruntime.1.26.0.dylib"
+	dir := t.TempDir()
+	tgz := filepath.Join(dir, "ort.tgz")
+	root := "./onnxruntime-osx-arm64-1.26.0/"
+
+	writeTarGz(t, tgz, [][2]string{
+		// Decoy deliberately first.
+		{root + "lib/" + lib + ".dSYM/Contents/Resources/DWARF/" + lib, "DWARF DEBUG SYMBOLS"},
+		{root + "lib/" + lib, "REAL DYLIB"},
+		{root + "lib/libonnxruntime.dylib", "UNVERSIONED COPY"},
+	})
+
+	dest := filepath.Join(dir, lib)
+	if err := extractORTLib(tgz, dest, lib); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "REAL DYLIB" {
+		t.Fatalf("extracted %q, want the real dylib", got)
+	}
+}
+
+// An archive that only has the decoy must fail loudly rather than install it.
+func TestExtractORTLibRefusesDSYMOnly(t *testing.T) {
+	const lib = "libonnxruntime.1.26.0.dylib"
+	dir := t.TempDir()
+	tgz := filepath.Join(dir, "ort.tgz")
+	writeTarGz(t, tgz, [][2]string{
+		{"./onnxruntime-osx-arm64-1.26.0/lib/" + lib + ".dSYM/Contents/Resources/DWARF/" + lib, "DWARF"},
+	})
+	dest := filepath.Join(dir, lib)
+	if err := extractORTLib(tgz, dest, lib); err == nil {
+		t.Fatal("expected an error when only the dSYM copy is present")
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Fatal("nothing should have been written")
+	}
+}
+
+// The Linux layout must keep working through the same path match.
+func TestExtractORTLibLinuxLayout(t *testing.T) {
+	const lib = "libonnxruntime.so.1.26.0"
+	dir := t.TempDir()
+	tgz := filepath.Join(dir, "ort.tgz")
+	writeTarGz(t, tgz, [][2]string{
+		{"onnxruntime-linux-x64-1.26.0/lib/" + lib, "REAL SO"}, // no ./ prefix
+	})
+	dest := filepath.Join(dir, lib)
+	if err := extractORTLib(tgz, dest, lib); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(dest)
+	if string(got) != "REAL SO" {
+		t.Fatalf("extracted %q", got)
 	}
 }
 

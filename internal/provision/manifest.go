@@ -46,17 +46,22 @@ type ortPlatform struct {
 	LibName string
 }
 
-// ortSOName is the versioned shared object shipped in every Linux archive;
-// both linux targets carry the identical name (verified 2026-08-05).
-const ortSOName = "libonnxruntime.so." + ORTVersion
+// Shared-library names inside the archives, read out of the real tarballs —
+// both verified rather than assumed (linux 2026-08-05, darwin 2026-08-06).
+const (
+	ortSOName    = "libonnxruntime.so." + ORTVersion // both linux targets
+	ortDylibName = "libonnxruntime." + ORTVersion + ".dylib"
+)
 
 // ortByPlatform is the pinned ORT release asset per GOOS/GOARCH. A platform
 // absent from this map has no semantic search — deliberately, not by
-// oversight: darwin/amd64 has no 1.26.0 asset at all, and Windows ships a
-// .zip that extractORTLib cannot read.
+// oversight: darwin/amd64 has no 1.26.0 asset at all (confirmed against the
+// release's asset list, 2026-08-06), and Windows ships a .zip that
+// extractORTLib cannot read.
 var ortByPlatform = map[string]ortPlatform{
-	"linux/amd64": {Archive: ortArchive("linux-x64", ortLinuxAMD64SHA256), LibName: ortSOName},
-	"linux/arm64": {Archive: ortArchive("linux-aarch64", ortLinuxARM64SHA256), LibName: ortSOName},
+	"linux/amd64":  {Archive: ortArchive("linux-x64", ortLinuxAMD64SHA256), LibName: ortSOName},
+	"linux/arm64":  {Archive: ortArchive("linux-aarch64", ortLinuxARM64SHA256), LibName: ortSOName},
+	"darwin/arm64": {Archive: ortArchive("osx-arm64", ortDarwinARM64SHA256), LibName: ortDylibName},
 }
 
 // ortArchive builds the GitHub release asset for one platform slug.

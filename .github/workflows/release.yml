@@ -184,7 +184,10 @@ jobs:
                  "linux/arm64": { asset: $arm, sha256: $armsha, bin: "graphin" }
                },
                go_install: { module: ("github.com/" + $repo + "/cmd/graphin"), min_go: $mingo },
-               notes: { "darwin/amd64": "no onnxruntime 1.26.0 build exists; semantic search unavailable" }
+               notes: {
+                 "darwin/arm64": "no release binary; the go_install fallback builds one and semantic search works (ORT is pinned for this platform)",
+                 "darwin/amd64": "no onnxruntime 1.26.0 build exists; semantic search unavailable"
+               }
              }' > plugin/graphin/install/manifest.json
           cat plugin/graphin/install/manifest.json
 

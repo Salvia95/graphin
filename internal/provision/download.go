@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -251,6 +252,13 @@ func copyVerified(src, dest, wantSHA string) error {
 
 // extractORTLib pulls the versioned shared object named libName out of the
 // release tarball.
+//
+// It matches on the "lib/<libName>" path, not on the base name alone. The
+// macOS archive carries a second regular file with the identical base name
+// under libonnxruntime.<ver>.dylib.dSYM/Contents/Resources/DWARF/ — 52MB of
+// debug symbols. A base-name match picks whichever comes first in tar order,
+// and installing the DWARF blob as the shared library would fail at dlopen
+// during semantic warmup: the least diagnosable place it could break.
 func extractORTLib(tgz, dest, libName string) error {
 	f, err := os.Open(tgz)
 	if err != nil {
@@ -271,7 +279,8 @@ func extractORTLib(tgz, dest, libName string) error {
 		if err != nil {
 			return err
 		}
-		if filepath.Base(hdr.Name) != libName || hdr.Typeflag != tar.TypeReg {
+		// tar entry names always use forward slashes and may be "./"-prefixed.
+		if hdr.Typeflag != tar.TypeReg || !strings.HasSuffix(path.Clean(hdr.Name), "/lib/"+libName) {
 			continue
 		}
 		b, err := io.ReadAll(tr)
@@ -280,5 +289,5 @@ func extractORTLib(tgz, dest, libName string) error {
 		}
 		return store.WriteFileAtomic(dest, b, 0o755)
 	}
-	return fmt.Errorf("%s not found in %s", libName, tgz)
+	return fmt.Errorf("lib/%s not found in %s", libName, tgz)
 }

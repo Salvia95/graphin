@@ -12,11 +12,18 @@ AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
 ```
 
 지원 언어: **Java, Kotlin, Python, JavaScript, TypeScript**(JSX/TSX 포함,
-tree-sitter). 배포 플랫폼: **linux/amd64 · linux/arm64**. macOS·Windows는
-소스 빌드로 동작하지만 onnxruntime 1.26.0 핀이 없어 의미 검색은 `--ort-lib`로
-직접 지정해야 하며(없으면 lexical 검색만), darwin/amd64는 해당 릴리스 에셋
-자체가 없다. 현재 실행 중인 바이너리가 어느 쪽인지는
-`graphin version --json`의 `semantic_supported`로 확인한다.
+tree-sitter).
+
+| 플랫폼 | 릴리스 바이너리 | 의미 검색 |
+|---|---|---|
+| linux/amd64 · linux/arm64 | 제공 | 가능 |
+| darwin/arm64 (Apple Silicon) | 없음 — `go install` 폴백 | 가능 |
+| darwin/amd64 | 없음 | **불가** (onnxruntime 1.26.0 빌드 자체가 없다) |
+| windows | 범위 밖 | `--ort-lib` 수동 지정 필요 |
+
+의미 검색이 불가한 조합에서도 lexical 검색은 정상 동작한다. 지금 실행 중인
+바이너리가 어느 쪽인지는 `graphin version --json`의 `semantic_supported`가
+한 줄로 알려 준다.
 
 JS/TS는 파일 경로 기반 모듈 ID(`src/order/service.ts` →
 `src.order.service.OrderService`)를 사용하며, 상대 경로 import·re-export·

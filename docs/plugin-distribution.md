@@ -11,11 +11,12 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 
 **목표는 달성됐고 실측으로 확인됐다**(§10.1): 마켓플레이스 설치 → 콜드 스타트
 7.8초 → `search_hybrid`/`read_code` 정상 → 계측 기록까지 한 줄로 이어졌고, 그
-전 과정이 **로컬 체크아웃을 한 번도 참조하지 않았다.** §11의 실측 7건 중
-darwin dylib 경로(v1.1)를 뺀 6건이 해결됐다.
+전 과정이 **로컬 체크아웃을 한 번도 참조하지 않았다.** §11의 실측 7건이 전부
+해결됐다.
 
-남은 것은 v1.1 후보뿐이다 — darwin/arm64 핀, `SHA256SUMS` 서명(cosign/minisign),
-admin `:0` + 주소 파일.
+**v1.1 진행 중**: darwin/arm64 ORT 핀 완료(§4.1) — Apple Silicon에서
+`go install`로 만든 바이너리가 의미 검색까지 동작한다. 남은 후보는 macOS 릴리스
+바이너리(러너 추가), `SHA256SUMS` 서명(cosign/minisign), admin `:0` + 주소 파일.
 
 ## 0. 문제
 
@@ -38,7 +39,7 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 | # | 결정 | 근거 |
 |---|---|---|
 | D1 | 저장소를 **public으로 전환** | private면 `go install`·릴리스 에셋·marketplace가 전부 인증을 요구해 외부 배포가 성립하지 않는다 |
-| D2 | v1 플랫폼 = **linux/amd64 + linux/arm64** | 두 조합 모두 ORT 1.26.0 에셋이 존재한다. darwin/amd64는 ORT 빌드 자체가 없다 |
+| D2 | 릴리스 바이너리 = **linux/amd64 + linux/arm64**. ORT 핀은 여기에 **darwin/arm64**를 더한다(v1.1) | 세 조합 모두 ORT 1.26.0 에셋이 존재한다. darwin/amd64는 ORT 빌드 자체가 없다. darwin 핀만 있고 릴리스 바이너리가 없는 것은 절름발이가 아니다 — `go install` 폴백이 만든 Apple Silicon 바이너리가 lexical 전용이 아니라 **의미 검색까지 동작**하게 된다 |
 | D3 | 플러그인 **2개 분리** — `graphin`(MCP+admin+계측) / `graphin-guide`(SKILL+에이전트) | [usage-spec](usage-spec.md) §8이 유도 스킬 동봉을 v2로 연기했다. 무개입 베이스라인은 한번 섞이면 복구 불가 |
 | D4 | 바이너리 = **릴리스 다운로드 → `go install` 폴백** | D1 덕에 `go install`이 자기완결적으로 성립한다 — 소스 사본도 체크아웃 참조도 필요 없다 |
 | D5 | admin **기본 비활성**, 주소를 지정할 때만 기동. 우선순위는 `<ws>/.graphin/admin-addr` **파일 → `userConfig`** | plugin option은 CC 2.1.207부터 **user settings에서만** 읽힌다(§11-7). 즉 `admin_addr`는 프로젝트별로 줄 수 없는 전역 값 하나여서, 켜는 순간 모든 프로젝트가 같은 포트를 노린다. 파일 override가 그 구멍을 메우면서도 §12의 "자동 포트 할당 금지"를 지킨다 |
@@ -48,12 +49,14 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 
 ONNX Runtime 1.26.0 릴리스 에셋 실측:
 
-| 타깃 | ORT 에셋 | 의미 검색 | v1 |
+2026-08-06에 릴리스의 에셋 목록을 직접 조회해 재확인했다:
+
+| 타깃 | ORT 에셋 | 의미 검색 | 릴리스 바이너리 |
 |---|---|---|---|
-| linux/amd64 | `onnxruntime-linux-x64-1.26.0.tgz` | 가능 | **배포** |
-| linux/arm64 | `onnxruntime-linux-aarch64-1.26.0.tgz` | 가능 | **배포** |
-| darwin/arm64 | `onnxruntime-osx-arm64-1.26.0.tgz` | 가능 | v1.1 |
-| darwin/amd64 | **없음** | 영구 불가 | 배포 안 함 |
+| linux/amd64 | `onnxruntime-linux-x64-1.26.0.tgz` | 가능 | **제공** |
+| linux/arm64 | `onnxruntime-linux-aarch64-1.26.0.tgz` | 가능 | **제공** |
+| darwin/arm64 | `onnxruntime-osx-arm64-1.26.0.tgz` | 가능(v1.1 핀) | 없음 → `go install` |
+| darwin/amd64 | **없음**(에셋 목록에 osx-x86_64 자체가 부재) | 영구 불가 | 없음 |
 | windows | `.zip`(`extractORTLib`은 tar.gz만 읽음) | 불가 | 범위 밖 |
 
 ORT가 없어도 바이너리는 동작한다 — `warmupSemantic`(`internal/workspace/workspace.go:309`)이
@@ -165,8 +168,29 @@ admin 바인드 실패 메시지가 주소를 바꿀 수 있는 **세 자리를 
   들어 있는지, darwin/amd64가 `ErrUnsupportedPlatform`을 내는지, 그 위에서도
   `--ort-lib`가 이기는지.
 
-> darwin 핀을 추가할 때 **아카이브 안의 dylib 경로를 실제로 조회한 뒤** 적을 것.
-> 관례상 `lib/libonnxruntime.1.26.0.dylib`이지만 확인 없이 적으면 안 된다.
+#### 4.1 darwin/arm64 핀 (v1.1) — 조회가 버그를 하나 잡았다
+
+"관례에서 추정하지 말고 조회하라"는 지시가 값을 했다. dylib 이름은 관례대로
+`libonnxruntime.1.26.0.dylib`이 맞았지만, **아카이브에는 그 베이스네임을 가진
+정규 파일이 둘 있다:**
+
+```
+lib/libonnxruntime.1.26.0.dylib                                          37MB  ← 진짜
+lib/libonnxruntime.1.26.0.dylib.dSYM/Contents/Resources/DWARF/
+    libonnxruntime.1.26.0.dylib                                          52MB  ← 디버그 심볼
+```
+
+`extractORTLib`은 `filepath.Base`로만 비교하고 **tar 순서상 먼저 나오는 것**을
+집었다. 이 아카이브는 우연히 진짜가 먼저지만 그건 설계가 아니라 운이다. 순서가
+반대였다면 52MB DWARF 덩어리를 공유 라이브러리로 설치하고, `dlopen`이 **의미
+검색 워밍업 시점에만** 깨진다 — `-extldflags -static` 금지와 정확히 같은
+"가장 발견하기 어려운 자리"다.
+
+베이스네임이 아니라 **`lib/<libName>` 경로 접미사**로 매칭하도록 고쳤다. dSYM
+사본은 부모 디렉터리가 `DWARF`라 걸리지 않는다. 회귀 테스트는 디코이를
+**일부러 먼저** 넣은 tar로 검증한다(옛 로직으로 되돌리면 실제로 실패함을 확인).
+
+리눅스 두 타깃도 같은 경로 매칭을 탄다 — `./` 프리픽스 유무에 무관하다.
 
 Windows zip 지원은 이 단계에서 넣지 않는다 — 런처 문제가 풀리기 전까지 사장 코드다.
 
@@ -710,7 +734,7 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
 | 3 | `skills: [graphin]` 해석 | ✅ **맨 이름으로 동작한다.** 해석기는 ①정확 일치 → ②`<에이전트 네임스페이스>:<이름>` → ③`:<이름>` 접미사 순이라, 플러그인 에이전트는 ②에서 같은 플러그인의 스킬을 먼저 집는다. 실패해도 완전 침묵이 아니라 `Skill '…' specified in frontmatter was not found` 경고를 남긴다 |
 | 4 | 도구 네임스페이싱 | ✅ **바뀐다.** `mcp__plugin_graphin_graphin__*` → §8.1.1. 계측·SKILL은 무사 |
 | 5 | 미설정 `${user_config.KEY}` | ✅ 선언된 optional 키는 **빈 문자열**. 미선언·`required`+`default` 없음은 **예외로 서버 로드 실패**. boolean은 `"true"`/`"false"` → §6.4 |
-| 6 | darwin dylib 경로 | ⏳ v1.1. 관례에서 추정하지 말고 조회한다 |
+| 6 | darwin dylib 경로 | ✅ **v1.1에서 조회해 확정.** `lib/libonnxruntime.1.26.0.dylib` — 이름은 관례대로였으나 **같은 베이스네임의 dSYM 사본**이 함께 들어 있어 추출기를 경로 매칭으로 고쳐야 했다 → §4.1 |
 | 7 | 최소 CC 버전 | ✅ **2.1.83** (`userConfig`). `${CLAUDE_PLUGIN_DATA}`는 2.1.78. 2.1.207부터 plugin option은 **user settings에서만** 읽힘 → D5 |
 
 추가로 확인된 것:

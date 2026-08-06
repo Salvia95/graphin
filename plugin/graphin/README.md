@@ -85,7 +85,7 @@ claude mcp remove graphin -s project
 | 플랫폼 | 상태 |
 |---|---|
 | linux/amd64 · linux/arm64 | 릴리스 바이너리 제공, 의미 검색 가능 |
-| darwin/arm64 | 릴리스 없음. 소스 빌드 + `binary_path`. 의미 검색은 `--ort-lib` 필요 |
+| darwin/arm64 | 릴리스 바이너리는 없지만 **`go install` 폴백이 자동으로 빌드**하고, 의미 검색도 동작한다(ORT 핀 있음). Go 툴체인과 clang이 필요하다 |
 | darwin/amd64 | onnxruntime 1.26.0 빌드 자체가 없다 — 의미 검색 영구 불가(lexical은 동작) |
 | windows | 범위 밖 |
 

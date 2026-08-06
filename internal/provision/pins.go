@@ -11,3 +11,7 @@ const (
 // Recorded on 2026-08-05 when linux/arm64 joined the release matrix
 // (docs/plugin-distribution.md D2). Same ORT release, same .so name as x64.
 const ortLinuxARM64SHA256 = "34ff1c2d0f12e2cf3d33a0c5f82e39792e1d581fbd6968fd7c30d173654be01a"
+
+// Recorded on 2026-08-06 (v1.1). Apple Silicon only — the 1.26.0 release
+// publishes no osx-x86_64 asset, so darwin/amd64 stays unsupported.
+const ortDarwinARM64SHA256 = "7a1280bbb1701ea514f71828765237e7896e0f2e1cd332f1f70dbd5c3e33aca3"
