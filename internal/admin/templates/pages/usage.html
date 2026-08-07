@@ -66,6 +66,32 @@
 <p class="muted">집계할 윈도우가 없습니다 — 도구 호출이 쌓이면 지표가 계산됩니다.</p>
 {{end}}
 
+{{if .Targets}}
+<article class="wide">
+  <h2>코드 vs DB 스키마 질의</h2>
+  <p class="muted small">단위는 윈도우가 아니라 <strong>런</strong>입니다. 코드(code)와 DB(db)는 나뉜 몫이 아니라
+  겹치는 두 집단이라, 한 런이 양쪽 노드를 다루면 양쪽에 셉니다. 노드 ID를 하나도 참조하지 않은 런은
+  어느 쪽도 아니어서 런 수를 함께 냅니다.</p>
+  <table>
+    <thead><tr><th>대상</th><th class="num">런 수</th><th>{{term "adoption" "채택률"}}</th>
+      <th class="num">{{term "fallback" "폴백 수"}}</th><th class="num">{{term "same_intent" "동일 의도"}}</th>
+      <th class="num">판단 불가</th></tr></thead>
+    <tbody>
+    {{range .Targets}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td class="num">{{comma .Runs}}</td>
+        <td>{{.Adoption}}</td>
+        <td class="num">{{.Fallbacks}}</td>
+        <td class="num">{{.SameIntentFallbacks}}</td>
+        <td class="num">{{.Inconclusive}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+</article>
+{{end}}
+
 {{if .R.FallbackPairs}}
 <article class="wide">
   <h2>폴백 페어 — 금맥 (최근 {{len .R.FallbackPairs}})</h2>

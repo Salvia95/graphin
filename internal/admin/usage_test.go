@@ -91,3 +91,64 @@ func TestBuildBigramMatrixOrder(t *testing.T) {
 		t.Fatalf("rows: %+v", b.Rows)
 	}
 }
+
+// The code/db table is conditional on purpose: a workspace with no schema
+// snapshot has no db queries, and a permanent "db 0%" row would read as
+// "graphin fails on db queries" — a different claim entirely.
+func TestUsagePageHidesTargetTableWithoutDBRuns(t *testing.T) {
+	ws := newTestWS(t, nil)
+	writeUsageEvents(t, ws.Dir, []string{
+		`{"v":1,"ts":"2026-08-06T10:00:00Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u1","tool":"mcp__k__search_hybrid","p":{"query":"order cancel","result_ids":["src.order.OrderService.cancel"]}}`,
+		`{"v":1,"ts":"2026-08-06T10:00:01Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u2","tool":"Read","p":{"file_path":"a.go"}}`,
+	})
+	body := get(t, newTestServer(t, ws), "/usage").Body.String()
+	if strings.Contains(body, "코드 vs DB 스키마 질의") {
+		t.Fatal("target table rendered for a workspace with no db runs")
+	}
+}
+
+func TestUsagePageRendersTargetTable(t *testing.T) {
+	ws := newTestWS(t, nil)
+	writeUsageEvents(t, ws.Dir, []string{
+		// db run abandoned for a grep, code run adopted.
+		`{"v":1,"ts":"2026-08-06T10:00:00Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u1","tool":"mcp__k__search_hybrid","p":{"query":"job posting table","result_ids":["db.main.public.job_posting"]}}`,
+		`{"v":1,"ts":"2026-08-06T10:00:01Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u2","tool":"Grep","p":{"pattern":"job_posting","search":true}}`,
+		`{"v":1,"ts":"2026-08-06T10:01:00Z","session_id":"s1","prompt_id":"p2","tool_use_id":"u3","tool":"mcp__k__search_hybrid","p":{"query":"order cancel","result_ids":["src.order.OrderService.cancel"]}}`,
+		`{"v":1,"ts":"2026-08-06T10:01:01Z","session_id":"s1","prompt_id":"p2","tool_use_id":"u4","tool":"Read","p":{"file_path":"a.go"}}`,
+	})
+	rec := get(t, newTestServer(t, ws), "/usage")
+	wantContains(t, rec, http.StatusOK, "코드 vs DB 스키마 질의", "런 수")
+
+	// Assert inside the target table only. The headline table renders the same
+	// "n (p%)" strings, so a body-wide Contains would pass on wrong numbers.
+	body := rec.Body.String()
+	i := strings.Index(body, "코드 vs DB 스키마 질의")
+	section := body[i:]
+	if j := strings.Index(section, "</article>"); j > 0 {
+		section = section[:j]
+	}
+	// code adopted 1 of 1, db adopted 0 of 1 — the split is the whole point.
+	code := strings.Index(section, "<td>code</td>")
+	db := strings.Index(section, "<td>db</td>")
+	if code < 0 || db < 0 || code > db {
+		t.Fatalf("rows missing or out of order in:\n%s", section)
+	}
+	if !strings.Contains(section[code:db], "1 (100%)") {
+		t.Fatalf("code row should be 100%% adoption:\n%s", section[code:db])
+	}
+	if !strings.Contains(section[db:], "0 (0%)") {
+		t.Fatalf("db row should be 0%% adoption:\n%s", section[db:])
+	}
+}
+
+func writeUsageEvents(t *testing.T, wsDir string, lines []string) {
+	t.Helper()
+	dir := filepath.Join(wsDir, "usage")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "events.jsonl"),
+		[]byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -20,6 +20,15 @@ type usageGroupRow struct {
 	DiscoveryFailure string // 분모 = search 있는 윈도우
 }
 
+// usageTargetRow is the code/db split (usage-spec §4.3). Separate from
+// usageGroupRow because the unit is the run, not the window — sharing a row
+// type would put a meaningless 윈도우 수 column next to it.
+type usageTargetRow struct {
+	Name string
+	usage.TargetMetrics
+	Adoption string
+}
+
 // ratio mirrors report.go: "n (p%)" 또는 분모 0이면 "–".
 func ratio(n, denom int) string {
 	if denom == 0 {
@@ -151,11 +160,12 @@ type usageVM struct {
 	Missing bool
 	Dir     string
 
-	R      usage.Report
-	Groups []usageGroupRow
-	Funnel string // adherence ratio ("" = 표시 안 함)
-	Chart  usageChart
-	Bigram bigramMatrix
+	R       usage.Report
+	Groups  []usageGroupRow
+	Targets []usageTargetRow // 비어 있으면 이 워크스페이스에 db 질의가 없었다
+	Funnel  string           // adherence ratio ("" = 표시 안 함)
+	Chart   usageChart
+	Bigram  bigramMatrix
 }
 
 func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
@@ -182,6 +192,22 @@ func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
 			LateSwitch:       ratio(g.LateSwitches, g.WindowsWithGraphin),
 			DiscoveryFailure: ratio(g.DiscoveryFailures, g.WindowsWithSearch),
 		})
+	}
+	// Only when a db run exists: a workspace with no schema snapshot would
+	// otherwise carry a permanent "db 0%" row, and "no db queries were made"
+	// must not look like "graphin fails on db queries".
+	if rep.Targets["db"].Runs > 0 {
+		for _, name := range []string{"code", "db"} {
+			t := rep.Targets[name]
+			if t.Runs == 0 {
+				continue
+			}
+			vm.Targets = append(vm.Targets, usageTargetRow{
+				Name:          name,
+				TargetMetrics: t,
+				Adoption:      ratio(t.Adoptions, t.Adoptions+t.Fallbacks),
+			})
+		}
 	}
 	if g, ok := rep.Groups["all"]; ok && g.FunnelSearches > 0 {
 		vm.Funnel = fmt.Sprintf("%s (%d/%d)", ratio(g.FunnelAdherent, g.FunnelSearches),
