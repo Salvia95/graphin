@@ -280,3 +280,67 @@ jobs:
             set -- "$@" --notes "$NOTES"
           fi
           gh release create "v$VER" "$@"
+
+  # A push made with GITHUB_TOKEN does not trigger workflows. GitHub does that
+  # to stop workflows from looping, and the consequence here is specific and
+  # bad: the commit this workflow just made — the one that rewrites the
+  # manifest and stamps the plugin version — never gets a CI run. Measured on
+  # v0.2.1: `gh run list --commit <sha>` came back empty.
+  #
+  # So the two checks that exist for exactly this commit (ci.yml's
+  # install-smoke and its plugin-versions guard) would never see it, leaving
+  # the install path unverified at the one moment a manifest and its assets
+  # could first disagree. The release verifies itself instead.
+  #
+  # Checked out at the tag, not at main: main can move while this runs, and
+  # the thing under test is the tree that was released.
+  verify:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    container:
+      image: debian:bullseye
+    steps:
+      - name: Prerequisites
+        run: |
+          set -eu
+          # Same bullseye-EOL fallback as the build job above; see its comment
+          # for why bookworm is not the answer.
+          if ! apt-get update; then
+            echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
+            printf '%s\n' \
+              'deb http://archive.debian.org/debian bullseye main' \
+              'deb http://archive.debian.org/debian-security bullseye-security main' \
+              > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list || true
+            apt-get -o Acquire::Check-Valid-Until=false update
+          fi
+          apt-get install -y --no-install-recommends ca-certificates curl git jq
+
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+
+      - name: Install the release that was just published
+        run: sh scripts/install-smoke.sh "$PWD/plugin/graphin" "${{ matrix.arch }}"
+
+      # The invariant ci.yml enforces on every other commit, enforced here on
+      # the one commit ci.yml cannot see.
+      - name: plugin.json and install manifest must agree
+        run: |
+          set -eu
+          pv="$(jq -r '.version // empty' plugin/graphin/.claude-plugin/plugin.json)"
+          mv="$(jq -r '.version // empty' plugin/graphin/install/manifest.json)"
+          if [ "$pv" != "${{ inputs.version }}" ] || [ "$mv" != "${{ inputs.version }}" ]; then
+            echo "::error::released v${{ inputs.version }} but the tagged tree says plugin.json=${pv} manifest=${mv}"
+            exit 1
+          fi
+          echo "v${{ inputs.version }} — plugin.json, manifest and tag agree"

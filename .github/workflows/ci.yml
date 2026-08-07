@@ -248,42 +248,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Install from the published release
-        run: |
-          set -eu
-          DATA="$(mktemp -d)"
-          echo "DATA=$DATA" >> "$GITHUB_ENV"
-          # install.sh logs to stdout; only the launcher redirects it to a file.
-          CLAUDE_PLUGIN_ROOT="$PWD/plugin/graphin" CLAUDE_PLUGIN_DATA="$DATA" \
-            sh plugin/graphin/install/install.sh | tee install.log
-
-      - name: Assert what was installed
-        run: |
-          set -eu
-          want="$(jq -r .version plugin/graphin/install/manifest.json)"
-
-          # A symlink, not a copy: overwriting a running binary in place is
-          # ETXTBSY, and the upgrade path depends on swapping this link.
-          [ -L "$DATA/bin/graphin" ] || {
-            echo "::error::$DATA/bin/graphin is not a symlink"; exit 1; }
-
-          src="$(jq -r .source "$DATA/state/installed.json")"
-          [ "$src" = "release" ] || {
-            echo "::error::installed from '$src', not the published release asset"
-            cat install.log; exit 1; }
-
-          "$DATA/bin/graphin" version --json | tee v.json
-          jq -e --arg v "$want" --arg a "${{ matrix.arch }}" \
-            '.version == $v and .os == "linux" and .arch == $a and .semantic_supported == true' \
-            v.json > /dev/null
-
-      - name: The fast path must stay a no-op
-        run: |
-          set -eu
-          # An identical manifest means an identical install: the second run
-          # must print nothing and download nothing. Regressing this turns
-          # every session start into a 25MB fetch.
-          out="$(CLAUDE_PLUGIN_ROOT="$PWD/plugin/graphin" CLAUDE_PLUGIN_DATA="$DATA" \
-            sh plugin/graphin/install/install.sh 2>&1)"
-          [ -z "$out" ] || {
-            echo "::error::second run was not a no-op"; printf '%s\n' "$out"; exit 1; }
+      # Shared with release.yml's verify job — see the header of that script
+      # for why the two callers must not drift.
+      - name: Install the published release and assert it
+        run: sh scripts/install-smoke.sh "$PWD/plugin/graphin" "${{ matrix.arch }}"
