@@ -17,6 +17,7 @@ const (
 	EdgeCall       = fbsgen.EdgeTypeCall
 	EdgeReference  = fbsgen.EdgeTypeReference
 	EdgeForeignKey = fbsgen.EdgeTypeForeignKey // graphindb: 테이블 → 참조 테이블
+	EdgeContains   = fbsgen.EdgeTypeContains   // markdown: 파일 → 섹션, 섹션 → 하위 섹션
 )
 
 // EdgeTypeName renders the §3.3 type attribute.
@@ -32,6 +33,8 @@ func EdgeTypeName(t EdgeType) string {
 		return "call"
 	case EdgeForeignKey:
 		return "foreign_key"
+	case EdgeContains:
+		return "contains"
 	default:
 		return "reference"
 	}

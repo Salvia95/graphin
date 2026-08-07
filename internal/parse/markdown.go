@@ -36,6 +36,26 @@ func extractMarkdown(src []byte, res *FileResult) {
 	if len(heads) > 0 {
 		preEnd = int(heads[0].start)
 	}
+	// Slugs are resolved for every heading first: the parent lookup reads the
+	// parent's slug, and its disambiguation suffix must already be decided.
+	slugs := map[string]int{}
+	for i := range heads {
+		heads[i].slug = uniqueSlug(slugify(heads[i].text), slugs)
+	}
+
+	// children[parentID] — the contains edges, built here because the parse
+	// already knows every target exactly (spec §3.5). The file node is the
+	// root for any heading with no shallower heading before it.
+	children := map[string][]string{}
+	for i := range heads {
+		id := res.RelPath + "#" + heads[i].slug
+		parent := res.RelPath
+		if j := parentIndex(heads, i); j >= 0 {
+			parent = res.RelPath + "#" + heads[j].slug
+		}
+		children[parent] = append(children[parent], id)
+	}
+
 	file := Node{
 		ID:          res.RelPath,
 		DisplayName: base,
@@ -44,26 +64,21 @@ func extractMarkdown(src []byte, res *FileResult) {
 		StartByte:   0,
 		EndByte:     uint32(len(src)),
 		Hash:        res.FileHash,
+		Contains:    children[res.RelPath],
 	}
 	// Non-nil even when empty: attachBodyTokens skips nodes that already
 	// carry tokens, and nil would make it re-tokenize the whole file.
 	file.BodyTokens = capTokens(src[:preEnd])
 	res.Nodes = append(res.Nodes, file)
 
-	// Slugs are resolved for every heading first: containerOf reads the
-	// parent's slug, and the parent may not have been visited yet only in the
-	// sense that its disambiguation suffix must already be decided.
-	slugs := map[string]int{}
-	for i := range heads {
-		heads[i].slug = uniqueSlug(slugify(heads[i].text), slugs)
-	}
 	for i, h := range heads {
 		end := uint32(len(src))
 		if i+1 < len(heads) {
 			end = heads[i+1].start
 		}
+		id := res.RelPath + "#" + h.slug
 		res.Nodes = append(res.Nodes, Node{
-			ID:          res.RelPath + "#" + h.slug,
+			ID:          id,
 			DisplayName: h.text,
 			SimpleName:  h.text,
 			Kind:        nodeid.KindSection,
@@ -71,6 +86,7 @@ func extractMarkdown(src []byte, res *FileResult) {
 			StartByte:   h.start,
 			EndByte:     end,
 			Hash:        blake3.Sum256(src[h.start:end]),
+			Contains:    children[id],
 		})
 	}
 }
@@ -197,12 +213,21 @@ func atxHeading(line []byte) (int, string, bool) {
 // "exactly one level up" or "h1 is the root" breaks on inputs this repository
 // already has — one level skip, and three files that do not start at h1.
 func containerOf(heads []heading, i int) string {
-	for j := i - 1; j >= 0; j-- {
-		if heads[j].level < heads[i].level {
-			return heads[j].slug
-		}
+	if j := parentIndex(heads, i); j >= 0 {
+		return heads[j].slug
 	}
 	return ""
+}
+
+// parentIndex returns the index of the enclosing heading, or -1 when the
+// section hangs directly off the file node.
+func parentIndex(heads []heading, i int) int {
+	for j := i - 1; j >= 0; j-- {
+		if heads[j].level < heads[i].level {
+			return j
+		}
+	}
+	return -1
 }
 
 // slugify reproduces GitHub's heading anchors, so a link written in a

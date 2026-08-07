@@ -215,3 +215,38 @@ func TestMarkdownSectionTokensAndHash(t *testing.T) {
 		t.Fatal("sections with different bodies must hash differently")
 	}
 }
+
+// Contains targets are decided by the parser — same file, exact IDs — so the
+// graph engine emits them without a candidate lookup (spec §3.5).
+func TestMarkdownContainsHierarchy(t *testing.T) {
+	// A level skip and a document that never uses h1: both exist in this
+	// repository, and both break a "one level up" or "h1 is the root" rule.
+	src := "머리말\n\n## 부모\n\n#### 건너뛴 손자\n\n### 자식\n\n## 다음 부모\n"
+	res := mdParse(t, "docs/a.md", src)
+
+	got := map[string][]string{}
+	for _, n := range res.Nodes {
+		if len(n.Contains) > 0 {
+			got[n.ID] = n.Contains
+		}
+	}
+	want := map[string][]string{
+		"docs/a.md":    {"docs/a.md#부모", "docs/a.md#다음-부모"},
+		"docs/a.md#부모": {"docs/a.md#건너뛴-손자", "docs/a.md#자식"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("contains map = %v, want %v", got, want)
+	}
+	for parent, kids := range want {
+		if !slices.Equal(got[parent], kids) {
+			t.Errorf("%s contains %v, want %v", parent, got[parent], kids)
+		}
+	}
+}
+
+func TestMarkdownNoHeadingsHasNoContains(t *testing.T) {
+	res := mdParse(t, "a.md", "prose only\n")
+	if len(res.Nodes[0].Contains) != 0 {
+		t.Fatalf("file node should contain nothing: %v", res.Nodes[0].Contains)
+	}
+}

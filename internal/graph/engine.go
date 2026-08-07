@@ -35,6 +35,7 @@ type nodeRecord struct {
 	ArityMax     int      // nodeid.UnboundedArity when open
 	Supers       []string // for changed nodes; DB 노드는 확정 참조 FQN
 	LogicalRefs  []string // graphindb: enforced:false 논리 참조 FQN
+	Contains     []string // markdown: 파싱 시점에 확정된 자식 노드 ID
 	RawCalls     []parse.Call
 	DBRefs       []parse.DBRef // 코드→DB 크로스 도메인 참조 (Phase 7a)
 	Imports      []string
@@ -223,6 +224,7 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 			rec.LogicalRefs = n.LogicalRefs
 			rec.RawCalls = n.Calls
 			rec.DBRefs = n.DBRefs
+			rec.Contains = n.Contains
 			rec.Imports = res.Imports
 			rec.needsResolve = true
 		}

@@ -259,6 +259,13 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 		}
 	}
 
+	// 0) Markdown containment. Unlike every other edge here, the target was
+	// decided by the parser — same file, exact ID — so there is no candidate
+	// lookup and no tier to score (docs/markdown-spec.md §3.5).
+	for _, child := range rec.Contains {
+		put(child, EdgeContains, confCertain)
+	}
+
 	// 1) Supertypes: the relation is syntactically certain (§2.1.3 1.0).
 	for _, super := range rec.Supers {
 		name := simpleTypeName(super)

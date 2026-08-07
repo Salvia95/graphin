@@ -160,6 +160,10 @@ type Node struct {
 	BodyTokens  []string // capped lexical tokens of the node's source slice
 	DBRefs      []DBRef  // 코드 노드 전용: 코드→DB 테이블 참조 (Phase 7a)
 	Aliases     []string // DB 노드 전용: 추가 조회명 (prisma 모델명 등)
+	// Contains: 마크다운 전용 자식 노드 ID (파일→섹션, 섹션→하위 섹션).
+	// 이름 해석이 필요한 다른 참조들과 달리 대상이 파싱 시점에 이미 확정돼
+	// 있으므로 엔진은 후보 조회 없이 그대로 엣지로 만든다.
+	Contains []string
 }
 
 // FileResult is the full extraction of one file.
