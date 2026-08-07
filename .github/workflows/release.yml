@@ -21,6 +21,10 @@ on:
         description: "Release version, no leading v (e.g. 1.0.0)"
         required: true
         type: string
+      notes:
+        description: "Prelude above the generated notes. Say it here if the upgrade costs the user something — a full re-index, a renamed option, a raised Claude Code floor."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -257,13 +261,22 @@ jobs:
           git push origin HEAD:main
           git push origin "v$VER"
 
+      # The generated notes summarise commits, which is exactly the wrong
+      # register for the one thing a user needs at upgrade time: whether this
+      # costs them anything. The on-disk formats are fail-soft — a changed
+      # shard or lexical snapshot is deleted and rebuilt rather than breaking
+      # anything — so the cost is a full re-index, which is invisible in a
+      # commit list and very visible in a session. --notes is prepended to the
+      # generated body by the API, so the prelude stays on top.
       - name: Publish release
         env:
           VER: ${{ inputs.version }}
+          NOTES: ${{ inputs.notes }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          gh release create "v$VER" \
-            dist/graphin_*.tar.gz dist/SHA256SUMS \
-            --title "v$VER" \
-            --generate-notes
+          set -- dist/graphin_*.tar.gz dist/SHA256SUMS --title "v$VER" --generate-notes
+          if [ -n "${NOTES:-}" ]; then
+            set -- "$@" --notes "$NOTES"
+          fi
+          gh release create "v$VER" "$@"

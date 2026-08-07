@@ -79,22 +79,49 @@ jobs:
       - name: actionlint
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
 
-  # graphin-guide has no release pipeline of its own: the marketplace serves it
-  # straight from main, and Claude Code offers an update ONLY when plugin.json's
-  # version field changes — it does not compare commits (measured 2026-08-06:
-  # `plugin update` reported "already at the latest version" on a tree that had
-  # moved on). So editing the skill without bumping the version ships the change
-  # to nobody, silently and forever. This job is what makes that noisy.
+  # Every version invariant lives here, because they are not independent: the
+  # two plugins are versioned by opposite mechanisms and the failure modes are
+  # mirror images (docs/plugin-distribution.md §13).
   #
-  # The graphin plugin needs no such guard: the release workflow stamps its
-  # version, and a release is its delivery step.
-  guide-version:
+  # The marketplace serves BOTH plugins from main — measured, not assumed: the
+  # recorded gitCommitSha for graphin-guide was a plain main commit with no tag
+  # on it. A tag only labels the release assets. So what a user receives is
+  # whatever main holds, and the version field is the only thing that makes
+  # Claude Code offer it.
+  plugin-versions:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # graphin's version is stamped by the release workflow, never by hand,
+      # and the manifest is written in the same step. If these two disagree,
+      # either someone bumped plugin.json by hand — shipping new commands with
+      # the old pinned binary, so /plugin and /graphin:doctor would report
+      # different versions of the same install — or a release died between its
+      # two writes. Both are worth stopping.
+      - name: graphin plugin.json and install manifest must agree
+        run: |
+          set -eu
+          p=plugin/graphin/.claude-plugin/plugin.json
+          m=plugin/graphin/install/manifest.json
+          if [ ! -f "$m" ]; then
+            echo "::notice::$m does not exist yet — nothing to compare"
+            exit 0
+          fi
+          pv="$(jq -r '.version // empty' "$p")"
+          mv="$(jq -r '.version // empty' "$m")"
+          if [ -z "$pv" ] || [ -z "$mv" ]; then
+            echo "::error::could not read a version from $p ($pv) or $m ($mv)"
+            exit 1
+          fi
+          if [ "$pv" != "$mv" ]; then
+            echo "::error file=${p}::plugin.json says ${pv} but the install manifest says ${mv}. These are written together by the release workflow and must never be edited by hand — the manifest is what pins the binary, so a mismatch ships one version's commands with another version's binary. Run the release workflow instead."
+            exit 1
+          fi
+          echo "graphin ${pv} — plugin.json and manifest agree"
 
       - name: Require a version bump when graphin-guide changes
         env:
@@ -133,6 +160,41 @@ jobs:
             exit 1
           fi
           echo "graphin-guide ${old} → ${new}"
+
+      # The mirror image of the guide guard, and deliberately NOT an error.
+      # For graphin the hand bump is the wrong move (the step above rejects
+      # it) — a release is the delivery step. But the same silence applies:
+      # commands, hooks and .mcp.json edited on main reach nobody until a
+      # release stamps a new version, and nothing else says so out loud.
+      #
+      # Compared against the last release TAG, not against this push's base.
+      # A per-push diff says it once and then forgets; whoever ignored it gets
+      # no second warning, and the drift is invisible from then on. Diffing
+      # from the tag makes it a standing signal that repeats on every push
+      # until a release clears it.
+      - name: Note graphin plugin changes that are not shipped yet
+        run: |
+          set -eu
+          p=plugin/graphin/.claude-plugin/plugin.json
+          pv="$(jq -r '.version // empty' "$p")"
+          tag="v${pv}"
+          if ! git rev-parse -q --verify "refs/tags/${tag}^{commit}" > /dev/null; then
+            echo "::notice::no ${tag} tag in this clone — nothing to compare"
+            exit 0
+          fi
+
+          # Both files are written by the release workflow itself; counting
+          # them would make every release look like pending work.
+          changed="$(git diff --name-only "$tag" HEAD -- plugin/graphin/ \
+            ':!plugin/graphin/install/manifest.json' \
+            ':!plugin/graphin/.claude-plugin/plugin.json')"
+          if [ -z "$changed" ]; then
+            echo "graphin plugin matches ${tag} — nothing pending"
+            exit 0
+          fi
+          n="$(printf '%s\n' "$changed" | wc -l | tr -d ' ')"
+          echo "::notice::${n} graphin plugin file(s) changed since ${tag} and are NOT shipped. Users receive them when the next release stamps a new version — see docs/plugin-distribution.md §13."
+          printf '%s\n' "$changed" | sed 's/^/  pending: /'
 
   # Everything above tests the source tree. This tests the *release*: the
   # published manifest, the published asset, and install.sh — the three things
