@@ -6,6 +6,7 @@ package parse
 import (
 	"fmt"
 	pathpkg "path"
+	"sort"
 	"strings"
 	"sync"
 
@@ -150,6 +151,10 @@ type Node struct {
 	Container   string // enclosing container chain within the file ("" if top-level)
 	StartByte   uint32
 	EndByte     uint32
+	// StartLine is the 1-based line of StartByte, recorded at parse time so
+	// search results can name a location without re-reading the file. It goes
+	// stale together with StartByte — read_code reparses and fixes both.
+	StartLine   uint32
 	Hash        [32]byte // BLAKE3 of the subtree source slice
 	ArityMin    int
 	ArityMax    int      // nodeid.UnboundedArity when open
@@ -243,6 +248,7 @@ func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, err
 		res := &FileResult{RelPath: relPath, Lang: LangDBSchema, FileHash: blake3.Sum256(src)}
 		extractDBRouted(src, route, res)
 		attachBodyTokens(res, src)
+		attachLines(res, src)
 		return res, nil
 	}
 	lang := DetectLanguage(relPath)
@@ -287,6 +293,7 @@ func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, err
 	}
 
 	attachBodyTokens(res, src)
+	attachLines(res, src)
 	return res, nil
 }
 
@@ -304,6 +311,34 @@ func attachBodyTokens(res *FileResult, src []byte) {
 		if n.StartByte < n.EndByte && int(n.EndByte) <= len(src) {
 			n.BodyTokens = lexical.TokenizeCapped(string(src[n.StartByte:n.EndByte]), maxBodyTokens)
 		}
+	}
+}
+
+// attachLines records each node's 1-based start line in a single pass: nodes are
+// visited in byte order so the newline count never restarts. Doing it here
+// rather than at query time keeps search_hybrid free of file I/O — the point
+// of returning a location at all is that it costs nothing extra.
+func attachLines(res *FileResult, src []byte) {
+	order := make([]int, len(res.Nodes))
+	for i := range order {
+		order[i] = i
+	}
+	sort.Slice(order, func(a, b int) bool {
+		return res.Nodes[order[a]].StartByte < res.Nodes[order[b]].StartByte
+	})
+	line, pos := uint32(1), 0
+	for _, i := range order {
+		n := &res.Nodes[i]
+		end := int(n.StartByte)
+		if end > len(src) {
+			end = len(src)
+		}
+		for ; pos < end; pos++ {
+			if src[pos] == '\n' {
+				line++
+			}
+		}
+		n.StartLine = line
 	}
 }
 

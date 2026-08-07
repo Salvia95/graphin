@@ -33,6 +33,7 @@ type NodeMeta struct {
 	RelPath     string
 	StartByte   uint32
 	EndByte     uint32
+	StartLine   uint32 // 1-based, recorded at parse time (parse.Node.StartLine)
 	FileHash    string // hex BLAKE3 of the whole file at index time
 	Kind        string
 	DisplayName string
@@ -51,6 +52,21 @@ func (w *Workspace) nodeMeta(id string) (NodeMeta, bool) {
 func (w *Workspace) DisplayName(id string) string {
 	m, _ := w.nodeMeta(id)
 	return m.DisplayName
+}
+
+// NodeLocation returns where an indexed node starts. It is the answer to
+// "where is X" — the question that made agents reach for grep instead, because
+// grep gives file:line in one call while search used to hand back only an ID
+// (docs/eval/2026-08-07-adoption-diagnosis).
+//
+// Free of I/O: the line was recorded when the file was parsed. It goes stale
+// with the byte offsets it came from, and read_code repairs both.
+func (w *Workspace) NodeLocation(id string) (relPath string, line int, ok bool) {
+	m, found := w.nodeMeta(id)
+	if !found || m.RelPath == "" {
+		return "", 0, false
+	}
+	return m.RelPath, int(m.StartLine), true
 }
 
 // NodeKind returns the indexed node's kind ("" if unknown) — used by the
@@ -107,6 +123,7 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 			RelPath:     res.RelPath,
 			StartByte:   n.StartByte,
 			EndByte:     n.EndByte,
+			StartLine:   n.StartLine,
 			FileHash:    fileHex,
 			Kind:        n.Kind,
 			DisplayName: n.DisplayName,

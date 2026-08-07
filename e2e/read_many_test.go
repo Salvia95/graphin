@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -137,5 +138,39 @@ func TestReadCodeRejectsAmbiguousArgs(t *testing.T) {
 	text, isErr = c.tool("read_code", map[string]any{})
 	if !isErr || !strings.Contains(text, "required") {
 		t.Fatalf("passing neither must be rejected: %s", text)
+	}
+}
+
+// "Where is X" is the cheapest and most common question an agent asks, and
+// grep answered it in one call while search_hybrid handed back only an id
+// (docs/eval/2026-08-07-adoption-diagnosis). Results now carry the location.
+func TestSearchResultsCarryTheirLocation(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, javaFixtures, root)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("search_hybrid", map[string]any{"query": "cancelPayment"})
+	if isErr {
+		t.Fatalf("search: %s", text)
+	}
+	if !strings.Contains(text, ` file="`) || !strings.Contains(text, ` line="`) {
+		t.Fatalf("search results carry no location:\n%s", text)
+	}
+	// The line must be real, not a placeholder.
+	m := regexp.MustCompile(`line="(\d+)"`).FindStringSubmatch(text)
+	if m == nil || m[1] == "0" {
+		t.Fatalf("line attribute is missing or zero:\n%s", text)
+	}
+
+	// And it must agree with what read_code reports for the same node.
+	id := regexp.MustCompile(`<node id="([^"]+)"`).FindStringSubmatch(text)[1]
+	rc, isErr := c.tool("read_code", map[string]any{"node_id": id})
+	if isErr {
+		t.Fatalf("read_code: %s", rc)
+	}
+	lines := regexp.MustCompile(`lines="(\d+)-`).FindStringSubmatch(rc)
+	if lines == nil || lines[1] != m[1] {
+		t.Fatalf("search says line %s, read_code says %v", m[1], lines)
 	}
 }

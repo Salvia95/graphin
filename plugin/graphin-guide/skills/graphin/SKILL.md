@@ -55,7 +55,7 @@ background:
 | Tool | What it gives you | Params that matter |
 |---|---|---|
 | `bootstrap_workspace` | Starts indexing + live file watching. | `model_type`: `english_optimal` \| `multilingual_cjk` (pick by the language of code/comments). `offline`: for air-gapped setups. |
-| `search_hybrid` | Entry-point **node IDs** for a query. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). |
+| `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). |
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
 | `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
 
@@ -65,9 +65,13 @@ normal exploration.
 
 ### Reading the results
 
-- **`search_hybrid`** returns ranked nodes with an ID, a display name, and a match
-  type. Take the top one or two that fit; if none look right, rephrase the query
-  (try the concept, then a likely symbol name) before falling back to other tools.
+- **`search_hybrid`** returns ranked nodes with an ID, a display name, a match
+  type, and the `file`/`line` where the node starts. Take the top one or two that
+  fit; if none look right, rephrase the query (try the concept, then a likely
+  symbol name) before falling back to other tools.
+- **"Where is X?" is already answered by the search result** — the location is
+  right there. Only call `read_code` when you need the body, not to find out
+  where something lives.
 - **`explore_graph`** groups edges into `uses` and `used_by`, each edge carrying a
   `confidence` (roughly: how sure graphin is the relationship is real). Higher =
   safer. If the result says there's more and gives you a cursor, page with it only
@@ -144,8 +148,8 @@ it reflects the schema as checked in, not the current production state.
 
 ## Quick recipes
 
-- **"Where is feature X?"** → `search_hybrid("X in plain words")` → read the top node
-  if needed.
+- **"Where is feature X?"** → `search_hybrid("X in plain words")` — the answer is the
+  `file`/`line` on the top result. `read_code` only if you need the body.
 - **"What calls this function?"** → get its ID via search →
   `explore_graph(id, direction="used_by")`.
 - **"What does this depend on?"** → `explore_graph(id, direction="uses")`.

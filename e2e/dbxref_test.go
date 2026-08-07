@@ -70,7 +70,7 @@ func TestDBTraceBenchmark(t *testing.T) {
 	if isErr {
 		t.Fatalf("benchmark: %s", text)
 	}
-	for _, want := range []string{`hit="true"`, "graphin (search→explore→read)", "Grep Full"} {
+	for _, want := range []string{`hit="true"`, "graphin locate (search)", "graphin 전체 (search→explore→read)", "Grep Full"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("benchmark report missing %q:\n%s", want, text)
 		}

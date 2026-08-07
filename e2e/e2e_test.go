@@ -188,12 +188,20 @@ func TestE2EFixtureRoundtripByteSavings(t *testing.T) {
 		vals[kv[1]] = kv[2]
 	}
 	c20, _ := strconv.Atoi(vals["grep_c20_bytes"])
+	locate, _ := strconv.Atoi(vals["graphin_locate_bytes"])
 	nav, _ := strconv.Atoi(vals["graphin_bytes"])
 	if vals["hit"] != "true" {
 		t.Fatalf("expected node not hit: %s", text)
 	}
-	if nav <= 0 || c20 <= 0 || nav >= c20 {
-		t.Fatalf("byte savings not proven: graphin=%d vs grep-C20=%d\n%s", nav, c20, text)
+	// The comparison axis is locate ↔ grep -C20: both answer "where is this,
+	// with enough around it to read". search→explore→read is reported but is
+	// not comparable — grep has no call graph to give back
+	// (docs/eval/2026-08-07-adoption-diagnosis).
+	if locate <= 0 || c20 <= 0 || locate >= c20 {
+		t.Fatalf("byte savings not proven: graphin locate=%d vs grep-C20=%d\n%s", locate, c20, text)
+	}
+	if nav < locate {
+		t.Fatalf("full roundtrip (%d) cannot be smaller than its own first leg (%d)", nav, locate)
 	}
 	if !strings.Contains(text, "| Grep Full") || !strings.Contains(text, "| graphin") {
 		t.Fatalf("markdown table missing: %s", text)

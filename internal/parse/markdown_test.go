@@ -278,3 +278,20 @@ func TestMarkdownFileNodeHashesThePreamble(t *testing.T) {
 		t.Fatal("file node still hashes the whole file; upgrades would not re-tokenize it")
 	}
 }
+
+// Start lines are recorded at parse time so search can name a location with no
+// file I/O. Nodes are visited in byte order, so a document's sections must come
+// back with strictly increasing lines regardless of the order they were built.
+func TestMarkdownStartLinesAreRecorded(t *testing.T) {
+	src := "머리말\n\n# 첫째\n\n본문\n\n## 둘째\n\n본문\n\n### 셋째\n"
+	res := mdParse(t, "a.md", src)
+	if res.Nodes[0].StartLine != 1 {
+		t.Fatalf("file node starts at line %d, want 1", res.Nodes[0].StartLine)
+	}
+	want := map[string]uint32{"첫째": 3, "둘째": 7, "셋째": 11}
+	for _, s := range sections(res) {
+		if got := s.StartLine; got != want[s.DisplayName] {
+			t.Errorf("%q line = %d, want %d", s.DisplayName, got, want[s.DisplayName])
+		}
+	}
+}

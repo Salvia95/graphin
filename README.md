@@ -6,7 +6,7 @@ AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
 에이전트의 토큰 소모를 최소화한다:
 
 ```
-1. search_hybrid("결제 취소 로직")   → 진입점 노드 ID 후보 (본문 없음)
+1. search_hybrid("결제 취소 로직")   → 진입점 노드 ID + file:line (본문 없음)
 2. explore_graph(노드 ID)           → uses / used_by 관계 + confidence
 3. read_code(노드 ID)               → 해당 노드의 원본 코드만 정확히 슬라이싱
 ```
@@ -147,7 +147,7 @@ lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직
 | 도구 | 역할 |
 |---|---|
 | `bootstrap_workspace` | 최초 인덱싱 + watcher 기동 (`model_type`: `english_optimal` \| `multilingual_cjk`) |
-| `search_hybrid` | Tier-0 정확 일치 → BM25 ∥ 벡터 RRF(k=60) 병합. 원시 점수 비노출 |
+| `search_hybrid` | Tier-0 정확 일치 → BM25 ∥ 벡터 RRF(k=60) 병합. 원시 점수 비노출. 결과마다 시작 `file`·`line`을 함께 준다 — "어디 있나"는 한 콜로 끝난다 |
 | `explore_graph` | 결정론 정렬(confidence↓ → 동일 패키지 → FQN), 20엣지/페이지 seek-key 커서 |
 | `read_code` | 바이트 오프셋 슬라이싱. 파일 해시 불일치 시 인라인 재파싱(`reparsed="true"`) |
 | `run_local_benchmark` | Grep Full / Grep -C20 / graphin 3-시나리오 바이트·토큰 절감 리포트 |

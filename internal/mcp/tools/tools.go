@@ -36,7 +36,7 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 
 	reg.Register(&mcp.Tool{
 		Name:        "search_hybrid",
-		Description: "Hybrid (exact/lexical/semantic) symbol search. Returns entry-point node IDs without code bodies.",
+		Description: "Hybrid (exact/lexical/semantic) symbol search. Returns entry-point node IDs with the file and line each one starts at — enough to answer \"where is X\" without a second call — but no code bodies.",
 		InputSchema: objSchema(map[string]any{
 			"query": map[string]any{"type": "string", "description": "Natural language or symbol query."},
 			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results."},
@@ -165,8 +165,16 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 				display = ws.Sym.SimpleName(r.NodeID)
 			}
 			sb.WriteString("\n  ")
-			fmt.Fprintf(&sb, `<node id="%s" display_name="%s" rank="%d" match_type="%s" />`,
+			fmt.Fprintf(&sb, `<node id="%s" display_name="%s" rank="%d" match_type="%s"`,
 				mcp.EscapeAttr(r.NodeID), mcp.EscapeAttr(display), r.Rank, r.Match)
+			// Where it is, not just what it is. Without this the cheapest
+			// question an agent asks — "where is X" — still needs a second
+			// call, and grep answers it in one
+			// (docs/eval/2026-08-07-adoption-diagnosis §권고 1).
+			if rel, line, ok := ws.NodeLocation(r.NodeID); ok {
+				fmt.Fprintf(&sb, ` file="%s" line="%d"`, mcp.EscapeAttr(rel), line)
+			}
+			sb.WriteString(" />")
 		}
 		sb.WriteString("\n</results>")
 		return sb.String(), false
@@ -499,10 +507,16 @@ func benchmarkHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		readXML, _ := readCodeHandler(ws)(ctx, mustJSON(map[string]any{
 			"node_id": target,
 		}))
-		navBytes := len(mcp.Truncate(searchXML)) + len(mcp.Truncate(exploreXML)) + len(mcp.Truncate(readXML))
+		// Two graphin shapes, because grep -C20 is only a substitute for one of
+		// them. "Where is X" ends at search — results carry file/line — and that
+		// is what -C20 answers too. The call graph is a capability grep does not
+		// have, so search→explore→read is reported but never the comparison axis
+		// (docs/eval/2026-08-07-adoption-diagnosis).
+		locateBytes := len(mcp.Truncate(searchXML))
+		navBytes := locateBytes + len(mcp.Truncate(exploreXML)) + len(mcp.Truncate(readXML))
 		navMs := time.Since(t2).Milliseconds()
 
-		md := buildBenchMarkdown(a, files, fullBytes, fullMs, ctxBytes, ctxMs, navBytes, navMs, hitRank, ws)
+		md := buildBenchMarkdown(a, files, fullBytes, fullMs, ctxBytes, ctxMs, locateBytes, navBytes, navMs, hitRank, ws)
 
 		var sb strings.Builder
 		if st := ws.FSM.Status(); st.State != "ready" {
@@ -510,8 +524,8 @@ func benchmarkHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			sb.WriteString("\n")
 		}
 		fmt.Fprintf(&sb,
-			"<benchmark_report grep_full_bytes=\"%d\" grep_c20_bytes=\"%d\" graphin_bytes=\"%d\" hit=\"%t\" hit_rank=\"%d\">\n",
-			fullBytes, ctxBytes, navBytes, hitRank > 0, hitRank)
+			"<benchmark_report grep_full_bytes=\"%d\" grep_c20_bytes=\"%d\" graphin_locate_bytes=\"%d\" graphin_bytes=\"%d\" hit=\"%t\" hit_rank=\"%d\">\n",
+			fullBytes, ctxBytes, locateBytes, navBytes, hitRank > 0, hitRank)
 		mcp.WriteCDATA(&sb, md)
 		sb.WriteString("\n</benchmark_report>")
 		return sb.String(), false
@@ -521,7 +535,7 @@ func benchmarkHandler(ws *workspace.Workspace) mcp.ToolHandler {
 func buildBenchMarkdown(a struct {
 	TargetQuery  string `json:"target_query"`
 	ExpectedNode string `json:"expected_node"`
-}, files, fullBytes int, fullMs int64, ctxBytes int, ctxMs int64, navBytes int, navMs int64, hitRank int, ws *workspace.Workspace) string {
+}, files, fullBytes int, fullMs int64, ctxBytes int, ctxMs int64, locateBytes, navBytes int, navMs int64, hitRank int, ws *workspace.Workspace) string {
 	saving := func(base int) string {
 		if base <= 0 {
 			return "n/a"
@@ -536,7 +550,7 @@ func buildBenchMarkdown(a struct {
 	} else {
 		md.WriteString("- **expected node MISS** in top_k=5 — 리포트 반증 가능성 확보를 위해 명기\n")
 	}
-	md.WriteString("\n시뮬레이션 가설: ① Grep Full = 매칭 파일 전체 바이트, ② Grep -C 20 = 매치 ±20라인, ③ graphin = search+explore+read 실제 응답 바이트.\n\n")
+	md.WriteString("\n시뮬레이션 가설: ① Grep Full = 매칭 파일 전체 바이트, ② Grep -C 20 = 매치 ±20라인, ③ graphin locate = search 응답만(결과가 file·line을 포함하므로 \"어디 있나\"는 여기서 끝난다), ④ graphin 전체 = search+explore+read.\n\n**비교 축은 ②↔③이다.** grep은 호출 그래프를 주지 않으므로 ④는 참고치로만 싣는다.\n\n")
 	md.WriteString("| scenario | bytes | est. tokens (÷4) | ms | savings vs scenario |\n")
 	md.WriteString("|---|---:|---:|---:|---|\n")
 	fmt.Fprintf(&md, "| Grep Full (%d files) | %d | %d | %d | baseline |\n", files, fullBytes, fullBytes/4, fullMs)
@@ -546,8 +560,16 @@ func buildBenchMarkdown(a struct {
 		}
 		return fmt.Sprintf("%.1f%%", 100*(1-float64(ctxBytes)/float64(fullBytes)))
 	}())
-	fmt.Fprintf(&md, "| graphin (search→explore→read) | %d | %d | %d | %s vs Full, %s vs -C20 |\n",
-		navBytes, navBytes/4, navMs, saving(fullBytes), saving(ctxBytes))
+	locSaving := func(base int) string {
+		if base <= 0 {
+			return "n/a"
+		}
+		return fmt.Sprintf("%.1f%%", 100*(1-float64(locateBytes)/float64(base)))
+	}
+	fmt.Fprintf(&md, "| **graphin locate (search)** | %d | %d | — | **%s vs -C20** |\n",
+		locateBytes, locateBytes/4, locSaving(ctxBytes))
+	fmt.Fprintf(&md, "| graphin 전체 (search→explore→read) | %d | %d | %d | %s vs Full (참고) |\n",
+		navBytes, navBytes/4, navMs, saving(fullBytes))
 
 	// §8: RRF k sweep, meaningful only once the vector engine is warm.
 	if ws.Router.SemanticReady() && a.ExpectedNode != "" {
