@@ -59,11 +59,19 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 
 	reg.Register(&mcp.Tool{
-		Name:        "read_code",
-		Description: "Read the exact source slice of one node.",
+		Name: "read_code",
+		Description: "Read the exact source slice of one node, or of several at once with node_ids. " +
+			"A multi-node read never cuts inside a node: whole nodes come back in the order requested " +
+			"until the response budget runs out, and every node left out is listed with its reason.",
 		InputSchema: objSchema(map[string]any{
 			"node_id": map[string]any{"type": "string", "description": "Node ID to read."},
-		}, []string{"node_id"}),
+			"node_ids": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"maxItems":    maxReadNodes,
+				"description": "Read several nodes in one call, in this order. Use instead of node_id, not with it.",
+			},
+		}, nil),
 		Handler: readCodeHandler(ws),
 	})
 
@@ -243,9 +251,15 @@ func toEdges(in []graph.EdgeOut) []workspaceEdge {
 	return out
 }
 
+// maxReadNodes bounds a multi-node read. It matches explore_graph's page size,
+// and it also bounds how much source the handler holds at once while deciding
+// what fits.
+const maxReadNodes = 20
+
 func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
-		NodeID string `json:"node_id"`
+		NodeID  string   `json:"node_id"`
+		NodeIDs []string `json:"node_ids"`
 	}
 	return func(_ context.Context, raw json.RawMessage) (string, bool) {
 		if !ws.Bootstrapped() {
@@ -254,33 +268,176 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		var a args
 		_ = json.Unmarshal(raw, &a)
 
-		cb, err := ws.ReadCode(a.NodeID)
-		if err != nil {
-			st := ws.FSM.Status()
-			switch {
-			case errors.Is(err, workspace.ErrNodeGone):
-				return mcp.ErrorXML(mcp.ErrNodeGone, "node vanished after reparse: "+a.NodeID, &st), true
-			case errors.Is(err, workspace.ErrNodeNotFound):
-				return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+a.NodeID, &st), true
-			default:
-				return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
-			}
+		st := ws.FSM.Status()
+		switch {
+		case a.NodeID != "" && len(a.NodeIDs) > 0:
+			// Guessing which one the caller meant is exactly the kind of
+			// silent choice this tool exists to avoid.
+			return mcp.ErrorXML(mcp.ErrInternal, "pass node_id or node_ids, not both", &st), true
+		case a.NodeID == "" && len(a.NodeIDs) == 0:
+			return mcp.ErrorXML(mcp.ErrInternal, "node_id or node_ids is required", &st), true
+		case len(a.NodeIDs) > maxReadNodes:
+			return mcp.ErrorXML(mcp.ErrInternal,
+				fmt.Sprintf("node_ids holds %d ids, at most %d per call", len(a.NodeIDs), maxReadNodes), &st), true
 		}
 
-		var sb strings.Builder
-		if st := ws.FSM.Status(); st.State != "ready" {
-			sb.WriteString(st.XML())
-			sb.WriteString("\n")
+		if a.NodeID != "" {
+			return readOne(ws, a.NodeID)
 		}
-		fmt.Fprintf(&sb, `<code_block id="%s" file="%s" lines="%d-%d" reparsed="%t"`,
-			mcp.EscapeAttr(cb.ID), mcp.EscapeAttr(cb.RelPath), cb.StartLine, cb.EndLine, cb.Reparsed)
-		if cb.Partial {
-			sb.WriteString(` partial="true"`)
+		return readMany(ws, a.NodeIDs)
+	}
+}
+
+// readOne keeps the single-node contract byte for byte: one <code_block>, and
+// a hard error when the node cannot be read.
+func readOne(ws *workspace.Workspace, id string) (string, bool) {
+	cb, err := ws.ReadCode(id)
+	if err != nil {
+		st := ws.FSM.Status()
+		code, msg := readErr(err, id)
+		return mcp.ErrorXML(code, msg, &st), true
+	}
+	var sb strings.Builder
+	writeStatusPrefix(&sb, ws)
+	writeCodeBlock(&sb, cb)
+	return sb.String(), false
+}
+
+// readMany returns whole nodes in the order asked for, stopping at the first
+// one that would not fit, and accounts for every id that did not come back.
+//
+// The response is therefore a PREFIX of the request. Fitting smaller later
+// nodes into the gap would silently reorder the caller's priorities, and
+// cutting inside a node would hand back half of a section that the caller had
+// already decided to read — the failure this tool exists to remove
+// (docs/markdown-spec.md §4).
+func readMany(ws *workspace.Workspace, ids []string) (string, bool) {
+	type item struct {
+		id     string
+		block  string // rendered <code_block>, empty when it could not be read
+		reason string // omission reason when block is empty
+	}
+	items := make([]item, 0, len(ids))
+	for _, id := range ids {
+		cb, err := ws.ReadCode(id)
+		if err != nil {
+			items = append(items, item{id: id, reason: omitReason(err)})
+			continue
 		}
-		sb.WriteString(">\n")
-		mcp.WriteCDATA(&sb, cb.Code)
-		sb.WriteString("\n</code_block>")
-		return sb.String(), false
+		var b strings.Builder
+		writeCodeBlock(&b, cb)
+		items = append(items, item{id: id, block: b.String()})
+	}
+
+	var head strings.Builder
+	writeStatusPrefix(&head, ws)
+
+	// tail is what the footer costs if the read stops right here: every id
+	// from this point on still has to be named.
+	tail := func(rest []item) int {
+		n := 0
+		for _, it := range rest {
+			r := it.reason
+			if r == "" {
+				r = "budget"
+			}
+			n += omitLineLen(it.id, r)
+		}
+		return n
+	}
+
+	// The cut is decided against the COMPLETE response, not against the blocks
+	// alone: stopping later costs more body but fewer omission lines.
+	budget := mcp.MaxResponseBytes
+	used := head.Len() + len(fmt.Sprintf("<code_blocks requested=\"%d\" returned=\"%d\">\n", len(ids), len(ids))) + len("</code_blocks>")
+	cut := len(items)
+	for i, it := range items {
+		if it.block == "" {
+			used += omitLineLen(it.id, it.reason)
+			continue
+		}
+		if used+len(it.block)+1+tail(items[i+1:]) > budget {
+			cut = i
+			break
+		}
+		used += len(it.block) + 1
+	}
+
+	var sb strings.Builder
+	sb.WriteString(head.String())
+	returned := 0
+	for _, it := range items[:cut] {
+		if it.block != "" {
+			returned++
+		}
+	}
+	fmt.Fprintf(&sb, "<code_blocks requested=\"%d\" returned=\"%d\">\n", len(ids), returned)
+	for _, it := range items[:cut] {
+		if it.block == "" {
+			writeOmitted(&sb, it.id, it.reason)
+			continue
+		}
+		sb.WriteString(it.block)
+		sb.WriteString("\n")
+	}
+	for _, it := range items[cut:] {
+		reason := it.reason
+		if reason == "" {
+			reason = "budget"
+		}
+		writeOmitted(&sb, it.id, reason)
+	}
+	sb.WriteString("</code_blocks>")
+	return sb.String(), false
+}
+
+func writeStatusPrefix(sb *strings.Builder, ws *workspace.Workspace) {
+	if st := ws.FSM.Status(); st.State != "ready" {
+		sb.WriteString(st.XML())
+		sb.WriteString("\n")
+	}
+}
+
+func writeCodeBlock(sb *strings.Builder, cb *workspace.CodeBlock) {
+	fmt.Fprintf(sb, `<code_block id="%s" file="%s" lines="%d-%d" reparsed="%t"`,
+		mcp.EscapeAttr(cb.ID), mcp.EscapeAttr(cb.RelPath), cb.StartLine, cb.EndLine, cb.Reparsed)
+	if cb.Partial {
+		sb.WriteString(` partial="true"`)
+	}
+	sb.WriteString(">\n")
+	mcp.WriteCDATA(sb, cb.Code)
+	sb.WriteString("\n</code_block>")
+}
+
+func writeOmitted(sb *strings.Builder, id, reason string) {
+	fmt.Fprintf(sb, "  <omitted id=\"%s\" reason=\"%s\" />\n", mcp.EscapeAttr(id), reason)
+}
+
+func omitLineLen(id, reason string) int {
+	var b strings.Builder
+	writeOmitted(&b, id, reason)
+	return b.Len()
+}
+
+func readErr(err error, id string) (string, string) {
+	switch {
+	case errors.Is(err, workspace.ErrNodeGone):
+		return mcp.ErrNodeGone, "node vanished after reparse: " + id
+	case errors.Is(err, workspace.ErrNodeNotFound):
+		return mcp.ErrNodeNotFound, "unknown node: " + id
+	default:
+		return mcp.ErrInternal, err.Error()
+	}
+}
+
+func omitReason(err error) string {
+	switch {
+	case errors.Is(err, workspace.ErrNodeGone):
+		return "gone"
+	case errors.Is(err, workspace.ErrNodeNotFound):
+		return "not_found"
+	default:
+		return "error"
 	}
 }
 
