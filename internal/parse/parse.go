@@ -38,6 +38,9 @@ const (
 	// schema/graphindb.md). Tables/views/functions/RLS/triggers become
 	// individual nodes; columns and constraints fold into the table node.
 	LangDBSchema
+	// LangMarkdown marks .md/.markdown (docs/markdown-spec.md): the file node
+	// survives, and each ATX heading additionally becomes a section node.
+	LangMarkdown
 )
 
 // FileScoped reports whether the language derives its package from the file
@@ -73,6 +76,8 @@ func DetectLanguage(path string) Language {
 		return LangTypeScript
 	case strings.HasSuffix(path, graphindbSuffix):
 		return LangDBSchema
+	case strings.HasSuffix(path, ".md"), strings.HasSuffix(path, ".markdown"):
+		return LangMarkdown
 	}
 	base := pathpkg.Base(path)
 	if plainBasenames[base] {
@@ -86,9 +91,12 @@ func DetectLanguage(path string) Language {
 
 // plainExtensions/plainBasenames define the anchor-less text files indexed
 // as whole-file nodes so agents can still discover and read them.
+// .md/.markdown are deliberately absent: they route to LangMarkdown above and
+// gain section nodes. The rest have no heading structure, so the whole-file
+// node is all there is to give them.
 var plainExtensions = map[string]bool{
 	".yml": true, ".yaml": true, ".properties": true, ".json": true,
-	".xml": true, ".sql": true, ".md": true, ".markdown": true,
+	".xml": true, ".sql": true,
 	".toml": true, ".txt": true, ".conf": true, ".ini": true, ".cfg": true,
 	".gradle": true, ".sh": true,
 	// .prisma: 매니페스트로 라우팅되면 DB 노드, 아니면 plain 파일 노드.
@@ -245,6 +253,8 @@ func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, err
 
 	if lang == LangPlain {
 		extractPlain(src, res)
+	} else if lang == LangMarkdown {
+		extractMarkdown(src, res)
 	} else if lang == LangDBSchema {
 		extractDBSchema(src, res)
 	} else {
@@ -281,6 +291,12 @@ func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, err
 func attachBodyTokens(res *FileResult, src []byte) {
 	for i := range res.Nodes {
 		n := &res.Nodes[i]
+		// An extractor that already set tokens means its node's span is not
+		// what should be indexed — the markdown file node spans the whole
+		// file but only carries its preamble (markdown-spec §D5).
+		if n.BodyTokens != nil {
+			continue
+		}
 		if n.StartByte < n.EndByte && int(n.EndByte) <= len(src) {
 			n.BodyTokens = lexical.TokenizeCapped(string(src[n.StartByte:n.EndByte]), maxBodyTokens)
 		}

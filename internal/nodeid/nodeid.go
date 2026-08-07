@@ -19,8 +19,13 @@ const (
 	KindMethod    = "method"
 	KindFunction  = "function"
 	// KindFile is the fallback node for text files without parseable
-	// symbols (configs, SQL, docs): whole file = one node, ID = rel path.
+	// symbols (configs, SQL): whole file = one node, ID = rel path.
+	// Markdown keeps a file node too, as the root of its section tree.
 	KindFile = "file"
+	// KindSection is one markdown heading and the prose under it, up to the
+	// next heading of any level (docs/markdown-spec.md §3.4).
+	// ID = "<rel path>#<github-style slug>".
+	KindSection = "section"
 )
 
 // DB-domain kinds for graphindb snapshot nodes (schema/graphindb.md).

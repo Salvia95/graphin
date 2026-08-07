@@ -44,9 +44,16 @@ func TestPlainFileBecomesSingleNode(t *testing.T) {
 }
 
 func TestPlainBasenamesDetected(t *testing.T) {
-	for _, p := range []string{"Dockerfile", "deploy/Makefile", "db/init.sql", "docs/guide.md"} {
+	for _, p := range []string{"Dockerfile", "deploy/Makefile", "db/init.sql"} {
 		if DetectLanguage(p) != LangPlain {
 			t.Errorf("%s should be LangPlain", p)
+		}
+	}
+	// Markdown left the plain fallback: it has headings, so it gets section
+	// nodes instead (docs/markdown-spec.md §3.1).
+	for _, p := range []string{"docs/guide.md", "NOTES.markdown"} {
+		if DetectLanguage(p) != LangMarkdown {
+			t.Errorf("%s should be LangMarkdown", p)
 		}
 	}
 	for _, p := range []string{"img/logo.png", "bin/tool", "a.class"} {
