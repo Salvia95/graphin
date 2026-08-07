@@ -3,7 +3,7 @@
 마크다운을 헤딩 단위로 쪼개 **섹션을 그래프의 원자**로 만든다. 파일 탐색은
 지금 잘 되므로 그대로 두고, 무너져 있는 **내용 검색과 정확한 추출**을 고친다.
 
-**상태 (2026-08-07): 스펙. Phase 1 구현 예정.**
+**상태 (2026-08-07): Phase 1 ✅ 구현 완료(파서 + `contains` 엣지). Phase 2·3 예정.**
 
 ## 0. 문제
 
@@ -255,15 +255,19 @@ make fbs && git diff --exit-code internal/graph/fbsgen/   # 재생성이 결정�
 # 이 저장소 자신이 픽스처다: 헤딩 276개, 펜스 오탐 26개, 슬러그 충돌 0건
 ```
 
-인덱싱 후 실측으로 확인할 것:
+### 7.1 Phase 1 실측 (2026-08-07)
 
-- `search_hybrid "프렐류드"` → `docs/plugin-distribution.md#…`가 **렉시컬로**
-  잡힌다 (지금은 0건)
-- `explore_graph docs/plugin-distribution.md` → `contains` **1개**. 이 문서는
-  h1이 하나뿐이고 `contains`는 계층적이라 파일의 직계 자식은 그 h1이다
-  (레벨 분포 실측: h1 1 · h2 14 · h3 28 · h4 3)
-- `explore_graph …#13-버저닝` → `contains` **6개** (13.1 ~ 13.6)
-- `read_code`로 §13.3을 읽으면 잘리지 않는다
+새 바이너리로 저장소 사본을 인덱싱해 스펙의 예측을 그대로 확인했다.
+
+| 확인 | 결과 |
+|---|---|
+| `search_hybrid "프렐류드"` | `docs/markdown-spec.md#7-검증` **`match_type="lexical"`** — 이 질의는 지금까지 렉시컬 0건이었다 |
+| `explore_graph …plugin-distribution.md` | `contains` **1개**. h1이 하나뿐이고 계층적이므로 파일의 직계 자식은 그 h1이다 (레벨 분포: h1 1 · h2 14 · h3 28 · h4 3) |
+| `explore_graph …#13-버저닝` | `contains` **6개** (13.1 ~ 13.6), 전부 `confidence="1.00"` |
+| `read_code …#133-0x-규칙` | **653바이트, `lines="906-924"`, 절단 없음.** 같은 문서를 파일 노드로 읽으면 57KB 중 12KB에서 잘린다 |
+
+슬러그는 `docs/plugin-distribution.md`의 헤딩 46개를 GitHub 실제 앵커와 대조해
+**46/46 일치**를 확인했다.
 
 ## 8. 하지 말 것
 
