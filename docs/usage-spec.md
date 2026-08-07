@@ -210,6 +210,10 @@ graphin usage report [--log <dir|file>] [--since <YYYY-MM-DD|72h>] [--json] [--t
   커맨드 1개가 ~100–200 tok을 더한다. **릴리스 게이트**:
   `claude plugin details graphin`으로 상시 비용을 확인한 뒤 배포한다. 다만
   `graphin`은 커맨드가 4개(report·setup·doctor·admin)이므로 기준선은 그만큼이다.
+  **v0.2.0 실측(2026-08-07, CC 2.1.221): 상시 ~248 tok** — 커맨드 4개가
+  ~60–70씩이고 훅 2개는 0, MCP 도구 스키마는 런타임 해석이라 포함되지 않는다.
+  추정보다 싸다. (`graphin-guide`는 별도로 ~327 tok — 스킬 ~180 + 에이전트
+  ~150. [plugin-distribution §10.3](plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07))
 - **네임스페이싱**: 호출형은 항상 `/graphin:report`.
 - **기업 환경**: 관리자가 `allowManagedHooksOnly`를 켜면 사용자·프로젝트·
   플러그인 훅이 차단된다. 예외는 관리형 설정 `enabledPlugins`로 강제 활성화된
@@ -222,6 +226,7 @@ graphin usage report [--log <dir|file>] [--since <YYYY-MM-DD|72h>] [--json] [--t
 3. `graphin usage report`가 헤드라인 4종 + same-intent 폴백 쌍을 출력한다.
 4. `make vet test` 그린 (유닛 + e2e 훅 블랙박스).
 5. `claude plugin details graphin`의 상시 비용이 커맨드 4개분 이내(훅은 0).
+   ✅ 실측 ~248 tok (2026-08-07) — §6.
 
 ## 8. 열린 질문
 

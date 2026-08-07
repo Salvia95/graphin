@@ -685,10 +685,11 @@ go test ./cmd/graphin/                            # --json 키 집합 계약
 # Phase 2 ✅  핀 테이블 well-formed + 미지원 플랫폼이 명시적 오류를 내는지
 go test ./internal/provision/
 
-# Phase 3 — 워크플로 문법·run 블록은 actionlint로 (푸시 전)
-go run github.com/rhysd/actionlint/cmd/actionlint@latest
-# 릴리스 후, 구형 glibc에서 실행되는지가 핵심
-docker run --rm -v $PWD:/w debian:12 /w/graphin version
+# Phase 3 ✅ — 둘 다 CI가 대신한다(수동 단계 아님, §10.3)
+#   ci.yml `lint`          — actionlint v1.7.12 핀. shellcheck와 한 잡에 둔 건
+#                            actionlint가 run: 블록을 shellcheck에 넘기기 때문
+#   ci.yml `install-smoke` — debian:bullseye(2.31) × amd64·arm64에서
+#                            공개 릴리스를 실제로 설치하고 실행
 
 # Phase 4 ✅ 실제 릴리스에서 설치되는지 — 빈 데이터 디렉터리로 전 과정을 돌린다
 CLAUDE_PLUGIN_ROOT=$PWD/plugin/graphin CLAUDE_PLUGIN_DATA=$(mktemp -d) \
@@ -751,6 +752,44 @@ claude --plugin-dir ./plugin/graphin-guide
 상황(MCP 기동 실패, 프로젝트별 MCP 비활성)으로 좁혀진다. 드물지만 그때는
 계측이 통째로 죽으므로 순서는 그대로 둔다 — `e2e/plugin_test.go`가 고정한다.
 
+### 10.3 릴리스 게이트 실측 (2026-08-07)
+
+수동 검증 목록으로 남아 있던 셋을 측정하고, 셋 다 CI로 넘겼다.
+
+**glibc 바닥은 2.31이 아니라 2.17이다.** v0.2.0 릴리스 에셋을 `objdump -T`로
+읽은 실측값이고, 로컬 WSL 빌드는 같은 방법으로 2.34가 나온다 — 릴리스를
+bullseye에서 굽는 이유가 수치로 확인된 셈이다. release.yml은 이제 이 값을
+출력만 하지 않고 **2.31 상한으로 단언한다.** 다만 단언의 사정거리를 정직하게
+적어두면: bullseye의 glibc가 2.31까지만 제공하므로, 컨테이너가 bullseye인 한
+의존성이 무슨 짓을 해도 이 검사는 발화할 수 없다. 이 가드가 실제로 지키는
+것은 **컨테이너 자체**다 — Debian 11 LTS가 2026-08-31에 끝나므로 "그냥
+bookworm으로 올리자"는 압력이 곧 온다. 그러면 바닥이 2.36으로 뛰고 RHEL 9·
+AL2023(2.34)이 조용히 잘려나가는데, 그때 이 검사가 발화한다.
+
+**bullseye EOL은 릴리스 파이프라인을 apt에서 먼저 끊는다.** 2026-08-31 이후
+스위트가 `deb.debian.org`에서 `archive.debian.org`로 옮겨가 `apt-get update`가
+실패한다. 날짜를 예측해 갈아타는 대신 **감지한다** — 정상 미러를 먼저 시도하고
+실패하면 archive로 폴백하는 5줄이 `release.yml`과 `ci.yml` 양쪽에 있다.
+
+**상시 컨텍스트 비용** (`claude plugin details`, CC 2.1.221):
+
+| 플러그인 | 상시 | 내역 |
+|---|---|---|
+| `graphin` | **~248 tok** | 커맨드 4개(~60–70 each), 훅 2개는 harness-only로 **0**, MCP 도구 스키마는 런타임 해석이라 미포함 |
+| `graphin-guide` | **~327 tok** | 스킬 ~180 + 에이전트 ~150. 호출 시 각각 ~2.5k·~1.8k |
+
+usage-spec §7 수용기준 5(커맨드 4개분 이내, 훅 0)를 만족한다. 유도를 별도
+플러그인으로 뗀 대가가 상시 327 tok이라는 것도 이 표가 처음 값으로 보여준다.
+
+**`install-smoke`가 닫은 구멍.** `debian:bullseye` × amd64·arm64에서 공개
+릴리스를 받아 설치하고 실행한다. 컨테이너에 go도 cc도 없는 것이 설계다 —
+`install.sh`의 `go_install` 폴백이 발화할 수 없으므로, 깨진 다운로드가 조용히
+소스 빌드로 초록이 되는 길이 막힌다. amd64는 이 문서를 쓰며 로컬 docker로
+전 과정을 돌려 확인했다(`source=release`, 심볼릭 링크, `version --json` 일치,
+두 번째 실행 무출력). **arm64 설치 경로는 이 잡이 처음으로 실행하는 것이다** —
+릴리스 워크플로는 네이티브 arm64 러너에서 `graphin version`까지만 했을 뿐,
+에셋을 내려받아 sha256을 맞추고 푸는 경로는 아무도 돌린 적이 없었다.
+
 ## 11. 실측 (추측 금지)
 
 측정 방법: 설치된 Claude Code 2.1.221 바이너리의 플러그인 로더 코드와 공식
@@ -782,6 +821,9 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
   복사되고, 25MB × 플랫폼 수 × 모든 버전이 git 히스토리에 영구히 남는다.
 - **`-extldflags -static`** — `dlopen` 파괴. 워밍업에서만 드러난다.
 - **`ubuntu-latest`로 linux 릴리스 빌드** — glibc 바닥이 너무 높다.
+- **bullseye EOL(2026-08-31)을 bookworm 승격으로 해결** — apt는 고쳐지지만 glibc
+  바닥이 2.36으로 뛰어 RHEL 9·AL2023(2.34)이 잘린다. 답은 `archive.debian.org`
+  폴백이다(§10.3). release.yml의 바닥 단언이 이 실수에 걸리라고 있는 것이다.
 - **darwin/amd64 배포** — ORT 1.26.0 에셋 부재. 영구 lexical-only를 문서로만 알리는
   꼴이 된다.
 - **admin 포트 자동 할당** — 조용한 포트 드리프트가 보이는 바인드 실패보다 나쁘다.

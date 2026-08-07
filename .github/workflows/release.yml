@@ -56,7 +56,24 @@ jobs:
     steps:
       - name: Install build prerequisites
         run: |
-          apt-get update
+          set -eu
+          # Debian 11 LTS ends 2026-08-31. After that the suite moves off
+          # deb.debian.org to archive.debian.org and this step fails — which
+          # would take the whole release pipeline with it. Detect it instead
+          # of timing it.
+          #
+          # Do NOT resolve this by bumping to bookworm: that raises the glibc
+          # floor from 2.31 to 2.36 and drops RHEL 9 and AL2023 (both 2.34),
+          # which is the only reason this container exists.
+          if ! apt-get update; then
+            echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
+            printf '%s\n' \
+              'deb http://archive.debian.org/debian bullseye main' \
+              'deb http://archive.debian.org/debian-security bullseye-security main' \
+              > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list || true
+            apt-get -o Acquire::Check-Valid-Until=false update
+          fi
           apt-get install -y --no-install-recommends \
             build-essential ca-certificates curl git jq xz-utils
           git config --global --add safe.directory '*'
@@ -97,8 +114,27 @@ jobs:
           jq -e --arg v "$VER" --arg a "${{ matrix.goarch }}" \
             '.version == $v and .arch == $a and .os == "linux" and .semantic_supported == true' \
             v.json > /dev/null
-          echo "glibc floor: $(objdump -T graphin | sed -n 's/.*GLIBC_\([0-9.]*\).*/\1/p' | sort -uV | tail -1)"
           rm v.json
+
+          # The floor is asserted, not printed — but be clear about what this
+          # can and cannot catch. bullseye's glibc only *provides* symbols up
+          # to 2.31, so while this container stays bullseye the check cannot
+          # fire no matter what the dependencies do. (Measured on v0.2.0: the
+          # real floor is 2.17, well under the ceiling.)
+          #
+          # Its job is to be a tripwire on the container itself. Debian 11 LTS
+          # ends 2026-08-31 and the pressure to "just move to bookworm" will be
+          # real; that silently raises the floor to 2.36 and drops RHEL 9 and
+          # AL2023 (2.34), and nobody would notice until a user's exec fails
+          # with a glibc version error. Then this fires.
+          MAX=2.31
+          floor="$(objdump -T graphin | sed -n 's/.*GLIBC_\([0-9.]*\).*/\1/p' | sort -uV | tail -1)"
+          [ -n "$floor" ] || { echo "::error::no GLIBC_ symbols in the binary — objdump output changed shape"; exit 1; }
+          echo "glibc floor: $floor (max $MAX)"
+          if [ "$(printf '%s\n%s\n' "$floor" "$MAX" | sort -V | tail -1)" != "$MAX" ]; then
+            echo "::error::glibc floor rose to ${floor}, above the ${MAX} this release promises. Something new links a newer symbol; find it before shipping — RHEL 9 and AL2023 are at 2.34 and would break."
+            exit 1
+          fi
 
       - name: Package
         env:

@@ -43,9 +43,12 @@ jobs:
       # and adds nothing for the single-threaded parsers.
       - run: make test-race
 
-  shellcheck:
+  # Both linters live in one job on purpose: actionlint shells out to
+  # shellcheck for the `run:` blocks it finds, and the runner image already
+  # has shellcheck on PATH. Splitting them would silently lose that half.
+  lint:
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +63,21 @@ jobs:
           shellcheck --version
           # shellcheck disable=SC2046  # paths in this repo have no spaces
           shellcheck $(git ls-files '*.sh')
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # release.yml is workflow_dispatch-only, so a typo in it stays invisible
+      # until the day of a release — the worst possible moment to discover that
+      # an expression does not parse. This is the only thing that reads those
+      # files on an ordinary push.
+      #
+      # Pinned, not @latest: a lint tool that floats turns an unrelated push
+      # red the day upstream adds a rule.
+      - name: actionlint
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
 
   # graphin-guide has no release pipeline of its own: the marketplace serves it
   # straight from main, and Claude Code offers an update ONLY when plugin.json's
@@ -115,3 +133,95 @@ jobs:
             exit 1
           fi
           echo "graphin-guide ${old} → ${new}"
+
+  # Everything above tests the source tree. This tests the *release*: the
+  # published manifest, the published asset, and install.sh — the three things
+  # a user actually runs, none of which the Go test suite can reach.
+  #
+  # It closes three holes at once (docs/plugin-distribution.md §10):
+  #   - linux/arm64 had never had its install path executed anywhere. The
+  #     release workflow runs `graphin version` on a native arm64 runner, but
+  #     nothing had ever downloaded, verified and unpacked the arm64 asset.
+  #   - the glibc floor was printed by the release workflow, never asserted.
+  #     Running the shipped binary on bullseye (2.31) IS the assertion.
+  #   - a manifest whose sha256 no longer matches its asset would have been
+  #     found by a user first.
+  #
+  # The container deliberately has neither go nor cc: install.sh's go_install
+  # fallback then cannot fire, so a broken download fails this job instead of
+  # quietly compiling its way to green.
+  install-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    container:
+      image: debian:bullseye
+    steps:
+      - name: Prerequisites
+        run: |
+          set -eu
+          # Debian 11 LTS ends 2026-08-31, after which the suite leaves
+          # deb.debian.org for archive.debian.org and apt-get update fails.
+          # Detect that rather than timing it — and do NOT "fix" it by moving
+          # to bookworm: that raises the glibc floor 2.31 → 2.36 and drops
+          # RHEL 9 and AL2023, which is the whole reason this image is here.
+          if ! apt-get update; then
+            echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
+            printf '%s\n' \
+              'deb http://archive.debian.org/debian bullseye main' \
+              'deb http://archive.debian.org/debian-security bullseye-security main' \
+              > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list || true
+            apt-get -o Acquire::Check-Valid-Until=false update
+          fi
+          apt-get install -y --no-install-recommends ca-certificates curl git jq
+          ldd --version | head -1
+
+      - uses: actions/checkout@v4
+
+      - name: Install from the published release
+        run: |
+          set -eu
+          DATA="$(mktemp -d)"
+          echo "DATA=$DATA" >> "$GITHUB_ENV"
+          # install.sh logs to stdout; only the launcher redirects it to a file.
+          CLAUDE_PLUGIN_ROOT="$PWD/plugin/graphin" CLAUDE_PLUGIN_DATA="$DATA" \
+            sh plugin/graphin/install/install.sh | tee install.log
+
+      - name: Assert what was installed
+        run: |
+          set -eu
+          want="$(jq -r .version plugin/graphin/install/manifest.json)"
+
+          # A symlink, not a copy: overwriting a running binary in place is
+          # ETXTBSY, and the upgrade path depends on swapping this link.
+          [ -L "$DATA/bin/graphin" ] || {
+            echo "::error::$DATA/bin/graphin is not a symlink"; exit 1; }
+
+          src="$(jq -r .source "$DATA/state/installed.json")"
+          [ "$src" = "release" ] || {
+            echo "::error::installed from '$src', not the published release asset"
+            cat install.log; exit 1; }
+
+          "$DATA/bin/graphin" version --json | tee v.json
+          jq -e --arg v "$want" --arg a "${{ matrix.arch }}" \
+            '.version == $v and .os == "linux" and .arch == $a and .semantic_supported == true' \
+            v.json > /dev/null
+
+      - name: The fast path must stay a no-op
+        run: |
+          set -eu
+          # An identical manifest means an identical install: the second run
+          # must print nothing and download nothing. Regressing this turns
+          # every session start into a 25MB fetch.
+          out="$(CLAUDE_PLUGIN_ROOT="$PWD/plugin/graphin" CLAUDE_PLUGIN_DATA="$DATA" \
+            sh plugin/graphin/install/install.sh 2>&1)"
+          [ -z "$out" ] || {
+            echo "::error::second run was not a no-op"; printf '%s\n' "$out"; exit 1; }
