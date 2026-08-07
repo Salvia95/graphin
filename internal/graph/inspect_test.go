@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/Salvia95/graphin/internal/nodeid"
@@ -127,8 +129,42 @@ func TestInspectDanglingDBDomain(t *testing.T) {
 	}
 }
 
+// Sized on purpose, and not with inspectFixture.
+//
+// Flush → Sync kicks compaction ASYNCHRONOUSLY when tombstones/records rises
+// above compactTombstoneFrac, and compaction folds tombstones into a fresh
+// base — erasing the very counter this test reads. With a single call edge the
+// ratio after one removal is 1/2, so the trigger always fired and the
+// assertion only passed when it won the race against the goroutine (observed
+// failing roughly 1 run in 35).
+//
+// Keeping the ratio under the trigger makes the assertion deterministic
+// instead. The guard below fails loudly if the constant ever moves, rather
+// than letting the test drift back into flaking.
 func TestInspectReverseStats(t *testing.T) {
-	e, runID, _ := inspectFixture(t)
+	const callers = 4 // 1 tombstone / (callers+1) records
+	if 1.0/float64(callers+1) > compactTombstoneFrac {
+		t.Fatalf("fixture too small: 1/%d exceeds compactTombstoneFrac=%v",
+			callers+1, compactTombstoneFrac)
+	}
+
+	pkg := "com.a"
+	files := []*parse.FileResult{
+		fileRes(parse.LangJava, "a/Svc.java", pkg, nil,
+			methodNode(pkg, "Svc", "charge", []string{"long"}, 1, 1)),
+	}
+	var runID string
+	for i := range callers {
+		name := fmt.Sprintf("run%d", i)
+		files = append(files, fileRes(parse.LangJava, fmt.Sprintf("a/Flow%d.java", i), pkg, nil,
+			methodNode(pkg, "Flow"+strconv.Itoa(i), name, nil, 0, 0,
+				parse.Call{Name: "charge", Args: 1, Recv: "svc"})))
+		if i == 0 {
+			runID = nodeid.Method(pkg, "Flow"+strconv.Itoa(i), name, nil)
+		}
+	}
+	e := newEngine(t)
+	applyAll(e, files...)
 
 	st := e.ReverseStats()
 	if st.Targets == 0 || st.Edges == 0 || st.LogRecords == 0 {
