@@ -102,7 +102,7 @@ func TestUsagePageHidesTargetTableWithoutDBRuns(t *testing.T) {
 		`{"v":1,"ts":"2026-08-06T10:00:01Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u2","tool":"Read","p":{"file_path":"a.go"}}`,
 	})
 	body := get(t, newTestServer(t, ws), "/usage").Body.String()
-	if strings.Contains(body, "코드 vs DB 스키마 질의") {
+	if strings.Contains(body, "코드 vs DB 스키마 vs 문서 질의") {
 		t.Fatal("target table rendered for a workspace with no db runs")
 	}
 }
@@ -117,12 +117,12 @@ func TestUsagePageRendersTargetTable(t *testing.T) {
 		`{"v":1,"ts":"2026-08-06T10:01:01Z","session_id":"s1","prompt_id":"p2","tool_use_id":"u4","tool":"Read","p":{"file_path":"a.go"}}`,
 	})
 	rec := get(t, newTestServer(t, ws), "/usage")
-	wantContains(t, rec, http.StatusOK, "코드 vs DB 스키마 질의", "런 수")
+	wantContains(t, rec, http.StatusOK, "코드 vs DB 스키마 vs 문서 질의", "런 수")
 
 	// Assert inside the target table only. The headline table renders the same
 	// "n (p%)" strings, so a body-wide Contains would pass on wrong numbers.
 	body := rec.Body.String()
-	i := strings.Index(body, "코드 vs DB 스키마 질의")
+	i := strings.Index(body, "코드 vs DB 스키마 vs 문서 질의")
 	section := body[i:]
 	if j := strings.Index(section, "</article>"); j > 0 {
 		section = section[:j]
@@ -150,5 +150,30 @@ func writeUsageEvents(t *testing.T, wsDir string, lines []string) {
 	if err := os.WriteFile(filepath.Join(dir, "events.jsonl"),
 		[]byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A markdown lookup must show up as its own row, not inside code — the reason
+// the docs target exists (docs/markdown-spec.md §6).
+func TestUsagePageRendersDocsTarget(t *testing.T) {
+	ws := newTestWS(t, nil)
+	writeUsageEvents(t, ws.Dir, []string{
+		`{"v":1,"ts":"2026-08-07T10:00:00Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u1","tool":"mcp__k__search_hybrid","p":{"query":"버저닝","result_ids":["docs/plugin-distribution.md#13-버저닝"]}}`,
+		`{"v":1,"ts":"2026-08-07T10:00:01Z","session_id":"s1","prompt_id":"p1","tool_use_id":"u2","tool":"Read","p":{"file_path":"a.go"}}`,
+	})
+	rec := get(t, newTestServer(t, ws), "/usage")
+	wantContains(t, rec, http.StatusOK, "코드 vs DB 스키마 vs 문서 질의")
+
+	body := rec.Body.String()
+	i := strings.Index(body, "코드 vs DB 스키마 vs 문서 질의")
+	section := body[i:]
+	if j := strings.Index(section, "</article>"); j > 0 {
+		section = section[:j]
+	}
+	if !strings.Contains(section, "<td>docs</td>") {
+		t.Fatalf("docs row missing:\n%s", section)
+	}
+	if strings.Contains(section, "<td>code</td>") {
+		t.Fatalf("a docs-only run must not appear as code:\n%s", section)
 	}
 }

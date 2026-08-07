@@ -31,15 +31,15 @@ type GroupMetrics struct {
 	FunnelAdherent      int `json:"funnel_adherent"` // …whose ids were explored/read later in the window
 }
 
-// TargetMetrics splits run outcomes by what the run actually touched: code
-// nodes or `db.` schema nodes (spec §8). The unit is the run, not the window —
-// "when graphin is used for a schema question, is it adopted?" is a question
-// about runs, and a single window can hold one of each.
+// TargetMetrics splits run outcomes by what the run actually touched: code,
+// `db.` schema nodes, or markdown docs (spec §4.3). The unit is the run, not
+// the window — "when graphin is used for a schema question, is it adopted?"
+// is a question about runs, and a single window can hold one of each.
 //
-// code and db are NOT a partition. A run whose search surfaced both kinds
-// counts in both, because both populations are asking their own question. A
+// The three are NOT a partition. A run whose search surfaced more than one
+// kind counts in each, because every population is asking its own question. A
 // run that referenced no node id at all (a search that returned nothing) lands
-// in neither, which is why Runs is reported rather than inferred.
+// in none, which is why Runs is reported rather than inferred.
 type TargetMetrics struct {
 	Runs                int `json:"runs"`
 	Adoptions           int `json:"adoptions"`
@@ -72,7 +72,7 @@ type Report struct {
 	SessionsWithGraphin   int                       `json:"sessions_with_graphin"`
 	MedianCallsToFirstNav int                       `json:"median_calls_to_first_nav"` // -1: no session used graphin
 	Groups                map[string]GroupMetrics   `json:"groups"`                    // keys: all, main, subagent
-	Targets               map[string]TargetMetrics  `json:"targets"`                   // keys: code, db
+	Targets               map[string]TargetMetrics  `json:"targets"`                   // keys: code, db, docs
 	FallbackPairs         []FallbackPair            `json:"fallback_pairs"`
 	Bigrams               map[string]map[string]int `json:"bigrams"`
 	Daily                 []DayTrend                `json:"daily"`
@@ -99,7 +99,7 @@ func Compute(events []Event, problems []string, opts Options) Report {
 		Problems: problems,
 	}
 	groups := map[string]*GroupMetrics{"all": {}, "main": {}, "subagent": {}}
-	targets := map[string]*TargetMetrics{targetCode: {}, targetDB: {}}
+	targets := map[string]*TargetMetrics{targetCode: {}, targetDB: {}, targetDocs: {}}
 	daily := map[string]*DayTrend{}
 	var pairs []FallbackPair
 
@@ -257,11 +257,40 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 const (
 	targetCode = "code"
 	targetDB   = "db"
+	targetDocs = "docs"
 
 	// dbNodePrefix is the schema-node namespace: db.<database>.<schema>.<name>
-	// (internal/graph). Everything else is code.
+	// (internal/graph).
 	dbNodePrefix = "db."
 )
+
+// docSuffixes match the markdown node IDs introduced by
+// docs/markdown-spec.md: "<path>.md" for the file node and
+// "<path>.md#<slug>" for a section. Without this every documentation lookup
+// would land in the code population and quietly move the code adoption rate.
+var docSuffixes = []string{".md", ".markdown"}
+
+// targetOf classifies one node ID into its population. The check is on the
+// path part only: a section ID carries its slug after '#', and the slug can
+// contain anything a heading can.
+func targetOf(id string) string {
+	if id == "" {
+		return ""
+	}
+	if strings.HasPrefix(id, dbNodePrefix) {
+		return targetDB
+	}
+	path := id
+	if i := strings.IndexByte(path, '#'); i >= 0 {
+		path = path[:i]
+	}
+	for _, suf := range docSuffixes {
+		if strings.HasSuffix(path, suf) {
+			return targetDocs
+		}
+	}
+	return targetCode
+}
 
 // runTargets reports which target populations a run belongs to, as pointers
 // into the accumulator so callers can increment without a second lookup.
@@ -271,14 +300,10 @@ const (
 // grep is exactly the db-side fallback this split exists to find. Judging only
 // explored nodes would drop those runs — the interesting half.
 func runTargets(run []Elem, acc map[string]*TargetMetrics) []*TargetMetrics {
-	code, db := false, false
+	hit := map[string]bool{}
 	mark := func(id string) {
-		if strings.HasPrefix(id, dbNodePrefix) {
-			db = true
-			return
-		}
-		if id != "" {
-			code = true
+		if t := targetOf(id); t != "" {
+			hit[t] = true
 		}
 	}
 	for _, el := range run {
@@ -297,12 +322,12 @@ func runTargets(run []Elem, acc map[string]*TargetMetrics) []*TargetMetrics {
 			}
 		}
 	}
+	// Fixed order so the report and the JSON stay stable across runs.
 	var out []*TargetMetrics
-	if code {
-		out = append(out, acc[targetCode])
-	}
-	if db {
-		out = append(out, acc[targetDB])
+	for _, t := range []string{targetCode, targetDB, targetDocs} {
+		if hit[t] {
+			out = append(out, acc[t])
+		}
 	}
 	return out
 }

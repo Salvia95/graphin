@@ -193,11 +193,11 @@ func (s *Server) handleUsage(w http.ResponseWriter, r *http.Request) {
 			DiscoveryFailure: ratio(g.DiscoveryFailures, g.WindowsWithSearch),
 		})
 	}
-	// Only when a db run exists: a workspace with no schema snapshot would
-	// otherwise carry a permanent "db 0%" row, and "no db queries were made"
-	// must not look like "graphin fails on db queries".
-	if rep.Targets["db"].Runs > 0 {
-		for _, name := range []string{"code", "db"} {
+	// Only when something other than code was touched: a workspace with no
+	// schema snapshot would otherwise carry a permanent "db 0%" row, and "no
+	// db queries were made" must not look like "graphin fails on db queries".
+	if rep.Targets["db"].Runs > 0 || rep.Targets["docs"].Runs > 0 {
+		for _, name := range []string{"code", "db", "docs"} {
 			t := rep.Targets[name]
 			if t.Runs == 0 {
 				continue

@@ -42,15 +42,16 @@ func Markdown(r Report) string {
 	}
 	md.WriteString("\nadoption = 채택/(채택+폴백) · late switch 분모 = graphin 사용 윈도우 · discovery failure 분모 = search 있는 윈도우\n")
 
-	// Only when a db run exists at all. A workspace with no .graphindb.json
-	// snapshot would otherwise get a permanent empty row inviting the reading
-	// that db adoption is 0% — it has no db queries, which is a different
-	// thing and should look different.
-	if r.Targets[targetDB].Runs > 0 {
-		md.WriteString("\n## Target (code vs db 스키마)\n\n")
+	// Only when something other than code was touched. A single code row is
+	// the headline table again, and a permanent empty db row invites the
+	// reading that db adoption is 0% — a workspace with no schema snapshot
+	// made no db queries, which is a different thing and should look
+	// different.
+	if r.Targets[targetDB].Runs > 0 || r.Targets[targetDocs].Runs > 0 {
+		md.WriteString("\n## Target (code vs db 스키마 vs 문서)\n\n")
 		md.WriteString("| target | runs | adoption | fallback | same-intent | inconclusive |\n")
 		md.WriteString("|---|---|---|---|---|---|\n")
-		for _, name := range []string{targetCode, targetDB} {
+		for _, name := range []string{targetCode, targetDB, targetDocs} {
 			t := r.Targets[name]
 			if t.Runs == 0 {
 				continue
@@ -60,9 +61,10 @@ func Markdown(r Report) string {
 				ratio(t.Adoptions, t.Adoptions+t.Fallbacks),
 				t.Fallbacks, t.SameIntentFallbacks, t.Inconclusive)
 		}
-		md.WriteString("\n단위는 윈도우가 아니라 **런**이다. code와 db는 분할이 아니라 겹치는 두 " +
-			"모집단이고(한 런이 양쪽 노드를 다루면 양쪽에 센다), 노드 id를 하나도 " +
-			"참조하지 않은 런은 어느 쪽도 아니다 — 그래서 runs를 같이 낸다.\n")
+		md.WriteString("\n단위는 윈도우가 아니라 **런**이다. 셋은 분할이 아니라 겹치는 " +
+			"모집단이고(한 런이 여러 종류를 다루면 각각에 센다), 노드 id를 하나도 " +
+			"참조하지 않은 런은 어느 쪽도 아니다 — 그래서 runs를 같이 낸다. " +
+			"docs는 `.md`/`.markdown` 노드다(파일과 섹션 모두).\n")
 	}
 
 	if g, ok := r.Groups["all"]; ok && g.FunnelSearches > 0 {

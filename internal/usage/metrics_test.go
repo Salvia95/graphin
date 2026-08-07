@@ -291,3 +291,58 @@ func TestTargetsMergedRunCountedOnce(t *testing.T) {
 		t.Fatalf("db = %+v", db)
 	}
 }
+
+// Markdown nodes are their own population. Without this every documentation
+// lookup would land in the code population and move the code adoption rate.
+func TestTargetsDocsSplitFromCode(t *testing.T) {
+	rep := compute(
+		// docs run: section surfaced, section read, then an edit.
+		gsearch("s1", "p1", "u1", "버저닝 규칙", "docs/plugin-distribution.md#13-버저닝"),
+		ev("s1", "", "p1", "u2", "mcp__k__read_code", false,
+			map[string]any{"node_id": "docs/plugin-distribution.md#13-버저닝"}),
+		ev("s1", "", "p1", "u3", "Edit", false, map[string]any{"file_path": "a.go"}),
+		// code run in another window, abandoned for a grep.
+		gsearch("s1", "p2", "u4", "order cancel", "src.order.OrderService.cancel"),
+		ev("s1", "", "p2", "u5", "Grep", false, map[string]any{"pattern": "cancel"}),
+	)
+	if d := rep.Targets["docs"]; d.Runs != 1 || d.Adoptions != 1 || d.Fallbacks != 0 {
+		t.Fatalf("docs = %+v", d)
+	}
+	if c := rep.Targets["code"]; c.Runs != 1 || c.Adoptions != 0 || c.Fallbacks != 1 {
+		t.Fatalf("code = %+v", c)
+	}
+}
+
+// The whole-file markdown node counts as docs too, not only sections.
+func TestTargetsDocsFileNodeCounts(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "readme", "README.md"),
+		ev("s1", "", "p1", "u2", "Read", false, nil),
+	)
+	if d := rep.Targets["docs"]; d.Runs != 1 || d.Adoptions != 1 {
+		t.Fatalf("docs = %+v", d)
+	}
+	if rep.Targets["code"].Runs != 0 {
+		t.Fatalf("code should be empty: %+v", rep.Targets["code"])
+	}
+}
+
+func TestTargetOfClassification(t *testing.T) {
+	cases := map[string]string{
+		"db.main.public.job_posting":            "db",
+		"docs/plugin-distribution.md":           "docs",
+		"docs/plugin-distribution.md#13-버저닝":    "docs",
+		"NOTES.markdown":                        "docs",
+		"src.order.OrderService.cancel(String)": "code",
+		"config/application.yml":                "code",
+		// A slug may contain anything a heading can, including ".md" — only
+		// the path in front of '#' decides.
+		"src/Thing.java#not-a-doc": "code",
+		"":                         "",
+	}
+	for id, want := range cases {
+		if got := targetOf(id); got != want {
+			t.Errorf("targetOf(%q) = %q, want %q", id, got, want)
+		}
+	}
+}
