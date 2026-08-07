@@ -79,6 +79,13 @@ jobs:
       - name: actionlint
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
 
+      # A knowledge set names document sections by anchor, so renaming a heading
+      # breaks it silently — the same shape of failure as an unbumped plugin
+      # version. Text-only on purpose: it re-derives the anchors instead of
+      # asking graphin, so it needs no index and no binary.
+      - name: knowledge sets still resolve
+        run: python3 scripts/check-knowledge.py
+
   # Every version invariant lives here, because they are not independent: the
   # two plugins are versioned by opposite mechanisms and the failure modes are
   # mirror images (docs/plugin-distribution.md §13).

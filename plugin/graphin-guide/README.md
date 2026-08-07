@@ -11,6 +11,7 @@
 | 구성 | 내용 |
 |---|---|
 | 스킬 `graphin` | 점진적 정보 공개(search → explore → read) 사용법. 언제 멈춰야 하는지, `min_confidence`를 언제 내리는지, 하지 말아야 할 것들 |
+| 스킬 `knowledge` | 문서 섹션을 모은 **knowledge set**을 만들고 쓰는 법. 한 줄 요약으로 훑고 필요한 섹션만 정확히 로드한다 |
 | 서브에이전트 `graphin-explorer` | "어디에 있나 / 뭐가 호출하나 / 뭐가 깨지나"를 위임받아 **인용이 붙은 요약**을 돌려준다. 읽기 전용 |
 
 ## 왜 서버와 분리되어 있나
@@ -35,6 +36,6 @@
 
 ## 직접 손봐 쓰려면
 
-`skills/graphin/SKILL.md`와 `agents/graphin-explorer.md`를 프로젝트의
+`skills/*/SKILL.md`와 `agents/graphin-explorer.md`를 프로젝트의
 `.claude/skills/`·`.claude/agents/`로 복사하면 된다. 그때는 이 플러그인을 설치하지
 않는 편이 낫다 — 같은 스킬이 두 벌 로드된다.

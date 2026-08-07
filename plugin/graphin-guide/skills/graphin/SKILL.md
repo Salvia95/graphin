@@ -57,7 +57,7 @@ background:
 | `bootstrap_workspace` | Starts indexing + live file watching. | `model_type`: `english_optimal` \| `multilingual_cjk` (pick by the language of code/comments). `offline`: for air-gapped setups. |
 | `search_hybrid` | Entry-point **node IDs** for a query. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). |
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
-| `read_code` | The exact source slice for **one** node. | `node_id` (required). |
+| `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
 
 `run_local_benchmark` also exists — it measures how many bytes graphin navigation
 saves versus grep for a given query. It's a demonstration/QA tool, not part of
@@ -75,6 +75,11 @@ normal exploration.
 - **`read_code`** returns the source for that node with its line range. Occasionally
   it flags that a node was re-parsed on the fly (the file changed since indexing) or
   that the slice is partial — treat those as hints, not errors.
+- **`read_code(node_ids=[…])`** returns whole nodes in the order you asked for and
+  **never cuts inside one**. If they do not all fit the response budget it returns
+  the ones that do and lists the rest as `<omitted reason="budget">` — re-request
+  those in a second call. Every id you pass comes back either as a block or as an
+  omission, so nothing disappears silently.
 
 ## Tuning recall vs. precision
 
@@ -124,8 +129,14 @@ it reflects the schema as checked in, not the current production state.
 ## Scope & limits (know these before you trust an answer)
 
 - **Graph edges exist for:** Java, Kotlin, Python, JavaScript, TypeScript (incl.
-  JSX/TSX). Other file types are still **searchable and readable** as text nodes,
-  but they won't have `uses` / `used_by` edges — so `explore_graph` is thin for them.
+  JSX/TSX), and **Markdown**. Other file types are still **searchable and readable**
+  as text nodes, but they won't have `uses` / `used_by` edges — so `explore_graph`
+  is thin for them.
+- **Markdown is a graph too.** Every heading becomes a section node whose id is
+  `path/to/doc.md#github-style-slug`, linked to its parent by a `contains` edge.
+  So a search over docs returns the *section* that answers the question, not the
+  whole file, and `read_code` on it gives you that section alone. The file node
+  still exists — search it by name when you want the document itself.
 - **A missing edge is not proof of no relationship.** Dynamic dispatch, reflection,
   string-built calls, and unresolved import aliases can hide links. Low/absent edges
   = "look closer," not "definitely unrelated."
