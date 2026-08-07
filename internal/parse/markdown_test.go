@@ -250,3 +250,31 @@ func TestMarkdownNoHeadingsHasNoContains(t *testing.T) {
 		t.Fatalf("file node should contain nothing: %v", res.Nodes[0].Contains)
 	}
 }
+
+// The file node's hash covers its PREAMBLE, not the whole file, because the
+// preamble is what it indexes (D5). Two consequences are load-bearing:
+// editing a section must not churn the file node, and a workspace indexed
+// before sections existed must see this node as changed exactly once so it
+// drops its stale whole-file tokens.
+func TestMarkdownFileNodeHashesThePreamble(t *testing.T) {
+	base := "머리말 그대로\n\n# 제목\n\n"
+	a := mdParse(t, "a.md", base+"본문 하나\n")
+	b := mdParse(t, "a.md", base+"본문 완전히 다름\n")
+	if a.Nodes[0].Hash != b.Nodes[0].Hash {
+		t.Fatal("a section edit churned the file node")
+	}
+	if sections(a)[0].Hash == sections(b)[0].Hash {
+		t.Fatal("the section itself must register the change")
+	}
+
+	c := mdParse(t, "a.md", "머리말이 바뀌었다\n\n# 제목\n\n본문 하나\n")
+	if a.Nodes[0].Hash == c.Nodes[0].Hash {
+		t.Fatal("a preamble edit must change the file node")
+	}
+
+	// The old whole-file hash is what a pre-section index recorded; the new
+	// hash must differ from it, or the upgrade would never land.
+	if a.Nodes[0].Hash == a.FileHash {
+		t.Fatal("file node still hashes the whole file; upgrades would not re-tokenize it")
+	}
+}

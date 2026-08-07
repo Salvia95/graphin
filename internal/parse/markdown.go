@@ -63,8 +63,16 @@ func extractMarkdown(src []byte, res *FileResult) {
 		Kind:        nodeid.KindFile,
 		StartByte:   0,
 		EndByte:     uint32(len(src)),
-		Hash:        res.FileHash,
-		Contains:    children[res.RelPath],
+		// The preamble, not the whole file. This node's *indexed* content is
+		// the preamble (D5), and the 2-Track diff uses this hash to decide
+		// whether to re-tokenize and re-embed — so hashing anything wider
+		// would re-embed the file node every time any section changed.
+		//
+		// It also makes the upgrade land: a workspace indexed before sections
+		// existed recorded the whole-file hash here, so this node now reads
+		// as changed exactly once and drops its stale whole-file tokens.
+		Hash:     blake3.Sum256(src[:preEnd]),
+		Contains: children[res.RelPath],
 	}
 	// Non-nil even when empty: attachBodyTokens skips nodes that already
 	// carry tokens, and nil would make it re-tokenize the whole file.
