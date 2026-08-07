@@ -234,7 +234,11 @@ same-intent 쌍은 인덱스 개선의 실측 재현 케이스), 늦은 전환, 
 
 ```sh
 graphin usage report [--since 72h] [--json]   # 세션 안에서는 /graphin:report
+graphin usage prune --before 2026-01-01 [--dry-run]   # 오래된 이벤트 삭제
 ```
+
+리포트는 코드 질의와 DB 스키마 질의(`db.` 노드)의 채택률을 따로도 낸다 — DB
+스냅샷이 있는 프로젝트에서만 나오는 절이다.
 
 로컬 전용이고 외부로 나가지 않는다. Bash 전체 커맨드라인·파일 내용·툴 응답 본문은
 기록하지 않는다 — 기록 항목 전체와 트러블슈팅은

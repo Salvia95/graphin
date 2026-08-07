@@ -15,5 +15,11 @@ allowed-tools: Bash(*), Read
    - **same-intent 폴백 쌍** — search_hybrid가 놓친 (query, pattern) 실쌍.
      이것이 인덱스/랭킹 개선의 리터럴 재현 케이스임을 짚어라
    - 퍼널 준수율(search → explore/read ID 핸드오프)과 main/서브에이전트 차이
+   - `## Target` 절이 **있으면** code vs db 스키마 질의의 채택률 차이. 이 절은
+     DB 스냅샷이 있는 프로젝트에서만 나온다 — 없다고 "db 채택률 0%"가 아니라
+     **db 질의 자체가 없었다는 뜻**이고, 둘을 섞어 말하지 마라.
 4. "index present but no usage events" 진단이 나오면 `/graphin:doctor`로 훅이
    발화 중인지 확인하도록 안내하라.
+
+로그가 오래돼 지우고 싶다고 하면 `<graphin> usage prune --before <날짜>`를
+안내하되, **먼저 `--dry-run`으로 무엇이 지워지는지 보여준 다음 확인을 받아라.**

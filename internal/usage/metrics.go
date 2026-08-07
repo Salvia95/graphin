@@ -2,6 +2,7 @@ package usage
 
 import (
 	"sort"
+	"strings"
 )
 
 // Outcome of one graphin-nav run (spec §4.2).
@@ -30,6 +31,23 @@ type GroupMetrics struct {
 	FunnelAdherent      int `json:"funnel_adherent"` // …whose ids were explored/read later in the window
 }
 
+// TargetMetrics splits run outcomes by what the run actually touched: code
+// nodes or `db.` schema nodes (spec §8). The unit is the run, not the window —
+// "when graphin is used for a schema question, is it adopted?" is a question
+// about runs, and a single window can hold one of each.
+//
+// code and db are NOT a partition. A run whose search surfaced both kinds
+// counts in both, because both populations are asking their own question. A
+// run that referenced no node id at all (a search that returned nothing) lands
+// in neither, which is why Runs is reported rather than inferred.
+type TargetMetrics struct {
+	Runs                int `json:"runs"`
+	Adoptions           int `json:"adoptions"`
+	Fallbacks           int `json:"fallbacks"`
+	SameIntentFallbacks int `json:"same_intent_fallbacks"`
+	Inconclusive        int `json:"inconclusive"`
+}
+
 // FallbackPair is one graphin-query → grep-pattern instance; same-intent
 // pairs are the literal repro cases for index/ranking work (spec §0).
 type FallbackPair struct {
@@ -54,6 +72,7 @@ type Report struct {
 	SessionsWithGraphin   int                       `json:"sessions_with_graphin"`
 	MedianCallsToFirstNav int                       `json:"median_calls_to_first_nav"` // -1: no session used graphin
 	Groups                map[string]GroupMetrics   `json:"groups"`                    // keys: all, main, subagent
+	Targets               map[string]TargetMetrics  `json:"targets"`                   // keys: code, db
 	FallbackPairs         []FallbackPair            `json:"fallback_pairs"`
 	Bigrams               map[string]map[string]int `json:"bigrams"`
 	Daily                 []DayTrend                `json:"daily"`
@@ -75,10 +94,12 @@ func Compute(events []Event, problems []string, opts Options) Report {
 	rep := Report{
 		Events:   len(events),
 		Groups:   map[string]GroupMetrics{},
+		Targets:  map[string]TargetMetrics{},
 		Bigrams:  map[string]map[string]int{},
 		Problems: problems,
 	}
 	groups := map[string]*GroupMetrics{"all": {}, "main": {}, "subagent": {}}
+	targets := map[string]*TargetMetrics{targetCode: {}, targetDB: {}}
 	daily := map[string]*DayTrend{}
 	var pairs []FallbackPair
 
@@ -107,12 +128,15 @@ func Compute(events []Event, problems []string, opts Options) Report {
 		}
 		addBigrams(rep.Bigrams, st.Elems)
 		for _, w := range st.Windows() {
-			analyzeWindow(w, []*GroupMetrics{groups["all"], groups[grp]}, daily, &pairs)
+			analyzeWindow(w, []*GroupMetrics{groups["all"], groups[grp]}, targets, daily, &pairs)
 		}
 	}
 
 	for k, g := range groups {
 		rep.Groups[k] = *g
+	}
+	for k, t := range targets {
+		rep.Targets[k] = *t
 	}
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].TS > pairs[j].TS })
 	if len(pairs) > opts.TopPairs {
@@ -128,7 +152,7 @@ func Compute(events []Event, problems []string, opts Options) Report {
 
 // analyzeWindow applies the §4.2 definitions to one prompt window, adding
 // counts to every metric group in gs (the "all" group plus main/subagent).
-func analyzeWindow(w Window, gs []*GroupMetrics, daily map[string]*DayTrend, pairs *[]FallbackPair) {
+func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetrics, daily map[string]*DayTrend, pairs *[]FallbackPair) {
 	searchElems, hasNav := 0, false
 	searchBeforeNav := 0
 	for _, el := range w.Elems {
@@ -170,6 +194,7 @@ func analyzeWindow(w Window, gs []*GroupMetrics, daily map[string]*DayTrend, pai
 			j++
 		}
 		out, pair := judgeRun(w.Elems[i:j], w.Elems[j:])
+		ts := runTargets(w.Elems[i:j], targets)
 		day := w.Elems[i].Events[0].TS
 		if len(day) >= 10 {
 			day = day[:10]
@@ -179,11 +204,22 @@ func analyzeWindow(w Window, gs []*GroupMetrics, daily map[string]*DayTrend, pai
 			d = &DayTrend{Date: day}
 			daily[day] = d
 		}
+		// outMerged is judged by the following run, so it is not a run here
+		// either — counting it would inflate the target denominators past the
+		// group ones and make the two tables disagree for no reason.
+		if out != outMerged {
+			for _, t := range ts {
+				t.Runs++
+			}
+		}
 		switch out {
 		case outAdoption:
 			d.Adoptions++
 			for _, g := range gs {
 				g.Adoptions++
+			}
+			for _, t := range ts {
+				t.Adoptions++
 			}
 		case outFallback:
 			d.Fallbacks++
@@ -193,12 +229,21 @@ func analyzeWindow(w Window, gs []*GroupMetrics, daily map[string]*DayTrend, pai
 					g.SameIntentFallbacks++
 				}
 			}
+			for _, t := range ts {
+				t.Fallbacks++
+				if pair != nil && pair.SameIntent {
+					t.SameIntentFallbacks++
+				}
+			}
 			if pair != nil {
 				*pairs = append(*pairs, *pair)
 			}
 		case outInconclusive:
 			for _, g := range gs {
 				g.Inconclusive++
+			}
+			for _, t := range ts {
+				t.Inconclusive++
 			}
 		case outMerged:
 			// judged by the following run
@@ -207,6 +252,59 @@ func analyzeWindow(w Window, gs []*GroupMetrics, daily map[string]*DayTrend, pai
 	}
 
 	funnel(w, gs)
+}
+
+const (
+	targetCode = "code"
+	targetDB   = "db"
+
+	// dbNodePrefix is the schema-node namespace: db.<database>.<schema>.<name>
+	// (internal/graph). Everything else is code.
+	dbNodePrefix = "db."
+)
+
+// runTargets reports which target populations a run belongs to, as pointers
+// into the accumulator so callers can increment without a second lookup.
+//
+// A search counts by the ids it *returned*, not only by what was explored
+// afterwards: a query that surfaced schema nodes and was then abandoned for a
+// grep is exactly the db-side fallback this split exists to find. Judging only
+// explored nodes would drop those runs — the interesting half.
+func runTargets(run []Elem, acc map[string]*TargetMetrics) []*TargetMetrics {
+	code, db := false, false
+	mark := func(id string) {
+		if strings.HasPrefix(id, dbNodePrefix) {
+			db = true
+			return
+		}
+		if id != "" {
+			code = true
+		}
+	}
+	for _, el := range run {
+		for _, ev := range el.Events {
+			switch Classify(ev.Tool, ev.P) {
+			case ClassGSearch:
+				raw, _ := ev.P["result_ids"].([]any)
+				for _, id := range raw {
+					if s, ok := id.(string); ok {
+						mark(s)
+					}
+				}
+			case ClassGExplore, ClassGRead:
+				id, _ := ev.P["node_id"].(string)
+				mark(id)
+			}
+		}
+	}
+	var out []*TargetMetrics
+	if code {
+		out = append(out, acc[targetCode])
+	}
+	if db {
+		out = append(out, acc[targetDB])
+	}
+	return out
 }
 
 // judgeRun decides one nav run's outcome from the first decisive follow-up

@@ -206,3 +206,88 @@ func TestMetricsDailyTrend(t *testing.T) {
 		t.Fatalf("daily = %+v", rep.Daily)
 	}
 }
+
+// ── Target split: code vs db schema nodes (spec §8) ──────────────────────────
+
+func TestTargetsSplitByNodeNamespace(t *testing.T) {
+	rep := compute(
+		// db run: search surfaces a schema node, agent reads it, then edits.
+		gsearch("s1", "p1", "u1", "job posting table", "db.main.public.job_posting"),
+		ev("s1", "", "p1", "u2", "mcp__k__read_code", false, map[string]any{"node_id": "db.main.public.job_posting"}),
+		ev("s1", "", "p1", "u3", "Edit", false, map[string]any{"file_path": "a.go"}),
+		// code run in a separate window: search surfaces code, agent greps.
+		gsearch("s1", "p2", "u4", "order cancel", "src.order.OrderService.cancel"),
+		ev("s1", "", "p2", "u5", "Grep", false, map[string]any{"pattern": "cancel"}),
+	)
+	db, code := rep.Targets["db"], rep.Targets["code"]
+	if db.Runs != 1 || db.Adoptions != 1 || db.Fallbacks != 0 {
+		t.Fatalf("db = %+v", db)
+	}
+	if code.Runs != 1 || code.Adoptions != 0 || code.Fallbacks != 1 {
+		t.Fatalf("code = %+v", code)
+	}
+}
+
+// A run that surfaced schema nodes and was then abandoned for a grep is the
+// db-side fallback this split exists to find — it must be counted even though
+// no db node was ever explored.
+func TestTargetsSearchResultsAloneClassifyTheRun(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "which table stores application rows", "db.main.public.application"),
+		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "application"}),
+	)
+	if db := rep.Targets["db"]; db.Runs != 1 || db.Fallbacks != 1 || db.SameIntentFallbacks != 1 {
+		t.Fatalf("db = %+v", db)
+	}
+	if code := rep.Targets["code"]; code.Runs != 0 {
+		t.Fatalf("code should be empty, got %+v", code)
+	}
+}
+
+// code and db are overlapping populations, not a partition: a run touching
+// both counts in both, so the two rows can sum past the group's run count.
+func TestTargetsMixedRunCountsInBoth(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "who writes job_posting",
+			"db.main.public.job_posting", "src.job.JobWriter.save"),
+		ev("s1", "", "p1", "u2", "Read", false, map[string]any{"file_path": "a.go"}),
+	)
+	if db := rep.Targets["db"]; db.Runs != 1 || db.Adoptions != 1 {
+		t.Fatalf("db = %+v", db)
+	}
+	if code := rep.Targets["code"]; code.Runs != 1 || code.Adoptions != 1 {
+		t.Fatalf("code = %+v", code)
+	}
+	if g := rep.Groups["all"]; g.Adoptions != 1 {
+		t.Fatalf("the group still sees one run: %+v", g)
+	}
+}
+
+// A search that returned nothing references no node id, so it belongs to
+// neither population. The group still judges it.
+func TestTargetsRunWithoutNodeIDsCountsNowhere(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "nothing matches this"),
+		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "x"}),
+	)
+	if rep.Targets["code"].Runs != 0 || rep.Targets["db"].Runs != 0 {
+		t.Fatalf("targets = %+v", rep.Targets)
+	}
+	if g := rep.Groups["all"]; g.Fallbacks != 1 {
+		t.Fatalf("group = %+v", g)
+	}
+}
+
+// outMerged is judged by the following run; counting it here would push the
+// target denominators past the group's.
+func TestTargetsMergedRunCountedOnce(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "q", "db.main.public.t"),
+		ev("s1", "", "p1", "u2", "Bash", false, map[string]any{}),
+		gsearch("s1", "p1", "u3", "q2", "db.main.public.t"),
+		ev("s1", "", "p1", "u4", "Read", false, nil),
+	)
+	if db := rep.Targets["db"]; db.Runs != 1 || db.Adoptions != 1 {
+		t.Fatalf("db = %+v", db)
+	}
+}
