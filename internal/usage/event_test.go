@@ -80,6 +80,51 @@ func TestTokensSplitsCamelAndSnake(t *testing.T) {
 	}
 }
 
+// The cases are the real patterns from the 2026-08-07 adoption log, bucketed
+// the way the diagnosis bucketed them by hand (findings §검색의 형태).
+func TestPatternShape(t *testing.T) {
+	for _, tc := range []struct {
+		p    string
+		want Shape
+	}{
+		// symbol — snake, screaming, camel, pascal, and one leading keyword
+		{"CONTEXT_TYPES", ShapeSymbol},
+		{"validate_and_seal", ShapeSymbol},
+		{"periodField", ShapeSymbol},
+		{"ContextObject", ShapeSymbol},
+		{"class PublishBody", ShapeSymbol},
+		{"def _context_type_findings", ShapeSymbol},
+		{`codebase_path\`, ShapeSymbol}, // trailing shell escape residue
+		{`"headRef"`, ShapeSymbol},      // quoted by the shell
+		{"DATE_RE", ShapeSymbol},        // screaming caps with underscore
+		{"HTTPServer", ShapeSymbol},     // adjacent capitals still mixed case
+
+		// regex/glob — a metacharacter anywhere decides it
+		{"^ *$", ShapeRegex},
+		{"*.go", ShapeRegex},
+		{"^###", ShapeRegex},
+		{`^#\+`, ShapeRegex},
+		{"<title>[^<]*</title>", ShapeRegex},
+		{"cancelOrder|OrderCancellation", ShapeRegex},
+
+		// literal/prose — including the runtime-debugging greps that made the
+		// old denominator lie, and bare lowercase words we refuse to guess on
+		{"database is locked", ShapeLiteral},
+		{"필수 컨텍스트 미충족", ShapeLiteral},
+		{"sqlalchemy.exc", ShapeLiteral}, // '.' is not a metacharacter, but this is not an identifier either
+		{"engineering/61.md", ShapeLiteral},
+		{"admin", ShapeLiteral},
+		{"E", ShapeLiteral}, // single capital: too short to be screaming caps
+
+		{"", ShapeNone},
+		{`\`, ShapeNone}, // nothing but escape residue
+	} {
+		if got := PatternShape(tc.p); got != tc.want {
+			t.Errorf("PatternShape(%q) = %s, want %s", tc.p, got, tc.want)
+		}
+	}
+}
+
 func TestOverlapsQueryVsPattern(t *testing.T) {
 	q := Tokens("where is the order cancellation handled")
 	if !Overlaps(q, Tokens("cancelOrder|OrderCancellation")) {

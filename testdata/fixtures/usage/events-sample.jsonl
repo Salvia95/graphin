@@ -5,7 +5,7 @@
 {"v":1,"ts":"2026-08-01T09:05:20Z","session_id":"s1","prompt_id":"p2","tool_use_id":"u5","tool":"Edit","p":{"file_path":"scripts/gen_tokenizer_fixtures.py"}}
 {"v":1,"ts":"2026-08-02T10:00:00Z","session_id":"s2","prompt_id":"p1","tool_use_id":"u6","tool":"Grep","p":{"pattern":"drainSignal"}}
 {"v":1,"ts":"2026-08-02T10:00:05Z","session_id":"s2","prompt_id":"p1","tool_use_id":"u7","tool":"Grep","p":{"pattern":"drain_signal"}}
-{"v":1,"ts":"2026-08-02T10:00:10Z","session_id":"s2","prompt_id":"p1","tool_use_id":"u8","tool":"Bash","p":{"search":true,"pattern":"drain"}}
+{"v":1,"ts":"2026-08-02T10:00:10Z","session_id":"s2","prompt_id":"p1","tool_use_id":"u8","tool":"Bash","p":{"search":true,"pattern":"drainLoop"}}
 {"v":1,"ts":"2026-08-02T11:00:00Z","session_id":"s3","prompt_id":"p1","tool_use_id":"u9","tool":"Grep","p":{"pattern":"semantic_max_nodes"}}
 {"v":1,"ts":"2026-08-02T11:00:05Z","session_id":"s3","prompt_id":"p1","tool_use_id":"u10","tool":"Grep","p":{"pattern":"semanticMaxNodes"}}
 {"v":1,"ts":"2026-08-02T11:00:10Z","session_id":"s3","prompt_id":"p1","tool_use_id":"u11","tool":"mcp__mykey__search_hybrid","p":{"query":"semantic max nodes gate","top_k":5,"result_count":1,"result_ids":["workspace.Config#SemMaxNodes"]}}

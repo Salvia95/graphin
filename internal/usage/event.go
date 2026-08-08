@@ -136,3 +136,110 @@ func Overlaps(a, b map[string]bool) bool {
 	}
 	return false
 }
+
+// Shape is the coarse form of a search pattern (spec §4.2). It exists for one
+// reason: `discovery_failure` must not count searches graphin could never have
+// answered. A window spent grepping `database is locked` or `^E` through a
+// traceback is runtime debugging, not a missed navigation — counting it made
+// the 2026-08-07 diagnosis report 57% where the honest number was half that.
+type Shape string
+
+const (
+	ShapeSymbol  Shape = "symbol"  // CONTEXT_TYPES · validate_and_seal · class PublishBody
+	ShapeRegex   Shape = "regex"   // ^ *$ · *.go · ^###
+	ShapeLiteral Shape = "literal" // database is locked · 필수 컨텍스트 미충족
+	ShapeNone    Shape = "none"    // no pattern recorded (search-Bash we could not parse)
+)
+
+// regexMeta are the characters that make a pattern a pattern. '.' is
+// deliberately absent: it is the single most common character inside real
+// identifiers (`sqlalchemy.exc`, `foo.go`) and treating it as a metacharacter
+// would classify half of everything as regex.
+const regexMeta = `^$*+?[]{}()|\`
+
+// SearchPattern returns the grep/glob pattern an event searched for, or "".
+func (e Event) SearchPattern() string {
+	s, _ := e.P["pattern"].(string)
+	return s
+}
+
+// PatternShape classifies a search pattern by form, using the rules the
+// adoption diagnosis used on the raw log (findings §검색의 형태): normalize
+// shell residue, then metacharacters, then identifier shape.
+//
+// It is deliberately conservative — every ambiguous case lands outside
+// `symbol`. This metric's failure mode is over-reporting failure, so a rule
+// that shrinks the denominator when unsure is the right bias.
+func PatternShape(p string) Shape {
+	p = normalizePattern(p)
+	if p == "" {
+		return ShapeNone
+	}
+	if strings.ContainsAny(p, regexMeta) {
+		return ShapeRegex
+	}
+	// Prose is several words; a symbol search is the symbol, sometimes behind
+	// one keyword (`class PublishBody`, `def _context_type_findings`). Past two
+	// tokens it is a sentence, and a capitalized first word would otherwise
+	// make every English error message look like a symbol.
+	toks := strings.Fields(p)
+	if len(toks) > 2 {
+		return ShapeLiteral
+	}
+	for _, t := range toks {
+		if strongIdent(t) {
+			return ShapeSymbol
+		}
+	}
+	return ShapeLiteral
+}
+
+// normalizePattern strips what the shell leaves behind: trailing backslashes
+// from line continuations and escaping, and one layer of matched quotes.
+func normalizePattern(p string) string {
+	p = strings.TrimSpace(p)
+	p = strings.TrimRight(p, `\`)
+	p = strings.TrimSpace(p)
+	if len(p) >= 2 {
+		if q := p[0]; (q == '\'' || q == '"') && p[len(p)-1] == q {
+			p = strings.TrimSpace(p[1 : len(p)-1])
+		}
+	}
+	return p
+}
+
+// strongIdent reports whether t is an identifier that could not be ordinary
+// prose. A plain lowercase word ("database") is indistinguishable from English,
+// so it does not qualify — only the shapes code writes and prose does not:
+// snake_case, camelCase/PascalCase, or SCREAMING_CAPS.
+func strongIdent(t string) bool {
+	if t == "" {
+		return false
+	}
+	hasUpper, hasLower, hasUnderscore := false, false, false
+	for i, r := range t {
+		switch {
+		case r == '_':
+			hasUnderscore = true
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		case r >= '0' && r <= '9':
+			if i == 0 {
+				return false // identifiers do not start with a digit
+			}
+		default:
+			return false // anything else (incl. non-ASCII prose) is not an identifier
+		}
+	}
+	switch {
+	case hasUnderscore:
+		return true
+	case hasUpper && hasLower:
+		return true
+	case hasUpper && len(t) >= 2: // SCREAMING_CAPS without the underscore
+		return true
+	}
+	return false
+}

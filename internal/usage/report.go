@@ -38,9 +38,26 @@ func Markdown(r Report) string {
 			ratio(g.Adoptions, g.Adoptions+g.Fallbacks),
 			g.Fallbacks, g.SameIntentFallbacks, g.Inconclusive,
 			ratio(g.LateSwitches, g.WindowsWithGraphin),
-			ratio(g.DiscoveryFailures, g.WindowsWithSearch))
+			ratio(g.DiscoveryFailures, g.WindowsWithSymbolSearch))
 	}
-	md.WriteString("\nadoption = 채택/(채택+폴백) · late switch 분모 = graphin 사용 윈도우 · discovery failure 분모 = search 있는 윈도우\n")
+	md.WriteString("\nadoption = 채택/(채택+폴백) · late switch 분모 = graphin 사용 윈도우 · " +
+		"discovery failure 분모 = **심볼형** search 있는 윈도우\n")
+
+	// The shape split is what makes the discovery-failure denominator
+	// auditable. Without it the reader cannot tell a genuinely low failure
+	// rate from a denominator that quietly excluded everything.
+	if n := shapeTotal(r.SearchShapes); n > 0 {
+		md.WriteString("\n### 검색 형태\n\n| shape | searches | |\n|---|---:|---|\n")
+		for _, s := range []Shape{ShapeSymbol, ShapeRegex, ShapeLiteral, ShapeNone} {
+			c := r.SearchShapes[string(s)]
+			if c == 0 {
+				continue
+			}
+			fmt.Fprintf(&md, "| %s | %d | %s |\n", s, c, shapeNote[s])
+		}
+		md.WriteString("\n`symbol`만이 graphin이 답할 수 있었던 검색이다 — 나머지는 발견 실패의 " +
+			"분모에서 빠진다(정규식·트레이스백 grep은 놓친 기회가 아니다).\n")
+	}
 
 	// Only when something other than code was touched. A single code row is
 	// the headline table again, and a permanent empty db row invites the
@@ -113,6 +130,24 @@ func Markdown(r Report) string {
 		}
 	}
 	return md.String()
+}
+
+// shapeNote gives each shape a one-line example so the table explains its own
+// verdict — a reader who disagrees with the split can see the rule, not just
+// the count.
+var shapeNote = map[Shape]string{
+	ShapeSymbol:  "`CONTEXT_TYPES` · `validate_and_seal` · `class PublishBody`",
+	ShapeRegex:   "`^ *$` · `*.go` · `^###`",
+	ShapeLiteral: "`database is locked` · 산문·한국어",
+	ShapeNone:    "패턴을 파싱하지 못한 search-Bash",
+}
+
+func shapeTotal(m map[string]int) int {
+	n := 0
+	for _, c := range m {
+		n += c
+	}
+	return n
 }
 
 func ratio(n, denom int) string {

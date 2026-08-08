@@ -18,17 +18,22 @@ const (
 // GroupMetrics holds the headline counters for one population (all / main /
 // subagent). All rates are derived at render time from these counts.
 type GroupMetrics struct {
-	Windows             int `json:"windows"`
-	WindowsWithSearch   int `json:"windows_with_search"`
-	WindowsWithGraphin  int `json:"windows_with_graphin"`
-	Adoptions           int `json:"adoptions"`
-	Fallbacks           int `json:"fallbacks"`
-	SameIntentFallbacks int `json:"same_intent_fallbacks"`
-	Inconclusive        int `json:"inconclusive"`
-	LateSwitches        int `json:"late_switches"`
-	DiscoveryFailures   int `json:"discovery_failures"`
-	FunnelSearches      int `json:"funnel_searches"` // g_search calls that returned result_ids
-	FunnelAdherent      int `json:"funnel_adherent"` // …whose ids were explored/read later in the window
+	Windows           int `json:"windows"`
+	WindowsWithSearch int `json:"windows_with_search"`
+	// WindowsWithSymbolSearch is the discovery-failure denominator: windows
+	// holding at least one symbol-shaped search. Windows that only ever
+	// grepped tracebacks or regexes are not opportunities graphin missed, so
+	// they are not in the population that can fail (spec §4.2).
+	WindowsWithSymbolSearch int `json:"windows_with_symbol_search"`
+	WindowsWithGraphin      int `json:"windows_with_graphin"`
+	Adoptions               int `json:"adoptions"`
+	Fallbacks               int `json:"fallbacks"`
+	SameIntentFallbacks     int `json:"same_intent_fallbacks"`
+	Inconclusive            int `json:"inconclusive"`
+	LateSwitches            int `json:"late_switches"`
+	DiscoveryFailures       int `json:"discovery_failures"`
+	FunnelSearches          int `json:"funnel_searches"` // g_search calls that returned result_ids
+	FunnelAdherent          int `json:"funnel_adherent"` // …whose ids were explored/read later in the window
 }
 
 // TargetMetrics splits run outcomes by what the run actually touched: code,
@@ -74,6 +79,7 @@ type Report struct {
 	Groups                map[string]GroupMetrics   `json:"groups"`                    // keys: all, main, subagent
 	Targets               map[string]TargetMetrics  `json:"targets"`                   // keys: code, db, docs
 	FallbackPairs         []FallbackPair            `json:"fallback_pairs"`
+	SearchShapes          map[string]int            `json:"search_shapes"` // keys: symbol, regex, literal, none
 	Bigrams               map[string]map[string]int `json:"bigrams"`
 	Daily                 []DayTrend                `json:"daily"`
 	Problems              []string                  `json:"problems,omitempty"`
@@ -92,11 +98,12 @@ func Compute(events []Event, problems []string, opts Options) Report {
 	streams := BuildStreams(events)
 
 	rep := Report{
-		Events:   len(events),
-		Groups:   map[string]GroupMetrics{},
-		Targets:  map[string]TargetMetrics{},
-		Bigrams:  map[string]map[string]int{},
-		Problems: problems,
+		Events:       len(events),
+		Groups:       map[string]GroupMetrics{},
+		Targets:      map[string]TargetMetrics{},
+		SearchShapes: map[string]int{},
+		Bigrams:      map[string]map[string]int{},
+		Problems:     problems,
 	}
 	groups := map[string]*GroupMetrics{"all": {}, "main": {}, "subagent": {}}
 	targets := map[string]*TargetMetrics{targetCode: {}, targetDB: {}, targetDocs: {}}
@@ -128,7 +135,7 @@ func Compute(events []Event, problems []string, opts Options) Report {
 		}
 		addBigrams(rep.Bigrams, st.Elems)
 		for _, w := range st.Windows() {
-			analyzeWindow(w, []*GroupMetrics{groups["all"], groups[grp]}, targets, daily, &pairs)
+			analyzeWindow(w, []*GroupMetrics{groups["all"], groups[grp]}, targets, daily, &pairs, rep.SearchShapes)
 		}
 	}
 
@@ -151,9 +158,10 @@ func Compute(events []Event, problems []string, opts Options) Report {
 }
 
 // analyzeWindow applies the §4.2 definitions to one prompt window, adding
-// counts to every metric group in gs (the "all" group plus main/subagent).
-func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetrics, daily map[string]*DayTrend, pairs *[]FallbackPair) {
-	searchElems, hasNav := 0, false
+// counts to every metric group in gs (the "all" group plus main/subagent) and
+// tallying search shapes into shapes.
+func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetrics, daily map[string]*DayTrend, pairs *[]FallbackPair, shapes map[string]int) {
+	searchElems, symbolElems, hasNav := 0, 0, false
 	searchBeforeNav := 0
 	for _, el := range w.Elems {
 		isSearch := el.Has(ClassSearch)
@@ -161,6 +169,14 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 			searchElems++
 			if !hasNav {
 				searchBeforeNav++
+			}
+		}
+		if el.HasSymbolSearch() {
+			symbolElems++
+		}
+		for _, ev := range el.Events {
+			if Classify(ev.Tool, ev.P) == ClassSearch {
+				shapes[string(PatternShape(ev.SearchPattern()))]++
 			}
 		}
 		if el.HasGraphinNav() {
@@ -172,13 +188,18 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 		if searchElems > 0 {
 			g.WindowsWithSearch++
 		}
+		if symbolElems > 0 {
+			g.WindowsWithSymbolSearch++
+		}
 		if hasNav {
 			g.WindowsWithGraphin++
 			if searchBeforeNav >= 2 {
 				g.LateSwitches++
 			}
 		}
-		if searchElems >= 3 && !hasNav {
+		// Symbol-shaped only, numerator and denominator alike: a window that
+		// spent itself grepping tracebacks never had a graphin answer to miss.
+		if symbolElems >= 3 && !hasNav {
 			g.DiscoveryFailures++
 		}
 	}

@@ -30,6 +30,18 @@ func (e Elem) Has(c Class) bool {
 	return false
 }
 
+// HasSymbolSearch reports whether any search in the element used a
+// symbol-shaped pattern — the subset of searches graphin could have answered
+// (spec §4.2). A collapsed batch counts if any member qualifies, matching Has.
+func (e Elem) HasSymbolSearch() bool {
+	for _, ev := range e.Events {
+		if Classify(ev.Tool, ev.P) == ClassSearch && PatternShape(ev.SearchPattern()) == ShapeSymbol {
+			return true
+		}
+	}
+	return false
+}
+
 // HasGraphinNav reports whether the element contains a graphin navigation call.
 func (e Elem) HasGraphinNav() bool {
 	for _, ev := range e.Events {

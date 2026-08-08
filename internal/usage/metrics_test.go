@@ -98,16 +98,58 @@ func TestMetricsLateSwitch(t *testing.T) {
 
 func TestMetricsDiscoveryFailure(t *testing.T) {
 	rep := compute(
-		ev("s1", "", "p1", "u1", "Grep", false, map[string]any{"pattern": "a"}),
-		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "b"}),
-		ev("s1", "", "p1", "u3", "Bash", false, map[string]any{"search": true, "pattern": "c"}),
+		ev("s1", "", "p1", "u1", "Grep", false, map[string]any{"pattern": "CONTEXT_TYPES"}),
+		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "validate_and_seal"}),
+		ev("s1", "", "p1", "u3", "Bash", false, map[string]any{"search": true, "pattern": "class PublishBody"}),
 	)
 	g := rep.Groups["all"]
-	if g.DiscoveryFailures != 1 || g.WindowsWithSearch != 1 {
+	if g.DiscoveryFailures != 1 || g.WindowsWithSearch != 1 || g.WindowsWithSymbolSearch != 1 {
 		t.Fatalf("group = %+v", g)
+	}
+	if rep.SearchShapes[string(ShapeSymbol)] != 3 {
+		t.Fatalf("shapes = %v", rep.SearchShapes)
 	}
 	if rep.SessionsWithGraphin != 0 || rep.MedianCallsToFirstNav != -1 {
 		t.Fatalf("report = %+v", rep)
+	}
+}
+
+// The reason ② exists: a window spent grepping a traceback is not a window
+// where graphin was missed. Same shape as above — three searches, no nav — and
+// it must not be a failure, nor even be in the denominator.
+func TestMetricsDiscoveryFailureExcludesNonSymbol(t *testing.T) {
+	rep := compute(
+		ev("s1", "", "p1", "u1", "Grep", false, map[string]any{"pattern": "database is locked"}),
+		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "^E"}),
+		ev("s1", "", "p1", "u3", "Bash", false, map[string]any{"search": true, "pattern": "sqlalchemy.exc"}),
+	)
+	g := rep.Groups["all"]
+	if g.DiscoveryFailures != 0 || g.WindowsWithSymbolSearch != 0 {
+		t.Fatalf("group = %+v", g)
+	}
+	if g.WindowsWithSearch != 1 { // still a search window — only the failure population shrinks
+		t.Fatalf("group = %+v", g)
+	}
+	want := map[string]int{string(ShapeLiteral): 2, string(ShapeRegex): 1}
+	for k, v := range want {
+		if rep.SearchShapes[k] != v {
+			t.Fatalf("shapes = %v, want %v", rep.SearchShapes, want)
+		}
+	}
+}
+
+// A window can hold both kinds. Only the symbol-shaped ones count toward the
+// threshold, so two symbols plus a pile of regex greps is not a failure.
+func TestMetricsDiscoveryFailureMixedWindow(t *testing.T) {
+	rep := compute(
+		ev("s1", "", "p1", "u1", "Grep", false, map[string]any{"pattern": "CONTEXT_TYPES"}),
+		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "periodField"}),
+		ev("s1", "", "p1", "u3", "Grep", false, map[string]any{"pattern": "^###"}),
+		ev("s1", "", "p1", "u4", "Grep", false, map[string]any{"pattern": "^ *$"}),
+	)
+	g := rep.Groups["all"]
+	if g.DiscoveryFailures != 0 || g.WindowsWithSymbolSearch != 1 || g.WindowsWithSearch != 1 {
+		t.Fatalf("group = %+v", g)
 	}
 }
 
@@ -153,9 +195,9 @@ func TestMetricsSubagentSplit(t *testing.T) {
 	rep := compute(
 		gsearch("s1", "p1", "u1", "q"),
 		ev("s1", "", "p1", "u2", "Read", false, map[string]any{"file_path": "a.go"}),
-		ev("s1", "sub", "p1", "u3", "Grep", false, map[string]any{"pattern": "x"}),
-		ev("s1", "sub", "p1", "u4", "Grep", false, map[string]any{"pattern": "y"}),
-		ev("s1", "sub", "p1", "u5", "Grep", false, map[string]any{"pattern": "z"}),
+		ev("s1", "sub", "p1", "u3", "Grep", false, map[string]any{"pattern": "drainSignal"}),
+		ev("s1", "sub", "p1", "u4", "Grep", false, map[string]any{"pattern": "drain_signal"}),
+		ev("s1", "sub", "p1", "u5", "Grep", false, map[string]any{"pattern": "drainLoop"}),
 	)
 	if g := rep.Groups["main"]; g.Adoptions != 1 || g.DiscoveryFailures != 0 {
 		t.Fatalf("main = %+v", g)
