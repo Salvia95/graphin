@@ -74,8 +74,19 @@ git pull --ff-only origin main            # the workflow's commit-back
 ```
 
 Report the version, the assets, what the verify job proved, and what a user has
-to do — usually nothing. If a pending-changes notice was outstanding, say
-whether this release cleared it.
+to do. If a pending-changes notice was outstanding, say whether this release
+cleared it.
+
+**Publishing is not delivery, and this is the part reports get wrong.** Nobody
+receives a release until they refresh the marketplace cache and update the
+plugin; until then the launcher keeps installing the old binary from the old
+manifest. Three releases sat undelivered this way (§10.4). So always close with
+the two commands, and say a restart is what swaps the binary:
+
+```sh
+claude plugin marketplace update graphin
+claude plugin update graphin@graphin
+```
 
 ## Never
 
