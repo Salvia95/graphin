@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import glob
+import unicodedata
 
 ENTRY = re.compile(r"^\s*-\s+\[([^\]]+)\]\(([^)\s]+)\)")
 FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
@@ -22,10 +23,18 @@ HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
 
 def slugify(text: str) -> str:
-    """Mirror internal/parse/markdown.go: no hyphen collapsing, no trimming."""
+    """Mirror internal/parse/markdown.go: no hyphen collapsing, no trimming.
+
+    The character test must be Go's, not Python's. `unicode.IsDigit` is the Nd
+    category alone, while `str.isalnum()` also accepts Nl/No — so a heading
+    numbered `①` slugs to `원인--단건` in the parser and `원인-①-단건` here.
+    Using isalnum() made this guard both reject valid entries and, worse, pass
+    an entry whose anchor graphin can never resolve.
+    """
     out = []
     for ch in text.lower():
-        if ch.isalnum() or ch in "_-":
+        cat = unicodedata.category(ch)
+        if cat.startswith("L") or cat == "Nd" or ch in "_-":
             out.append(ch)
         elif ch.isspace():
             out.append("-")
