@@ -80,13 +80,18 @@ cleared it.
 **Publishing is not delivery, and this is the part reports get wrong.** Nobody
 receives a release until they refresh the marketplace cache and update the
 plugin; until then the launcher keeps installing the old binary from the old
-manifest. Three releases sat undelivered this way (§10.4). So always close with
-the two commands, and say a restart is what swaps the binary:
+manifest. Three releases sat undelivered this way (§10.4). So always close by
+**quoting** these two commands, and say a restart is what swaps the binary:
 
 ```sh
 claude plugin marketplace update graphin
 claude plugin update graphin@graphin
 ```
+
+**Quote them; do not run them.** Upgrading is the caller's call, not yours —
+adoption measurement uses the upgrade instant as its before/after boundary
+(§10.4), so updating on your own initiative moves someone's cut point without
+their knowing.
 
 ## Never
 
