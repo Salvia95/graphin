@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -224,9 +225,25 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 			rec.LogicalRefs = n.LogicalRefs
 			rec.RawCalls = n.Calls
 			rec.DBRefs = n.DBRefs
-			rec.Contains = n.Contains
 			rec.Imports = res.Imports
 			rec.needsResolve = true
+		}
+
+		// Contains is the one raw field that is not derived from this node's
+		// own bytes, so it cannot ride on the hash. A markdown section hashes
+		// its own span only — heading to first child heading — which means a
+		// heading added further down the document changes the child list while
+		// leaving the parent "unchanged" forever. Refresh it with Track A.
+		//
+		// Compare rather than assign-and-resolve: shards persist Uses but not
+		// the raw fields, so after a restart every RawCalls is nil, and an
+		// unconditional resolve would rebuild a code node's edges from nothing
+		// and erase them. Code nodes never set Contains, so nil == nil keeps
+		// them out of this branch entirely.
+		if !slices.Equal(rec.Contains, n.Contains) {
+			rec.Contains = n.Contains
+			rec.needsResolve = true
+			touched = true
 		}
 
 		classFQN := nodeid.Class(res.Package, firstSegmentChain(n))
