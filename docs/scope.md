@@ -16,7 +16,7 @@ README의 한 줄은 좁고 분명하다 — **AI 에이전트를 위한 로컬 
 
 | 축 | 커버하는 것 | 근거 |
 |---|---|---|
-| 문법 언어 | Java · Kotlin · Python · JavaScript · TypeScript/TSX — **5종** | `internal/parse/parse.go` |
+| 문법 언어 | Java · Kotlin · Python · JavaScript · TypeScript/TSX · **Go** — 6종 | `internal/parse/parse.go` |
 | 문법 없는 색인 | 마크다운(섹션 노드) · plain 12확장자 · `*.graphindb.json` | 파일 = 노드 1개 |
 | 노드 종류 | class · interface · method · function · file · section · DB(table/view/function) | `internal/nodeid` |
 | 엣지 종류 | import · extends · implements · call · reference · foreign_key · contains — **7종** | `internal/graph/types.go` |
@@ -25,22 +25,34 @@ README의 한 줄은 좁고 분명하다 — **AI 에이전트를 위한 로컬 
 | 규모 | semantic 40,000 노드 게이트(초과 시 lexical 폴백), >500k 범위 밖 | `cmd/graphin/main.go:68` |
 | 플랫폼 | linux amd64·arm64 릴리스. darwin/amd64는 의미 검색 불가, windows 범위 밖 | README |
 
-## 2. 가장 큰 간극은 언어이고, 대가를 우리가 치르고 있다
+## 2. 가장 큰 간극은 언어였고, 대가를 우리가 치르고 있었다 (해소됨)
 
-`.go`는 라우팅 표에 없고 `internal/scan/walk.go:85`가 아예 걸러낸다. 즉
-**graphin은 Go로 쓰였고 자기 자신을 색인하지 못한다.**
+이 문서를 처음 쓴 시점에 `.go`는 라우팅 표에 없었고 `internal/scan/walk.go:85`가
+아예 걸러냈다. 즉 **graphin은 Go로 쓰였는데 자기 자신을 색인하지 못했다.**
 
-실측: 이 저장소에서 `search_hybrid("ApplyFile contains 엣지 갱신")`을 치면
-결과가 **전부 마크다운 문서**다. 소스는 한 줄도 안 나온다.
+실측이 그것을 그대로 보여 줬다 — 이 저장소에서 Go 구현 세부를 검색하면 결과가
+**전부 마크다운 문서**였고 소스는 한 줄도 안 나왔다. 파장은 도구 자랑에
+그치지 않았다:
 
-파장이 도구 자랑에 그치지 않는다:
-
-- **도그푸딩이 불가능하다.** 2026-08-08~11에 찾아낸 결함 셋(`contains` 낡음,
+- **도그푸딩이 불가능했다.** 2026-08-08~11에 찾아낸 결함 셋(`contains` 낡음,
   Tier-0 미발화, 가드 슬러그 불일치)을 전부 `grep`으로 찾았다. 우리 도구가
-  풀라고 만들어진 문제를 우리가 우리 도구 없이 풀고 있다.
-- **채택 측정의 대조군이 반쪽이다.** 이 저장소에서 수집되는 usage 이벤트에서
-  graphin이 답할 수 있는 질문은 문서뿐이므로, kinder(Python)와 나란히 놓을 수
-  없다.
+  풀라고 만들어진 문제를 우리 도구 없이 풀고 있었다.
+- **채택 측정의 대조군이 반쪽이었다.** 이 저장소의 usage 이벤트에서 graphin이
+  답할 수 있는 질문은 문서뿐이라, kinder(Python)와 나란히 놓을 수 없었다.
+
+**2026-08-11에 Go 파서를 넣어 해소했다**(§5-①). 같은 질의가 이제 이렇게 답한다:
+
+```
+search_hybrid("ApplyFile")
+  1. internal.graph.Engine.ApplyFile        engine.go:186     exact
+  2. internal.workspace.Workspace.applyFileResult  indexer.go:82
+explore_graph("internal.graph.Engine.ApplyFile")
+  uses:    dropRecordLocked 1.00 · resolver.register 0.95 · nodeid.Class 0.90
+  used_by: TestContainsRefreshesWhenChildAdded 0.95 · applyAll 0.95
+```
+
+신뢰도 사다리가 Go에서 그대로 산다 — 같은 파일 1.00, 같은 패키지 0.95, import된
+패키지 0.90. 설계 메모는 `internal/parse/golang.go`에 있다.
 
 ## 3. 남들이 덮는 우리 공백 (2026-08 조사)
 
@@ -73,9 +85,23 @@ LSP 브리지가 구조적으로 이긴다** — 우리가 파서를 하나씩 �
 
 ## 5. 결정 (2026-08-11, 사용자 승인)
 
-**① Go 파서를 추가한다.** 커버리지가 아니라 **도그푸딩**이 이유다. 언어 하나가
-"우리가 우리를 측정할 수 있는가"를 가른다. 의존성도 새 종류가 아니다 — 문법마다
-별도 모듈이라는 기존 패턴(`tree-sitter-java` 외 3종)에 하나 더 붙는다.
+**① Go 파서를 추가한다. ✅ 완료 (2026-08-11)** 커버리지가 아니라 **도그푸딩**이
+이유다. 언어 하나가 "우리가 우리를 측정할 수 있는가"를 가른다. 의존성도 새
+종류가 아니었다 — 문법마다 별도 모듈이라는 기존 패턴(`tree-sitter-java` 외
+3종)에 `tree-sitter-go` 하나가 붙었다.
+
+구현하며 정한 것 셋:
+- **패키지는 디렉터리다**(`internal/graph/engine.go` → `internal.graph`).
+  Go의 패키지가 실제로 디렉터리이므로 `FileScoped()`는 false이고, 같은 폴더의
+  파일들이 하나의 같은-패키지 티어를 공유한다.
+- **메서드는 리시버 타입에 붙는다** — `func (e *Engine) ApplyFile` →
+  `internal.graph.Engine.ApplyFile`. 포인터·바인더 이름·타입 파라미터는 뗀다.
+- **import는 경로와 두 segment 꼬리를 함께 기록한다.** 파싱은 파일 단위 순수
+  함수라 `go.mod`를 읽어 모듈 접두사가 어디서 끝나는지 알 수 없다. 꼬리
+  (`internal.merkle.*`)가 저장소 안 패키지 ID와 맞물리는 결정론적 근사이고,
+  이것이 없으면 저장소 내부 크로스 패키지 호출이 전부 전역 티어(0.80)로 떨어진다.
+- **구조체 임베딩은 supertype이 아니다.** 인터페이스 임베딩만 `extends`의
+  의미를 갖는다.
 
 **② LSP 브리지는 하지 않는다.** 60+ 언어를 얻는 대신 단일 바이너리·무의존·
 결정론이라는 전제 셋이 동시에 깨진다. Serena가 이미 잘하는 게임이고 뒤늦게

@@ -11,7 +11,7 @@ AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
 3. read_code(노드 ID)               → 해당 노드의 원본 코드만 정확히 슬라이싱
 ```
 
-지원 언어: **Java, Kotlin, Python, JavaScript, TypeScript**(JSX/TSX 포함,
+지원 언어: **Java, Kotlin, Python, JavaScript, TypeScript, Go**(JSX/TSX 포함,
 tree-sitter).
 
 | 플랫폼 | 릴리스 바이너리 | 의미 검색 |

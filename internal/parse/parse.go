@@ -12,6 +12,7 @@ import (
 
 	tskotlin "github.com/tree-sitter-grammars/tree-sitter-kotlin/bindings/go"
 	ts "github.com/tree-sitter/go-tree-sitter"
+	tsgo "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	tsjava "github.com/tree-sitter/tree-sitter-java/bindings/go"
 	tsjs "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 	tspython "github.com/tree-sitter/tree-sitter-python/bindings/go"
@@ -32,6 +33,7 @@ const (
 	LangJavaScript // .js/.jsx/.mjs/.cjs — JSX is built into the JS grammar
 	LangTypeScript // .ts/.mts/.cts (including .d.ts)
 	LangTSX        // .tsx — separate tree-sitter grammar
+	LangGo         // .go — package is the directory, not the file
 	// LangPlain marks indexable text files without a grammar (§보완 A):
 	// configs, SQL, docs. They become single file-kind nodes.
 	LangPlain
@@ -64,6 +66,8 @@ func DetectLanguage(path string) Language {
 		return LangKotlin
 	case strings.HasSuffix(path, ".py"):
 		return LangPython
+	case strings.HasSuffix(path, ".go"):
+		return LangGo
 	case strings.HasSuffix(path, ".min.js"), strings.HasSuffix(path, ".min.mjs"),
 		strings.HasSuffix(path, ".min.cjs"):
 		return LangUnknown // minified = generated
@@ -189,6 +193,7 @@ var (
 	jsLang     = ts.NewLanguage(tsjs.Language())
 	tsLang     = ts.NewLanguage(tsts.LanguageTypescript())
 	tsxLang    = ts.NewLanguage(tsts.LanguageTSX())
+	goLang     = ts.NewLanguage(tsgo.Language())
 )
 
 func grammar(lang Language) *ts.Language {
@@ -205,6 +210,8 @@ func grammar(lang Language) *ts.Language {
 		return tsLang
 	case LangTSX:
 		return tsxLang
+	case LangGo:
+		return goLang
 	}
 	return nil
 }
@@ -217,6 +224,7 @@ var parserPools = map[Language]*sync.Pool{
 	LangJavaScript: newPool(LangJavaScript),
 	LangTypeScript: newPool(LangTypeScript),
 	LangTSX:        newPool(LangTSX),
+	LangGo:         newPool(LangGo),
 }
 
 func newPool(lang Language) *sync.Pool {
@@ -289,6 +297,8 @@ func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, err
 			extractPython(src, root, res)
 		case LangJavaScript, LangTypeScript, LangTSX:
 			extractJS(src, root, res)
+		case LangGo:
+			extractGo(src, root, res)
 		}
 	}
 
