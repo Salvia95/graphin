@@ -71,7 +71,12 @@ paper over it with a retry.
 ```sh
 gh release view vX.Y.Z --json tagName,assets
 git pull --ff-only origin main            # the workflow's commit-back
+git fetch --tags origin                   # the tag is not in the commit-back
 ```
+
+The tag matters beyond tidiness: CI's pending-changes check and every later
+`git diff vX.Y.Z HEAD` compare against it, and a pull only brings commits. Leave
+it unfetched and the next person auditing what shipped gets `unknown revision`.
 
 Report the version, the assets, what the verify job proved, and what a user has
 to do. If a pending-changes notice was outstanding, say whether this release
