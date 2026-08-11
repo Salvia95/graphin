@@ -18,6 +18,11 @@ const (
 	maxWalkUp   = 8       // marker walk-up bound, matches the usage hook
 	rotateBytes = 32 << 20
 	markerRel   = ".graphin/merkle.json"
+	// binpathRel is written by the server at startup (spec §2.2), before and
+	// independently of any indexing. Its presence without markerRel is the
+	// signature of the failure the metrics cannot count: the server ran and
+	// the agent never called bootstrap_workspace.
+	binpathRel = ".graphin/binpath"
 )
 
 // hookInput is the PostToolUse JSON Claude Code writes to the hook's stdin.
@@ -97,13 +102,20 @@ func Ingest(stdin io.Reader, stderr io.Writer, getenv func(string) string) int {
 // findRoot walks up from dir (bounded) looking for the index marker. The
 // marker is merkle.json, not the .graphin dir: the dir appears the moment the
 // server starts, the marker only after the initial scan persisted (spec §2.1).
-func findRoot(dir string) string {
+func findRoot(dir string) string { return findMarker(dir, markerRel) }
+
+// findServerRoot walks up for the startup sidecar instead of the index marker.
+// A hit here with no findRoot hit means graphin ran in this tree and was never
+// asked to do anything.
+func findServerRoot(dir string) string { return findMarker(dir, binpathRel) }
+
+func findMarker(dir, rel string) string {
 	if dir == "" || !filepath.IsAbs(dir) {
 		return ""
 	}
 	d := filepath.Clean(dir)
 	for i := 0; i <= maxWalkUp; i++ {
-		if fi, err := os.Stat(filepath.Join(d, markerRel)); err == nil && !fi.IsDir() {
+		if fi, err := os.Stat(filepath.Join(d, rel)); err == nil && !fi.IsDir() {
 			return d
 		}
 		parent := filepath.Dir(d)

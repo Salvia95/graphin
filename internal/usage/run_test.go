@@ -3,6 +3,8 @@ package usage
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -85,6 +87,39 @@ func TestRunUsageErrors(t *testing.T) {
 	}
 	if !strings.Contains(errb.String(), "ingest | report") {
 		t.Fatalf("stderr = %s", errb.String())
+	}
+}
+
+// A workspace the server touched but nobody ever bootstrapped is the adoption
+// failure the metrics structurally cannot count. The report must name it
+// instead of reporting the generic "not an indexed workspace".
+func TestReportNamesNeverBootstrappedWorkspace(t *testing.T) {
+	ws := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(ws, ".graphin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ws, ".graphin", "binpath"), []byte("/x/graphin\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(ws)
+	var out, errb bytes.Buffer
+	if code := Run([]string{"report"}, strings.NewReader(""), &out, &errb); code != 1 {
+		t.Fatalf("exit %d, want 1", code)
+	}
+	msg := errb.String()
+	for _, want := range []string{"부트스트랩되지 않았다", "binpath", "부재"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("stderr missing %q:\n%s", want, msg)
+		}
+	}
+	// A tree graphin never touched at all keeps the plain message.
+	errb.Reset()
+	t.Chdir(t.TempDir())
+	if code := Run([]string{"report"}, strings.NewReader(""), &out, &errb); code != 1 {
+		t.Fatal("want exit 1")
+	}
+	if strings.Contains(errb.String(), "부트스트랩되지 않았다") {
+		t.Fatalf("untouched tree must not claim a server ran:\n%s", errb.String())
 	}
 }
 

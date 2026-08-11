@@ -103,6 +103,19 @@ func defaultLogDir(stderr io.Writer) (string, int) {
 	}
 	root := findRoot(cwd)
 	if root == "" {
+		// The interesting case hides here. A workspace where the server ran but
+		// nobody ever called bootstrap_workspace produces no index, therefore no
+		// events, therefore no row in any report — the most complete adoption
+		// failure there is, and the metrics count it as absent rather than as
+		// zero (docs/eval/2026-08-11-adoption-remeasure). Saying "no indexed
+		// workspace" would be true and would hide it.
+		if ran := findServerRoot(cwd); ran != "" {
+			fmt.Fprintf(stderr, "graphin usage: %s 에서 서버는 실행된 적이 있으나(.graphin/binpath)\n"+
+				"  한 번도 부트스트랩되지 않았다(.graphin/merkle.json 없음).\n"+
+				"  에이전트가 graphin을 한 번도 부르지 않았다는 뜻이고, 그래서 이 워크스페이스는\n"+
+				"  채택 지표에 분자로도 분모로도 잡히지 않는다 — 0%%가 아니라 부재로 집계된다.\n", ran)
+			return "", 1
+		}
 		fmt.Fprintln(stderr, "graphin usage: no indexed workspace found from cwd (.graphin/merkle.json); pass --log")
 		return "", 1
 	}
