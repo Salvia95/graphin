@@ -1,5 +1,5 @@
 ---
-description: graphin 설치·연결 진단 — 바이너리 출처, 버전 드리프트, 플랫폼 지원, 인덱스 상태, 중복 MCP 등록을 점검한다
+description: graphin 설치·연결 진단 — 바이너리 출처, 버전 드리프트, 플랫폼 지원, 인덱스 상태, 중복 MCP 등록, 붙어 있는데 안 쓰이는 워크스페이스를 점검한다
 allowed-tools: Bash(*), Read
 ---
 
@@ -85,7 +85,37 @@ tail -5 .graphin/agent-nav.log 2>/dev/null
   않는 것이다. `/plugin`에서 graphin이 enabled인지 확인하게 하라.
 - `agent-nav.log`에 `semantic_unavailable`이 있으면 그 `error` 필드를 그대로 인용하라.
 
-## 5. 요약
+## 5. 붙어 있는데 안 쓰이는 워크스페이스
+
+**채택 실패의 가장 완전한 형태는 지표가 세지 못한다.** 서버가 떴는데 에이전트가
+`bootstrap_workspace`를 한 번도 안 부르면 인덱스가 없고, 인덱스가 없으면 이벤트도
+없고, 그러면 그 워크스페이스는 리포트에 **0%가 아니라 아예 없는 것**으로 남는다
+(usage-spec §5). `usage report`는 자기가 받은 로그 하나만 보므로 이 사실을
+**그 워크스페이스에 대고 물어야만** 말해 준다. 여기서 한 번에 훑는다.
+
+```sh
+ps -eo args= 2>/dev/null |
+  awk '/graphin .*--workspace/ {for (i=1;i<=NF;i++) if ($i=="--workspace") print $(i+1)}' |
+  sort -u |
+  while IFS= read -r ws; do
+    if [ -f "$ws/.graphin/merkle.json" ]; then
+      printf '  부트스트랩됨    %s\n' "$ws"
+    else
+      printf '  한 번도 안 불림 %s\n' "$ws"
+    fi
+  done
+```
+
+- 열거의 출처는 **실행 중인 우리 서버의 인자**다. 디렉터리를 훑지 않는다 —
+  graphin이 지금 붙어 있는 곳만 본다. 서버가 안 떠 있는 워크스페이스는 안 보이고,
+  그건 이 점검의 질문("붙어 있는데 안 쓰이나")과 일치한다.
+- **"한 번도 안 불림"이 하나라도 있으면 그 경로를 그대로 보고하라.** 도구가
+  깨진 것이 아니라 에이전트가 부르지 않은 것이므로, 조치는 재설치가 아니다:
+  그 프로젝트에서 `graphin-guide` 플러그인이 설치·활성인지, 프로젝트 지시문이
+  graphin을 언급하는지를 보게 하라.
+- 전부 부트스트랩돼 있으면 이 절은 한 줄로 끝내라.
+
+## 6. 요약
 
 | 항목 | 상태 | 조치 |
 |---|---|---|
@@ -95,6 +125,7 @@ tail -5 .graphin/agent-nav.log 2>/dev/null
 | MCP 등록 | 플러그인 단독 / 중복 | |
 | 인덱스 | 부트스트랩 여부·노드 수 | |
 | 계측 | 이벤트 수 | |
+| 붙어 있는데 안 쓰임 | N개 중 M개 미부트스트랩 | |
 
 문제가 없으면 그냥 "정상"이라고 짧게 말하라. 없는 문제를 만들어내지 말 것.
 설치를 강제로 다시 하려면 `/graphin:setup`이다.
