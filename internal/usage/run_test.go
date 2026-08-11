@@ -99,4 +99,15 @@ func TestParseSince(t *testing.T) {
 	if _, err := parseSince("yesterday", now); err == nil {
 		t.Fatal("want error")
 	}
+	// Delivery boundaries are instants: a release reaches a workspace when the
+	// server restarts onto it (docs/eval/2026-08-07-adoption-diagnosis §배달).
+	for _, s := range []string{"2026-08-10T15:37:00Z", "2026-08-10T15:37Z", "2026-08-10T15:37"} {
+		c, err := parseSince(s, now)
+		if err != nil {
+			t.Fatalf("%s: %v", s, err)
+		}
+		if c.Hour() != 15 || c.Minute() != 37 || c.Day() != 10 {
+			t.Fatalf("%s parsed to %s", s, c)
+		}
+	}
 }

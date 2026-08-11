@@ -196,5 +196,14 @@ func parseSince(s string, now time.Time) (time.Time, error) {
 	if t, err := time.Parse("2006-01-02", s); err == nil {
 		return t.UTC(), nil
 	}
-	return time.Time{}, fmt.Errorf("%q is neither YYYY-MM-DD nor a duration", s)
+	// A timestamp, because the boundaries that matter are instants, not days.
+	// A version reaches a workspace when the server restarts onto it, and that
+	// happens mid-afternoon as readily as at midnight — a date-only cut would
+	// put both sides of the boundary in the same bucket.
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04Z07:00", "2006-01-02T15:04:05", "2006-01-02T15:04"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("%q is neither a timestamp, YYYY-MM-DD, nor a duration", s)
 }

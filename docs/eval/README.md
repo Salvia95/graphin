@@ -16,6 +16,7 @@ SWE-Explore 하니스(`graphin eval swe-explore`, docs/phase7-spec.md §3) 실�
 | [2026-07-25-h1-reverify](2026-07-25-h1-reverify/manifest.md) | H1: balanced 203 `--semantic`; H2/H3: 451 (drop 0) | **H1 역전 — hybrid ndcg@300 +7~9%p(p≤0.002)·recall@300 유의, 1차 ndcg 역행은 드랍 아티팩트** · H2 non-vacuous(축 교체) · H3 PASS |
 | [2026-08-07-adoption-diagnosis](2026-08-07-adoption-diagnosis/findings.md) | 실사용 워크스페이스(kinder) 661 이벤트의 채택 0% 원인 | **원인 셋 — 단건 조회는 grep이 더 싸고(실패 아님), 다단계 탐색 7/15는 진짜 놓침, 부른 뒤 답이 안 착지** · `discovery_failure` 분모에 graphin 영역 밖 작업이 섞여 있음 |
 | [2026-08-08-tier0-ranking](2026-08-08-tier0-ranking/manifest.md) | 위 진단의 권고 ④(문장 내 심볼 Tier-0) 회귀 확인, 451 lexical 27점 스윕 | **회귀 없음·개선 미증명** — 출하 설정 ndcg@300 +3.8%p(상대 +9.8%)지만 부호검정 p=0.25 · 경고: k20 precision은 크기 0에 방향 유의(p=0.022) |
+| [2026-08-11-adoption-remeasure](2026-08-11-adoption-remeasure/findings.md) | 권고 ③ 첫 재측정 — 배달 구간 A/B/C를 갈라 kinder·graphin 1,615 이벤트 | **판정 불가**(표본·kinder 중단·Go 미지원 대조군) · **새 결함: 부트스트랩하지 않은 워크스페이스는 지표에 아예 안 잡힌다** — 지금 채택률은 전부 생존 편향 위 |
 
 ## 규약
 
