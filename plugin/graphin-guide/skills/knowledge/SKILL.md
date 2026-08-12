@@ -89,8 +89,9 @@ You are the part of this that graphin cannot do: graphin splits and retrieves
 deterministically, but it has no generative model, so **the summaries are yours
 to write**.
 
-1. Find the material. `search_hybrid` for the topic, then `explore_graph` on any
-   document node to see its sections (`contains` edges).
+1. Find the material. `search_hybrid(topic, target="docs")` — the filter keeps
+   code out of a search whose answer is always a document — then `explore_graph`
+   on any document node to see its sections (`contains` edges).
 2. **Read every section you are about to list.** A summary written from a
    heading is worthless — the heading is already in the link text.
 3. Write one line per entry that says **what the section claims, not what it is

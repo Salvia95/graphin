@@ -55,7 +55,7 @@ background:
 | Tool | What it gives you | Params that matter |
 |---|---|---|
 | `bootstrap_workspace` | Starts indexing + live file watching. | `model_type`: `english_optimal` \| `multilingual_cjk` (pick by the language of code/comments). `offline`: for air-gapped setups. |
-| `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). |
+| `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). `target`: `code` \| `docs` \| `db` — see below. |
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
 | `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
 
@@ -76,6 +76,12 @@ normal exploration.
   `confidence` (roughly: how sure graphin is the relationship is real). Higher =
   safer. If the result says there's more and gives you a cursor, page with it only
   when you actually need more than the first page.
+- **A page of `both` fills with `uses` first.** The page holds 20 edges and the
+  `uses` section is laid out before `used_by`, so a node that calls a lot of
+  things can push its callers onto page two — and callers are the scarce, valuable
+  half when you're asking what breaks. **If you want callers, ask for them:**
+  `direction="used_by"`. Don't read a short `used_by` list under `both` as "few
+  callers" when `has_more` is set.
 - **`read_code`** returns the source for that node with its line range. Occasionally
   it flags that a node was re-parsed on the fly (the file changed since indexing) or
   that the slice is partial — treat those as hints, not errors.
@@ -84,6 +90,46 @@ normal exploration.
   the ones that do and lists the rest as `<omitted reason="budget">` — re-request
   those in a second call. Every id you pass comes back either as a block or as an
   omission, so nothing disappears silently.
+
+## Asking a question in a sentence: use `target="code"`
+
+A whole markdown file is **one node**, and a document about a function matches a
+prose question better than the function itself ever can — the function only has
+its name and signature to match with, while the document is that behavior
+written out in sentences. So a sentence-shaped question about code comes back
+full of documentation.
+
+Measured on graphin's own repository (8 prose questions, top 5 each, 40 slots):
+
+| | implementation | tests | markdown | config/data |
+|---|---:|---:|---:|---:|
+| no `target` | 7 | 5 | **21** | 7 |
+| `target="code"` | **22** | 18 | – | – |
+
+**70% of the slots were not code.** So:
+
+- **Sentence-shaped question about implementation → pass `target="code"`.**
+  "how does the watcher decide a file changed", "where is the lock released".
+- **Symbol-shaped query → don't bother.** `applyFileResult` already lands on an
+  exact match at rank 1; the filter has nothing to fix.
+- **Looking for prose or a decision record → `target="docs"`.** Returns markdown
+  files and sections only.
+- **Looking for a table or view → `target="db"`.**
+- **Omit it to search everything** — that's the default, and it's also how you
+  reach config files (`.json`, `.yml`, `.toml`), which count as neither code nor
+  docs.
+
+Two things to know:
+
+- **A filtered response echoes the filter** (`<results … target="code">`). If you
+  passed `target` and the echo is missing, you are talking to an older graphin
+  server that ignored it — the results are unfiltered, so read them that way.
+- **Filtering does not fix everything.** With docs out of the way, test functions
+  take a large share of what's left: a test name like
+  `TestContainsRefreshesWhenChildAdded` is practically the question written as an
+  identifier, while the implementation's name is not. If the top code hits are
+  all tests, the implementation is usually one hop away — `explore_graph` the
+  test and read its `uses`.
 
 ## Tuning recall vs. precision
 
@@ -133,9 +179,9 @@ it reflects the schema as checked in, not the current production state.
 ## Scope & limits (know these before you trust an answer)
 
 - **Graph edges exist for:** Java, Kotlin, Python, JavaScript, TypeScript (incl.
-  JSX/TSX), and **Markdown**. Other file types are still **searchable and readable**
-  as text nodes, but they won't have `uses` / `used_by` edges — so `explore_graph`
-  is thin for them.
+  JSX/TSX), **Go**, and **Markdown**. Other file types are still **searchable and
+  readable** as text nodes, but they won't have `uses` / `used_by` edges — so
+  `explore_graph` is thin for them.
 - **Markdown is a graph too.** Every heading becomes a section node whose id is
   `path/to/doc.md#github-style-slug`, linked to its parent by a `contains` edge.
   So a search over docs returns the *section* that answers the question, not the
@@ -148,8 +194,12 @@ it reflects the schema as checked in, not the current production state.
 
 ## Quick recipes
 
-- **"Where is feature X?"** → `search_hybrid("X in plain words")` — the answer is the
-  `file`/`line` on the top result. `read_code` only if you need the body.
+- **"Where is feature X?"** → `search_hybrid("X in plain words", target="code")` —
+  the answer is the `file`/`line` on the top result. `read_code` only if you need
+  the body.
+- **"How does this repo do Y?"** (a sentence, not a symbol) →
+  `search_hybrid("...", target="code")`. Without the filter most of the list is
+  documentation about Y rather than the code doing Y.
 - **"What calls this function?"** → get its ID via search →
   `explore_graph(id, direction="used_by")`.
 - **"What does this depend on?"** → `explore_graph(id, direction="uses")`.

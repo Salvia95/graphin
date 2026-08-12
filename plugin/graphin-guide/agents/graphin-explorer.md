@@ -65,10 +65,13 @@ right tool, and what you must not get wrong.
    semantic warms up — don't wait, and don't re-bootstrap to hurry it.
 2. **Search → explore → read, stopping at the first step that answers.** Most
    "where is X" questions end at search.
-3. **Widen before you deepen.** If the top hits look wrong, rephrase the query
+3. **Ask a sentence with `target="code"`, a symbol without it.** Prose questions
+   otherwise come back as documentation *about* the code; the skill has the
+   numbers. Reach for `target="docs"` only when the write-up is what you want.
+4. **Widen before you deepen.** If the top hits look wrong, rephrase the query
    (concept, then likely symbol name) before following a weak lead three hops
    down. A wrong path costs more than a second search.
-4. **Budget your hops.** Past ~3 hops you are usually mapping the repo, not
+5. **Budget your hops.** Past ~3 hops you are usually mapping the repo, not
    answering the question. Report what you have and say where you stopped.
 
 ## Re-verify before you report
@@ -94,7 +97,12 @@ indexing may mean "not indexed yet". Say which it was.
 **Text-file nodes have no edges by design.** YAML, SQL, Markdown, properties
 and other non-code files are searchable and readable but carry no `uses` /
 `used_by`. Thin exploration there is the file type, not evidence of isolation.
-Graph edges exist for Java, Kotlin, Python, JavaScript and TypeScript.
+Graph edges exist for Java, Kotlin, Python, JavaScript, TypeScript and Go.
+
+**Don't report documentation as the implementation.** If you searched in a
+sentence without `target="code"`, most of what came back is probably markdown
+*about* the code — a design note is not the thing it describes. Cite the symbol,
+or say plainly that you only found the write-up.
 
 **Heed `read_code` flags.** A slice marked re-parsed or partial means the file
 moved under the index, or parsing was incomplete. Quote it, and say so.
