@@ -20,7 +20,7 @@ README의 한 줄은 좁고 분명하다 — **AI 에이전트를 위한 로컬 
 | 문법 없는 색인 | 마크다운(섹션 노드) · plain 12확장자 · `*.graphindb.json` | 파일 = 노드 1개 |
 | 노드 종류 | class · interface · method · function · file · section · DB(table/view/function) | `internal/nodeid` |
 | 엣지 종류 | import · extends · implements · call · reference · foreign_key · contains — **7종** | `internal/graph/types.go` |
-| 검색 | Tier-0 exact → BM25 → RRF 하이브리드(multilingual-e5-small INT8) | `internal/search/router.go` |
+| 검색 | Tier-0 exact → BM25 → RRF 하이브리드(multilingual-e5-small INT8), `target`으로 code/docs/db 한 모집단만 | `internal/search/router.go` · `internal/nodeid` |
 | 해석 정밀도 | **타입 해석 없음.** 이름 + 아리티 + 스코프 티어(1.0 / 0.95 / 0.90 / 0.80) | `nodeid.go`: "no type resolution" |
 | 규모 | semantic 40,000 노드 게이트(초과 시 lexical 폴백), >500k 범위 밖 | `cmd/graphin/main.go:68` |
 | 플랫폼 | linux amd64·arm64 릴리스. darwin/amd64는 의미 검색 불가, windows 범위 밖 | README |

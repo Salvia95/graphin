@@ -48,6 +48,73 @@ func IsDBKind(kind string) bool {
 	return false
 }
 
+// Target partitions indexed nodes into the populations an agent asks about.
+// The names match the usage report's target split (docs/usage-spec.md) so a
+// filter and the adoption metric mean the same thing by "code".
+const (
+	TargetCode = "code" // grammar-derived symbols: the implementation
+	TargetDocs = "docs" // markdown file roots and their sections
+	TargetDB   = "db"   // graphindb snapshot nodes
+	// TargetText is the anchor-less remainder: .json/.yml/.toml and the rest
+	// of the plain extension list. Not prose and not implementation, so it
+	// belongs to neither of the two populations a caller asks for by name.
+	TargetText = "text"
+)
+
+// docExtensions are the file suffixes whose file node roots a section tree
+// (docs/markdown-spec.md).
+var docExtensions = [...]string{".md", ".markdown"}
+
+// Target classifies one indexed node. It needs the kind *and* the ID: KindFile
+// is the shared fallback for a markdown root and for anchor-less config text,
+// so the kind alone cannot tell a README from a scores.json — and telling them
+// apart is the whole point of the split.
+//
+// Unclassifiable input returns "". Callers filtering by target must treat that
+// as "does not match": admitting a node we cannot name would break the promise
+// the filter makes.
+//
+// usage.targetOf answers the same question from a node ID alone, because it
+// reads event logs and has no index to ask for a kind. That approximation puts
+// .json/.yml in "code"; this one, which can see the kind, calls them text.
+func Target(kind, id string) string {
+	switch {
+	case IsDBKind(kind):
+		return TargetDB
+	case kind == KindSection:
+		return TargetDocs
+	case kind == KindFile:
+		if hasDocExtension(id) {
+			return TargetDocs
+		}
+		return TargetText
+	case kind == KindClass, kind == KindInterface, kind == KindMethod, kind == KindFunction:
+		return TargetCode
+	}
+	return ""
+}
+
+// IsTarget reports whether name is a target a caller may filter by. TargetText
+// is deliberately absent: it is a residue, not something anyone asks for.
+func IsTarget(name string) bool {
+	switch name {
+	case TargetCode, TargetDocs, TargetDB:
+		return true
+	}
+	return false
+}
+
+func hasDocExtension(id string) bool {
+	// A file node ID is the rel path, so the extension is the whole tail. The
+	// comparison is case-insensitive because README.MD is the same document.
+	for _, ext := range docExtensions {
+		if len(id) >= len(ext) && strings.EqualFold(id[len(id)-len(ext):], ext) {
+			return true
+		}
+	}
+	return false
+}
+
 // UnboundedArity marks an open maximum (Python *args/**kwargs, Java varargs).
 const UnboundedArity = -1
 

@@ -14,6 +14,8 @@ import (
 	"github.com/Salvia95/graphin/internal/bench"
 	"github.com/Salvia95/graphin/internal/graph"
 	"github.com/Salvia95/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/search"
 	"github.com/Salvia95/graphin/internal/workspace"
 )
 
@@ -40,6 +42,14 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		InputSchema: objSchema(map[string]any{
 			"query": map[string]any{"type": "string", "description": "Natural language or symbol query."},
 			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results."},
+			"target": map[string]any{
+				"type": "string", "enum": []string{"code", "docs", "db"},
+				"description": "Restrict results to one population. Omit to search everything. " +
+					"Use \"code\" for a sentence-shaped question about implementation (\"how does X invalidate Y\") — " +
+					"prose queries otherwise rank long markdown files above the functions they describe, because a whole " +
+					"document is one node and matches prose better than code does. \"docs\" is markdown files and sections, " +
+					"\"db\" is schema snapshot nodes. Symbol-shaped queries rarely need this.",
+			},
 		}, []string{"query"}),
 		Handler: searchHandler(ws),
 	})
@@ -126,8 +136,9 @@ func notBootstrapped(ws *workspace.Workspace) string {
 
 func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
-		Query string `json:"query"`
-		TopK  int    `json:"top_k"`
+		Query  string `json:"query"`
+		TopK   int    `json:"top_k"`
+		Target string `json:"target"`
 	}
 	return func(_ context.Context, raw json.RawMessage) (string, bool) {
 		if !ws.Bootstrapped() {
@@ -144,8 +155,21 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		if a.TopK > 20 {
 			a.TopK = 20
 		}
+		// An unrecognised target is refused rather than ignored: silently
+		// searching everything would read as "there is no code here" when the
+		// caller believes it asked for code only.
+		target := strings.TrimSpace(a.Target)
+		if target != "" && !nodeid.IsTarget(target) {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal,
+				fmt.Sprintf("unknown target %q: use code, docs or db, or omit it to search everything", target), &st), true
+		}
+		var filter search.Filter
+		if target != "" {
+			filter = func(id string) bool { return nodeid.Target(ws.NodeKind(id), id) == target }
+		}
 
-		results := ws.Router.Search(a.Query, a.TopK)
+		results := ws.Router.SearchFiltered(a.Query, a.TopK, filter)
 		semReady := ws.Router.SemanticReady()
 
 		var sb strings.Builder
@@ -154,7 +178,13 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			sb.WriteString(st.XML())
 			sb.WriteString("\n")
 		}
-		fmt.Fprintf(&sb, `<results semantic_ready="%t">`, semReady)
+		// Echo the filter. Without it a short list reads as "the workspace has
+		// little of this", when it may mean the filter excluded the rest.
+		if target != "" {
+			fmt.Fprintf(&sb, `<results semantic_ready="%t" target="%s">`, semReady, mcp.EscapeAttr(target))
+		} else {
+			fmt.Fprintf(&sb, `<results semantic_ready="%t">`, semReady)
+		}
 		if msg := ws.SemUnavailable(); msg != "" {
 			fmt.Fprintf(&sb, "\n  <model_status code=%q hint=\"semantic search unavailable; lexical fallback active\" />",
 				mcp.ErrModelUnavailable)

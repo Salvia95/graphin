@@ -1,7 +1,9 @@
 package search
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Salvia95/graphin/internal/lexical"
@@ -154,5 +156,102 @@ func TestIdentTokens(t *testing.T) {
 	// Bare lowercase words are prose; digits-first is not an identifier.
 	if got := identTokens("start the session for 3rd worktree"); len(got) != 0 {
 		t.Fatalf("prose produced identifiers: %v", got)
+	}
+}
+
+// proseHeavyRouter builds a workspace shaped like this repository at the time
+// the target filter was added: a pile of eval notes whose prose matches a
+// sentence query better than the function the sentence is about. Measured
+// then: "cross-file edge invalidation when caller file changes" returned three
+// markdown files and two tests, and the implementation was nowhere.
+func proseHeavyRouter(nDocs int) (r *Router, codeID string, isDoc func(string) bool) {
+	sym := lexical.NewSymbolTable()
+	ix := lexical.NewIndex()
+
+	prose := []string{"cross", "file", "edge", "invalidation", "caller", "changes"}
+	for i := range nDocs {
+		id := fmt.Sprintf("docs/eval/note-%02d.md", i)
+		ix.Upsert(id, slices.Repeat(prose, 6))
+	}
+
+	codeID = "internal.graph.Engine.refreshCrossFileEdges"
+	ix.Upsert(codeID, lexical.BuildDocTokens("refreshCrossFileEdges", codeID, "caller string"))
+	sym.Put(codeID, "refreshCrossFileEdges")
+
+	return &Router{Sym: sym, Lex: ix}, codeID,
+		func(id string) bool { return strings.HasSuffix(id, ".md") }
+}
+
+const proseQuery = "cross file edge invalidation when caller changes"
+
+// TestTargetFilterRecoversCodeBuriedUnderProse is the defect this filter was
+// built for: without it the whole result list is documentation.
+func TestTargetFilterRecoversCodeBuriedUnderProse(t *testing.T) {
+	r, codeID, isDoc := proseHeavyRouter(20)
+
+	// Sanity: unfiltered, prose must own every slot, or this proves nothing.
+	for _, res := range r.Search(proseQuery, 5) {
+		if !isDoc(res.NodeID) {
+			t.Fatalf("precondition broken: %q is not prose; the fixture no longer reproduces the defect", res.NodeID)
+		}
+	}
+
+	got := r.SearchFiltered(proseQuery, 5, func(id string) bool { return !isDoc(id) })
+	if len(got) != 1 || got[0].NodeID != codeID {
+		t.Fatalf("filtered search = %+v, want exactly the implementation %q", got, codeID)
+	}
+	if got[0].Rank != 1 {
+		t.Errorf("rank = %d, want 1: ranks are positions in the returned list", got[0].Rank)
+	}
+}
+
+// TestTargetFilterWidensCandidatePool guards the subtle half. Filtering the
+// unwidened pool would find nothing here: the implementation sits below more
+// prose documents than topK*fetchPerSlot reaches.
+func TestTargetFilterWidensCandidatePool(t *testing.T) {
+	buried := 5 * fetchPerSlot * 2 // deeper than the unfiltered pool ever looks
+	r, codeID, isDoc := proseHeavyRouter(buried)
+
+	// Precondition, stated against the real narrow pool rather than a
+	// stand-in: at the unfiltered candidate count the implementation is not
+	// among the candidates at all, so no amount of filtering could surface it.
+	narrow := r.Lex.Search(lexical.Tokenize(proseQuery), fetchSize(5, nil))
+	if slices.ContainsFunc(narrow, func(h lexical.Hit) bool { return h.DocID == codeID }) {
+		t.Fatalf("fixture too small: %q is already inside the narrow pool of %d", codeID, len(narrow))
+	}
+	got := r.SearchFiltered(proseQuery, 5, func(id string) bool { return !isDoc(id) })
+	if len(got) != 1 || got[0].NodeID != codeID {
+		t.Fatalf("filtered search = %+v, want the implementation %q found past the narrow pool", got, codeID)
+	}
+}
+
+// TestTargetFilterAppliesToTier0 proves an exact match cannot smuggle itself
+// past the filter. A caller asking for code only must not be handed a document
+// just because its name matched exactly.
+func TestTargetFilterAppliesToTier0(t *testing.T) {
+	sym := lexical.NewSymbolTable()
+	ix := lexical.NewIndex()
+	const docID = "docs/adr/headRef.md"
+	sym.Put(docID, "headRef")
+	ix.Upsert(docID, lexical.BuildDocTokens("headRef", docID, ""))
+
+	r := &Router{Sym: sym, Lex: ix}
+	if got := r.Search("headRef", 5); len(got) == 0 || got[0].Match != MatchExact {
+		t.Fatalf("precondition: unfiltered search must return the exact doc hit, got %+v", got)
+	}
+	if got := r.SearchFiltered("headRef", 5, func(id string) bool { return !strings.HasSuffix(id, ".md") }); len(got) != 0 {
+		t.Fatalf("filtered search = %+v, want empty: the only exact match is excluded", got)
+	}
+}
+
+// TestNilFilterMatchesUnfilteredSearch pins the promise that adding the
+// parameter changed nothing for callers that omit it.
+func TestNilFilterMatchesUnfilteredSearch(t *testing.T) {
+	r, _, _ := proseHeavyRouter(20)
+	for _, q := range []string{proseQuery, "refreshCrossFileEdges", "caller"} {
+		want, got := r.Search(q, 5), r.SearchFiltered(q, 5, nil)
+		if !slices.Equal(want, got) {
+			t.Errorf("query %q: nil filter = %+v, want identical to Search %+v", q, got, want)
+		}
 	}
 }

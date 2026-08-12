@@ -59,3 +59,51 @@ func TestSimpleAndDisplay(t *testing.T) {
 		t.Fatal("top-level display")
 	}
 }
+
+func TestTargetPartitionsNodes(t *testing.T) {
+	cases := []struct {
+		kind, id, want string
+	}{
+		{KindMethod, "internal.graph.Engine.ApplyFile", TargetCode},
+		{KindFunction, "internal.search.identTokens", TargetCode},
+		{KindClass, "com.example.OrderService", TargetCode},
+		{KindInterface, "com.example.PaymentPort", TargetCode},
+
+		{KindSection, "docs/scope.md#1-실제-커버리지", TargetDocs},
+		{KindFile, "docs/scope.md", TargetDocs},
+		{KindFile, "README.markdown", TargetDocs},
+		{KindFile, "README.MD", TargetDocs}, // case-insensitive: same document
+
+		{KindTable, "db.main.public.orders", TargetDB},
+		{KindView, "db.main.public.order_totals", TargetDB},
+		{KindTrigger, "db.main.public.orders.audit", TargetDB},
+
+		// The whole point of the split: a scores.json is neither the prose an
+		// agent means by "docs" nor the implementation it means by "code".
+		{KindFile, "docs/eval/2026-07-25-h1-reverify/scores.json", TargetText},
+		{KindFile, "config/application.yml", TargetText},
+		{KindFile, "Makefile", TargetText},
+
+		{"", "", ""},
+		{"unknown_kind", "whatever", ""},
+	}
+	for _, c := range cases {
+		if got := Target(c.kind, c.id); got != c.want {
+			t.Errorf("Target(%q, %q) = %q, want %q", c.kind, c.id, got, c.want)
+		}
+	}
+}
+
+func TestIsTargetExcludesText(t *testing.T) {
+	for _, name := range []string{TargetCode, TargetDocs, TargetDB} {
+		if !IsTarget(name) {
+			t.Errorf("IsTarget(%q) = false, want true", name)
+		}
+	}
+	// TargetText is a residue, not something a caller asks for; neither is junk.
+	for _, name := range []string{TargetText, "", "source", "markdown"} {
+		if IsTarget(name) {
+			t.Errorf("IsTarget(%q) = true, want false", name)
+		}
+	}
+}

@@ -48,6 +48,37 @@ func (r *Router) SemanticReady() bool { return r.Sem != nil && r.Sem.Ready() }
 // benchmark-tunable).
 const rrfK = 60
 
+// Filter reports whether a node may appear in results. A nil Filter accepts
+// everything.
+type Filter func(nodeID string) bool
+
+func (f Filter) ok(id string) bool { return f == nil || f(id) }
+
+// Candidate pool sizes. Unfiltered, three per requested slot is enough slack
+// for the RRF merge to reorder within. A filter draws from that same pool, so
+// leaving it unwidened would answer "five code hits" with two whenever the top
+// of the ranking is documentation — which is exactly the query shape the
+// filter exists for.
+//
+// Widening is close to free. The semantic side pays one query embedding
+// regardless of topK, and BM25 only grows the heap it already scores into.
+const (
+	fetchPerSlot         = 3
+	filteredFetchPerSlot = 24
+	maxFetch             = 600
+)
+
+func fetchSize(topK int, filter Filter) int {
+	per := fetchPerSlot
+	if filter != nil {
+		per = filteredFetchPerSlot
+	}
+	if n := topK * per; n < maxFetch {
+		return n
+	}
+	return maxFetch
+}
+
 // tier0Cap bounds how much of the result list per-token exact matches may
 // take. A whole-query Tier-0 hit means the caller typed the symbol and nothing
 // else, so it earns the whole list; a token hit is one word of a sentence, and
@@ -116,13 +147,25 @@ func (r *Router) Search(query string, topK int) []Result {
 // SearchK runs Search with an explicit RRF constant — the §8 benchmark
 // sweeps k ∈ {20, 60, 100}.
 func (r *Router) SearchK(query string, topK, k int) []Result {
+	return r.SearchFilteredK(query, topK, k, nil)
+}
+
+// SearchFiltered runs Search admitting only nodes the filter accepts.
+func (r *Router) SearchFiltered(query string, topK int, filter Filter) []Result {
+	return r.SearchFilteredK(query, topK, rrfK, filter)
+}
+
+// SearchFilteredK is Search with both knobs. The filter is applied to every
+// candidate stream — Tier-0 included — so an exact match outside the requested
+// population never takes a slot it would then have to be excused from.
+func (r *Router) SearchFilteredK(query string, topK, k int, filter Filter) []Result {
 	if topK <= 0 {
 		topK = 5
 	}
 	var out []Result
 	used := map[string]bool{}
 	add := func(id string, mt MatchType) {
-		if used[id] || len(out) >= topK {
+		if used[id] || len(out) >= topK || !filter.ok(id) {
 			return
 		}
 		used[id] = true
@@ -159,14 +202,21 @@ func (r *Router) SearchK(query string, topK, k int) []Result {
 	}
 
 	if !r.SemanticReady() {
-		for _, h := range r.Lex.Search(lexical.Tokenize(query), topK+len(out)) {
+		// Unfiltered, topK+len(out) is exactly enough — and it is the pool the
+		// lexical-only sweeps in docs/eval were measured on, so it stays put.
+		// A filter needs the wider pool for the same reason the RRF path does.
+		n := topK + len(out)
+		if filter != nil {
+			n = fetchSize(topK, filter)
+		}
+		for _, h := range r.Lex.Search(lexical.Tokenize(query), n) {
 			add(h.DocID, MatchLexical)
 		}
 		return out
 	}
 
 	// RRF merge: Score(d) = Σ 1/(k + rank), rank 1-based per engine.
-	fetch := topK * 3
+	fetch := fetchSize(topK, filter)
 	type fused struct {
 		score    float64
 		lex, sem bool
