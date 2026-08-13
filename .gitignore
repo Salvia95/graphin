@@ -2,8 +2,12 @@
 /bin/
 /dist/
 
-# graphin runtime data (never commit index/model data)
-.graphin/
+# graphin runtime data (never commit index/model data). `ignore` is config, not
+# runtime data, so it is the one file that ships — a fresh clone gets the same
+# exclusions. Re-including needs `.graphin/*`, not `.graphin/`: git cannot
+# re-include anything under an excluded *directory*.
+.graphin/*
+!.graphin/ignore
 
 # provisioned models & onnxruntime shared libraries
 *.onnx
