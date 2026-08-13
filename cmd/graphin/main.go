@@ -58,14 +58,17 @@ func main() {
 		os.Exit(usage.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
 
+	// Flag defaults live in workspace.DefaultConfig so diagnose_index can say
+	// which settings were changed without keeping a second copy of them.
+	def := workspace.DefaultConfig()
 	var (
 		root        = flag.String("workspace", "", "path to the workspace to index (required)")
-		modelType   = flag.String("model-type", "multilingual_cjk", "embedding model: english_optimal | multilingual_cjk")
-		offline     = flag.Bool("offline", false, "never download; use local runtime/ artifacts only")
-		modelDir    = flag.String("model-dir", "", "local directory containing the ONNX model")
-		ortLib      = flag.String("ort-lib", "", "path to the onnxruntime shared library")
-		workers     = flag.Int("workers", runtime.NumCPU(), "parser worker pool size")
-		semMaxNodes = flag.Int("semantic-max-nodes", 40000,
+		modelType   = flag.String("model-type", def.ModelType, "embedding model: english_optimal | multilingual_cjk")
+		offline     = flag.Bool("offline", def.Offline, "never download; use local runtime/ artifacts only")
+		modelDir    = flag.String("model-dir", def.ModelDir, "local directory containing the ONNX model")
+		ortLib      = flag.String("ort-lib", def.OrtLib, "path to the onnxruntime shared library")
+		workers     = flag.Int("workers", def.Workers, "parser worker pool size")
+		semMaxNodes = flag.Int("semantic-max-nodes", def.SemanticMaxNodes,
 			"disable semantic search above this node count; lexical stays on (0 = no limit). "+
 				"Default from docs/eval cold-start: ~1.4GB peak / ~4.6min warmup at 40k on 8GB.")
 		verbose   = flag.Bool("verbose", false, "mirror JSONL logs to stderr")

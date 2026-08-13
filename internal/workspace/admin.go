@@ -4,6 +4,8 @@
 package workspace
 
 import (
+	"runtime"
+
 	"github.com/Salvia95/graphin/internal/graph"
 	"github.com/Salvia95/graphin/internal/semantic"
 )
@@ -98,6 +100,18 @@ type ConfigView struct {
 	Workers          int
 	SemanticMaxNodes int
 	Offline          bool
+}
+
+// DefaultConfig returns the built-in startup defaults. cmd/graphin's flag
+// definitions and diagnose_index's "changed from the default" comparison both
+// read them from here, so the two cannot drift apart. Root has no meaningful
+// default — it is required at startup.
+func DefaultConfig() ConfigView {
+	return ConfigView{
+		ModelType:        "multilingual_cjk",
+		Workers:          runtime.NumCPU(),
+		SemanticMaxNodes: 40000,
+	}
 }
 
 // EffectiveConfig snapshots the startup flags (immutable after New).

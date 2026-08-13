@@ -1,4 +1,4 @@
-// Package tools binds the five §3 MCP tools to the workspace engines.
+// Package tools binds the §3 MCP tools to the workspace engines.
 // Handlers gain real behavior phase by phase; anything not yet backed by an
 // index reports a spec error code instead of failing the protocol.
 package tools
@@ -83,6 +83,20 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			},
 		}, nil),
 		Handler: readCodeHandler(ws),
+	})
+
+	reg.Register(&mcp.Tool{
+		Name: "diagnose_index",
+		Description: "Report the index's own health: node/edge/shard counts, edges whose target is missing, " +
+			"files parsed with syntax errors, reverse-index stats, semantic search state (including a " +
+			"vectors.bin written by a different embedding model than the one configured), the effective " +
+			"startup flags, and .graphin disk usage. Any problem worth acting on comes back as a <hint>. " +
+			"Use it when search returns nothing for a symbol you expect to exist, when explore_graph is " +
+			"missing an edge you know is there, or before concluding the code is at fault — it separates " +
+			"\"the index is wrong\" from \"the code is not what you thought\". Counting partial nodes scans " +
+			"every node, so this is heavier than the other tools; it is a diagnostic, not a per-question call.",
+		InputSchema: objSchema(nil, nil),
+		Handler:     diagnoseHandler(ws),
 	})
 
 	reg.Register(&mcp.Tool{

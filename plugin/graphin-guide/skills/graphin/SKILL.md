@@ -59,6 +59,14 @@ background:
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
 | `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
 
+`diagnose_index` reports the index's own health — counts, edges whose target is
+missing, files that failed to parse, semantic search state, effective settings,
+disk usage — and names anything worth acting on in a `<hint>`. Reach for it when
+a symbol you are sure exists doesn't come back from `search_hybrid`, or when
+`explore_graph` is missing an edge you know is there: it separates "the index is
+wrong" from "the code is not what you thought". It scans every node, so it is a
+diagnostic, not something to call per question.
+
 `run_local_benchmark` also exists — it measures how many bytes graphin navigation
 saves versus grep for a given query. It's a demonstration/QA tool, not part of
 normal exploration.
