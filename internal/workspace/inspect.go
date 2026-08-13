@@ -1,6 +1,7 @@
-// admin.go — admin 페이지가 쓰는 읽기 전용 파사드. 엔진 포인터를 밖으로
+// inspect.go — diagnose_index가 쓰는 읽기 전용 파사드. 엔진 포인터를 밖으로
 // 내보내지 않고 프록시로 감싼다(sweexplore 선례의 캡슐화 유지). 그래프
-// 프록시는 부트스트랩 전이면 zero 값을 반환한다.
+// 프록시는 부트스트랩 전이면 zero 값을 반환한다 — 진단은 부트스트랩 전에도
+// 답해야 하기 때문에 이 계약이 곧 도구의 전제다.
 package workspace
 
 import (
@@ -9,9 +10,6 @@ import (
 	"github.com/Salvia95/graphin/internal/graph"
 	"github.com/Salvia95/graphin/internal/semantic"
 )
-
-// Meta exposes one node's location metadata (read_code's backing record).
-func (w *Workspace) Meta(id string) (NodeMeta, bool) { return w.nodeMeta(id) }
 
 // engineForRead returns the graph engine once Bootstrap installed it; w.graph
 // is written under w.mu, so reads take the same lock.
@@ -31,15 +29,6 @@ func (w *Workspace) GraphStats() graph.Stats {
 		return graph.Stats{}
 	}
 	return e.Stats()
-}
-
-// GraphInfo returns one node's read-path snapshot including its edges.
-func (w *Workspace) GraphInfo(id string) (graph.NodeInfo, bool) {
-	e := w.engineForRead()
-	if e == nil {
-		return graph.NodeInfo{}, false
-	}
-	return e.Info(id)
 }
 
 // GraphForEach visits every visible node (no-op before bootstrap).

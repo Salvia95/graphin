@@ -150,12 +150,13 @@ lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직
 | `search_hybrid` | Tier-0 정확 일치 → BM25 ∥ 벡터 RRF(k=60) 병합. 원시 점수 비노출. 결과마다 시작 `file`·`line`을 함께 준다 — "어디 있나"는 한 콜로 끝난다 |
 | `explore_graph` | 결정론 정렬(confidence↓ → 동일 패키지 → FQN), 20엣지/페이지 seek-key 커서 |
 | `read_code` | 바이트 오프셋 슬라이싱. 파일 해시 불일치 시 인라인 재파싱(`reparsed="true"`) |
+| `diagnose_index` | 인덱스 자체의 건강 — 노드/엣지/샤드 카운트, 끊어진 엣지(코드/DB 분리), partial 노드, 역인덱스 통계, 의미 검색 상태와 `vectors.bin` 모델 불일치, 유효 기동 플래그, `.graphin` 용량. 조치가 필요한 것만 `<hint>`으로 낸다 |
 | `run_local_benchmark` | Grep Full / Grep -C20 / graphin 3-시나리오 바이트·토큰 절감 리포트 |
 
 ## 실행 플래그
 
 `--workspace <path>`(필수) · `--model-type` · `--offline` · `--model-dir` ·
-`--ort-lib` · `--workers <n>` · `--verbose` · `--admin-addr <host:port>`
+`--ort-lib` · `--workers <n>` · `--semantic-max-nodes <n>` · `--verbose`
 
 서브커맨드: `dbimport` · `usage` · `eval` · `version`. `graphin version --json`은
 버전·커밋·`os`/`arch`·ORT 버전과 **이 플랫폼에서 의미 검색이 가능한지**
@@ -176,49 +177,24 @@ SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts
 ├── lockfile                            # PID + 3s heartbeat
 ├── agent-nav.log                       # JSONL 구조화 로그
 ├── binpath                             # 서버 바이너리 절대경로 (usage 훅의 해석용)
-├── admin-addr                          # 이 프로젝트의 admin 주소 (선택, 전역 옵션보다 우선)
 └── usage/events.jsonl                  # 계측 훅의 툴콜 이벤트 (32MiB 회전)
 ```
 
-## 관리자 페이지 (admin)
+## 인덱스 진단
 
-MCP 서버에 내장된 읽기 전용 로컬 웹 페이지. 사람이 브라우저로 그래프 상태를
-모니터링하는 용도다 — AI 에이전트의 도구 경로(MCP)와 같은 프로세스에서 같은
-라이브 워크스페이스를 본다.
+에이전트는 인덱스의 건강을 보고하지 않는다 — 그냥 잘 답하거나 못 답할 뿐이고,
+낡거나 부분적인 인덱스는 조용히 품질만 떨어뜨린다. `diagnose_index`가 그 구멍을
+메운다. 검색이 있어야 할 심볼을 못 찾거나 `explore_graph`가 아는 엣지를 빠뜨릴 때,
+"인덱스가 틀렸다"와 "코드가 생각과 다르다"를 가른다.
 
-```sh
-# 이 프로젝트에서만 켠다 (루프백 주소만 허용). /graphin:admin 이 대신 해 준다
-mkdir -p .graphin && echo "127.0.0.1:7466" > .graphin/admin-addr
-# /mcp 에서 graphin 재연결 후 http://127.0.0.1:7466
-```
+셸에서 도는 별도 프로세스로는 만들 수 없다: `graph.Open`이 델타 로그를 truncate
+하고 손상 샤드를 지우므로 라이브 워크스페이스에 붙는 순간 위험하다. 그래서 진단은
+서버와 **같은 프로세스**에서 도는 MCP 도구다.
 
-프로젝트 파일 대신 플러그인의 `admin_addr` 옵션으로도 켤 수 있지만, 그 값은 user
-settings에만 저장되는 **전역 값 하나**다 — 여러 프로젝트에서 동시에 쓰면 전부 같은
-포트를 노린다. 그래서 프로젝트 파일이 전역 옵션을 이긴다. 포트는 자동 할당하지
-않는다: 조용한 포트 드리프트가 눈에 보이는 바인드 실패보다 나쁘다.
-
-| 화면 | 내용 |
-|---|---|
-| 대시보드 | 인덱싱 진행률·임베딩 백로그(2s 폴링), 노드/엣지/샤드 카운트, 헬스 요약 |
-| 구조 | 패키지(샤드) → 파일 → 노드 드릴다운 — 검색 없이 그래프를 둘러보는 진입점 |
-| 검색 | Tier-0 → BM25 ∥ 벡터 RRF (MCP `search_hybrid`와 동일 경로), match 배지 |
-| 노드 상세 | ego-graph SVG(1홉, confidence 기반 스타일), uses/used_by 목록(min_conf 필터·커서 페이지네이션), 코드 뷰 |
-| 진단 | 끊어진(dangling) 엣지(코드/DB 필터), partial 노드, semantic 상태, 역인덱스 통계 |
-| 로그 | `agent-nav.log` tail(3s 갱신) — 워처 배치·재인덱싱·임베딩 이벤트, 에러 강조·이벤트 필터 |
-| 계측 | 채택 지표(`usage report`와 동일 산식) — 헤드라인·폴백 페어·바이그램·일별 추이 차트 |
-| 설정 | 유효 기동 플래그·모델 스펙·게이트 상태·저장소 용량 (읽기 전용) |
-
-운영자가 각 화면에서 무엇을 확인하고 어떤 값이 정상인지, 이상 신호에 어떤 조치를
-취하는지는 [`internal/admin/USE_CASES.md`](internal/admin/USE_CASES.md)에 유스케이스
-9종으로 정리돼 있다. UI 규격은 [`DESIGN.md`](internal/admin/DESIGN.md),
-graphin 종속 적용 판단은 [`DECISIONS.md`](internal/admin/DECISIONS.md).
-
-v1은 어떤 변경도 수행하지 않는다(전 라우트 GET). 바인드 실패 시 경고만 남기고
-MCP 서버는 계속 동작한다. 페이지는 루프백 바인드 + Host 헤더 검증으로 로컬
-전용이며, 정적 자산은 바이너리에 임베드되어 오프라인에서 완결된다.
-
-서드파티: [htmx](https://htmx.org) v2.0.6 (Zero-Clause BSD,
-`internal/admin/static/htmx.LICENSE`)을 벤더링한다.
+조치가 필요한 것만 `<hint>`으로 나온다 — 모델 불일치(`vectors.bin`이 지금 설정과
+다른 모델로 쓰였다), 코드 dangling, partial 노드. **DB dangling은 별도로 세고
+경고로 취급하지 않는다**: 스냅샷 밖 참조(예: `auth.users`)는 대개 의도된 것이다.
+사람이 읽는 요약은 `/graphin:doctor`가 설치·버전·등록 점검과 묶어서 낸다.
 
 ## 평가 (SWE-Explore 하니스)
 

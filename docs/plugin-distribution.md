@@ -1,6 +1,6 @@
 # 플러그인 배포 스펙 — 바이너리 동봉 자기완결 설치 (v1)
 
-graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·계측이 바로
+graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·계측이 바로
 동작하게 만든다. 사용자가 저장소를 클론하거나 바이너리 경로를 손으로 배선하지
 않는다.
 
@@ -19,14 +19,14 @@ graphin을 **Claude Code 플러그인 하나로 설치**해 MCP 서버·admin·�
 **v1.1**: darwin/arm64 ORT 핀 완료(§4.1), v0.2.0으로 배포됨 — Apple Silicon에서
 `go install`로 만든 바이너리가 이제 의미 검색까지 동작한다. 남은 후보는 macOS
 릴리스 바이너리(러너 추가로 Go 툴체인 요구가 사라진다), `SHA256SUMS`
-서명(cosign/minisign), admin `:0` + 주소 파일.
+서명(cosign/minisign).
 
 ## 0. 문제
 
 지금은 사용자가 직접 빌드하고 절대경로를 등록해야 한다:
 
 ```sh
-claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --admin-addr 127.0.0.1:7466
+claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project
 ```
 
 그 결과 **모든 소비 프로젝트가 개발자의 체크아웃을 가리킨다.** 실측된 사고:
@@ -35,7 +35,9 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 (`/proc/<pid>/exe → <graphin-체크아웃>/bin/graphin (deleted)`). 프로세스는
 옛 inode를 물고 계속 돌았고, 사용자는 옛 UI를 보면서 그 사실을 알 방법이 없었다.
 
-정적 에셋이 `embed.FS`로 바이너리에 들어가므로 이 결합은 admin UI 전체에 걸린다.
+당시에는 admin 웹 UI의 정적 에셋도 `embed.FS`로 같은 바이너리에 들어 있어, 눈에
+보이는 화면 전체가 그 낡은 inode에서 나왔다. admin은 그 뒤 제거됐지만(§14) 결합
+자체는 그대로다 — 체크아웃을 가리키는 등록은 여전히 같은 방식으로 깨진다.
 
 ## 1. 확정 결정
 
@@ -43,9 +45,9 @@ claude mcp add graphin -- /path/to/bin/graphin --workspace /path/to/project --ad
 |---|---|---|
 | D1 | 저장소를 **public으로 전환** | private면 `go install`·릴리스 에셋·marketplace가 전부 인증을 요구해 외부 배포가 성립하지 않는다 |
 | D2 | 릴리스 바이너리 = **linux/amd64 + linux/arm64**. ORT 핀은 여기에 **darwin/arm64**를 더한다(v1.1) | 세 조합 모두 ORT 1.26.0 에셋이 존재한다. darwin/amd64는 ORT 빌드 자체가 없다. darwin 핀만 있고 릴리스 바이너리가 없는 것은 절름발이가 아니다 — `go install` 폴백이 만든 Apple Silicon 바이너리가 lexical 전용이 아니라 **의미 검색까지 동작**하게 된다 |
-| D3 | 플러그인 **2개 분리** — `graphin`(MCP+admin+계측) / `graphin-guide`(SKILL+에이전트) | [usage-spec](usage-spec.md) §8이 유도 스킬 동봉을 v2로 연기했다. 무개입 베이스라인은 한번 섞이면 복구 불가 |
+| D3 | 플러그인 **2개 분리** — `graphin`(MCP+계측) / `graphin-guide`(SKILL+에이전트) | [usage-spec](usage-spec.md) §8이 유도 스킬 동봉을 v2로 연기했다. 무개입 베이스라인은 한번 섞이면 복구 불가 |
 | D4 | 바이너리 = **릴리스 다운로드 → `go install` 폴백** | D1 덕에 `go install`이 자기완결적으로 성립한다 — 소스 사본도 체크아웃 참조도 필요 없다 |
-| D5 | admin **기본 비활성**, 주소를 지정할 때만 기동. 우선순위는 `<ws>/.graphin/admin-addr` **파일 → `userConfig`** | plugin option은 CC 2.1.207부터 **user settings에서만** 읽힌다(§11-7). 즉 `admin_addr`는 프로젝트별로 줄 수 없는 전역 값 하나여서, 켜는 순간 모든 프로젝트가 같은 포트를 노린다. 파일 override가 그 구멍을 메우면서도 §12의 "자동 포트 할당 금지"를 지킨다 |
+| D5 | ~~admin **기본 비활성**, 주소를 지정할 때만 기동. 우선순위는 `<ws>/.graphin/admin-addr` **파일 → `userConfig`**~~ **(무효 — §14에서 admin 제거)** | plugin option은 CC 2.1.207부터 **user settings에서만** 읽힌다(§11-7). 즉 `admin_addr`는 프로젝트별로 줄 수 없는 전역 값 하나여서, 켜는 순간 모든 프로젝트가 같은 포트를 노린다. 파일 override가 그 구멍을 메우면서도 §12의 "자동 포트 할당 금지"를 지킨다 |
 | D6 | 라이선스 = **Apache-2.0** (2026-08-05 확정, `LICENSE` 커밋됨) | 특허 조항이 있어 기업 채택 마찰이 적고, tree-sitter·onnxruntime 등 의존성 생태계의 관행과 맞는다 |
 
 ### 근거가 되는 플랫폼 사실
@@ -136,9 +138,8 @@ build:
 
 ### 3.4 부수 개선 ✅
 
-admin 바인드 실패 메시지가 주소를 바꿀 수 있는 **세 자리를 모두** 지목한다:
-`--admin-addr` 플래그, 플러그인의 `admin_addr` 옵션, 그리고 D5의
-`<ws>/.graphin/admin-addr` 파일.
+admin 바인드 실패 메시지가 주소를 바꿀 수 있는 세 자리를 모두 지목하게 했다.
+**admin 제거로 함께 사라졌다(§14).**
 
 ## 4. Phase 2 — provision 플랫폼 인지 ✅ 구현 완료
 
@@ -319,7 +320,7 @@ plugin/graphin/
 ├── bin/graphin-launch.sh
 ├── install/install.sh          # manifest.json은 릴리스 워크플로가 커밋한다
 ├── hooks/{hooks.json, session-start.sh, usage.sh}
-├── commands/{report.md, setup.md, doctor.md, admin.md}
+├── commands/{report.md, setup.md, doctor.md}
 └── README.md
 ```
 
@@ -438,7 +439,6 @@ ${CLAUDE_PLUGIN_DATA}/
         "GRAPHIN_PLUGIN_ROOT":        "${CLAUDE_PLUGIN_ROOT}",
         "GRAPHIN_PLUGIN_DATA":        "${CLAUDE_PLUGIN_DATA}",
         "GRAPHIN_PROJECT_DIR":        "${CLAUDE_PROJECT_DIR}",
-        "GRAPHIN_ADMIN_ADDR":         "${user_config.admin_addr}",
         "GRAPHIN_MODEL_TYPE":         "${user_config.model_type}",
         "GRAPHIN_WORKSPACE_SUBDIR":   "${user_config.workspace_subdir}",
         "GRAPHIN_OFFLINE":            "${user_config.offline}",
@@ -451,8 +451,9 @@ ${CLAUDE_PLUGIN_DATA}/
 }
 ```
 
-**`args`가 없는 것이 핵심이다.** 이것이 "정적 JSON은 `--admin-addr`를 조건부로 뺄 수
-없다"는 제약을 해소한다 — 런처가 env를 읽어 빈 값을 건너뛰며 argv를 조립한다.
+**`args`가 없는 것이 핵심이다.** 이것이 "정적 JSON은 값이 빈 옵션의 플래그를
+조건부로 뺄 수 없다"는 제약을 해소한다 — 런처가 env를 읽어 빈 값을 건너뛰며
+argv를 조립한다.
 `--offline` 같은 `flag.Bool`은 치환만으로는 애초에 표현할 수 없다.
 
 `--workspace`는 `${CLAUDE_PROJECT_DIR}`로 해결된다.
@@ -493,13 +494,8 @@ WS="${GRAPHIN_PROJECT_DIR:-$PWD}"
 sub="$(val "${GRAPHIN_WORKSPACE_SUBDIR:-}" || true)"; [ -n "${sub:-}" ] && WS="$WS/$sub"
 
 set -- --workspace "$WS"
-# D5: 프로젝트별 파일이 전역 옵션을 이긴다. plugin option은 user settings에만
-# 저장되므로 이 파일이 없으면 모든 프로젝트가 같은 포트를 노린다.
-v=""
-[ -r "$WS/.graphin/admin-addr" ] && v="$(head -n1 "$WS/.graphin/admin-addr" | tr -d '[:space:]')"
-[ -n "$v" ] || v="$(val "${GRAPHIN_ADMIN_ADDR:-}" || true)"
-[ -n "${v:-}" ] && set -- "$@" --admin-addr "$v"
-# … model-type / model-dir / semantic-max-nodes 동일 패턴 …
+v="$(val "${GRAPHIN_MODEL_TYPE:-}" || true)"; [ -n "$v" ] && set -- "$@" --model-type "$v"
+# … model-dir / semantic-max-nodes 동일 패턴 …
 case "$(printf '%s' "${GRAPHIN_OFFLINE:-}" | tr 'A-Z' 'a-z')" in 1|true|yes|on) set -- "$@" --offline;; esac
 
 exec "$BIN" "$@"
@@ -527,18 +523,18 @@ exec "$BIN" "$@"
 
 ### 6.6 `plugin.json` userConfig
 
-`admin_addr`(기본 `""` = 비활성) · `model_type` · `offline` · `model_dir` ·
-`semantic_max_nodes` · `workspace_subdir` · `binary_path`.
+`model_type` · `offline` · `model_dir` · `semantic_max_nodes` ·
+`workspace_subdir` · `binary_path`.
 
-**일곱 개 전부 `required: false`여야 한다**(§6.4 실측). 하나라도 required로
+**여섯 개 전부 `required: false`여야 한다**(§6.4 실측). 하나라도 required로
 선언하고 사용자가 값을 비워 두면 서버 설정이 통째로 로드에 실패한다.
 
 `binary_path`는 **자기 체크아웃 빌드를 계속 쓰려는 개발자의 착지점**이다. 플러그인이
 단일 등록 지점으로 남으면서도 바이너리는 어디서든 올 수 있다.
 
-`admin_addr`는 **전역 값 하나**다(user settings에만 저장, CC 2.1.207+). 프로젝트별
-주소는 `<ws>/.graphin/admin-addr` 파일이 담당한다(D5). 우선순위와 두 자리 모두를
-바인드 실패 메시지가 지목한다(§3.4).
+플러그인 옵션은 **전부 전역 값 하나**다(user settings에만 저장, CC 2.1.207+) —
+프로젝트별로 다르게 줄 수 없다. 한때 `admin_addr`가 이것 때문에 프로젝트별 파일
+override를 달고 있었고(D5), admin과 함께 사라졌다(§14).
 
 ### 6.7 계측 훅 이동 — 해석 순서를 바꿔야 한다
 
@@ -711,8 +707,6 @@ CLAUDE_PLUGIN_ROOT=$PWD/plugin/graphin CLAUDE_PLUGIN_DATA=$(mktemp -d) \
 # Phase 4 — 로컬 플러그인 개발 모드
 claude --plugin-dir ./plugin/graphin
 #   /mcp 에서 graphin 연결 확인 → 도구 이름이 mcp__plugin_graphin_graphin__* 인지 (§8.1.1)
-#   admin_addr 설정 후 페이지 확인 → 빈 값으로 되돌려 비활성 확인
-#   <ws>/.graphin/admin-addr 가 전역 admin_addr를 이기는지 (D5)
 #   SessionStart 훅과 MCP spawn 중 무엇이 먼저인지 관찰 (§11-2)
 
 # Phase 5
@@ -736,7 +730,7 @@ claude --plugin-dir ./plugin/graphin-guide
 | MCP 도구 이름 | `mcp__plugin_graphin_graphin__*` 5종 — §8.1.1 예측대로 |
 | bootstrap → search → read | 정상. `src.order.OrderService.cancel_paid_order` 도달 |
 | 계측 | 이벤트 기록, `usage report`가 채택 100%·퍼널 준수 100% 출력 |
-| admin | `<ws>/.graphin/admin-addr` 생성 → 페이지 응답, 삭제 → 비활성 |
+| admin | `<ws>/.graphin/admin-addr` 생성 → 페이지 응답, 삭제 → 비활성 *(당시. §14에서 제거)* |
 | `skills: [graphin]` | 에이전트가 SKILL의 첫 헤딩을 그대로 인용 — 주입 확인 |
 
 **`binpath` 함정이 실물로 재현됐다.** 워크스페이스의 `.graphin/binpath`에는
@@ -904,8 +898,6 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
   폴백이다(§10.3). release.yml의 바닥 단언이 이 실수에 걸리라고 있는 것이다.
 - **darwin/amd64 배포** — ORT 1.26.0 에셋 부재. 영구 lexical-only를 문서로만 알리는
   꼴이 된다.
-- **admin 포트 자동 할당** — 조용한 포트 드리프트가 보이는 바인드 실패보다 나쁘다.
-  원한다면 `:0` + `.graphin/admin-addr` 파일로 발견 가능하게 만든다(v1.1).
 - **SessionStart 훅만을 유일한 설치 경로로 삼기** — MCP spawn이 먼저면 첫 세션이
   항상 깨진다.
 
@@ -1006,3 +998,30 @@ CHANGELOG 대조. 2·3은 정적으로 결론이 나지 않아 Phase 4·5 스모
 정의가 다르다: **스킬·에이전트 이름 변경이 breaking이다.** 사용자 지시문과
 에이전트 프론트매터의 `skills:`가 그 이름을 가리키기 때문이다(§11-3). 프롬프트
 문구 수정은 전부 patch다.
+
+## 14. admin 제거 (2026-08-14)
+
+읽기 전용 웹 콘솔 `internal/admin`을 통째로 지웠다 — Go 2,073줄 + 테스트
+1,140줄 + 템플릿 21개 + CSS 20파일, 그리고 벤더링한 htmx·Pico·Pretendard.
+실용성이 없다는 판단이었다.
+
+**배포 표면에서 함께 사라진 것:** `/graphin:admin` 커맨드(커맨드 4개 → 3개,
+usage-spec §6의 상시 비용 기준선이 그만큼 내려간다), `plugin.json`의
+`admin_addr` userConfig(7종 → 6종), `.mcp.json`의 `GRAPHIN_ADMIN_ADDR`,
+런처의 `.graphin/admin-addr` 파일 override(D5), `--admin-addr` 플래그.
+
+**호환성**: 남아 있는 `admin_addr` user setting과 `<ws>/.graphin/admin-addr`
+파일은 무시될 뿐 아무것도 깨지 않는다. 런처가 더 이상 읽지 않는다.
+
+**옮긴 것.** 화면 8개 중 다른 경로가 없던 것은 진단과 설정뿐이었다 — 검색·노드
+상세·코드 뷰는 `search_hybrid`/`explore_graph`/`read_code`가 같은 경로로 덮고,
+계측은 `usage report`가 같은 산식을 쓴다. 그 둘을 MCP 도구 `diagnose_index`로
+옮기고 `/graphin:doctor` §5가 호출한다. **CLI 서브커맨드가 아닌 이유**는
+`graph.Open`이 델타 로그를 truncate하고 손상 샤드를 지우기 때문이다 — 별도
+프로세스가 라이브 워크스페이스에 붙는 순간 위험하고, admin이 애초에 인프로세스
+였던 이유와 같다.
+
+**로그의 프로세스 시작 표지가 바뀌었다.** `agent-nav.log`에서 "서버가 여기,
+이 시각에 떴다"를 말하던 것은 admin 리스너의 `admin_listen`뿐이었고, 2026-08-11
+채택 재측정이 D 구간의 시작을 그것으로 잡았다. 대체로 `main.go`가 기동 직후
+**`server_start`**(version·workspace)를 남긴다. 다음 재측정은 이것을 쓴다.

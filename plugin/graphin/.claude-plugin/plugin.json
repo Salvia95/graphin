@@ -18,11 +18,6 @@
     "token-efficiency"
   ],
   "userConfig": {
-    "admin_addr": {
-      "type": "string",
-      "title": "Admin page address",
-      "description": "Loopback address for the read-only admin page, e.g. 127.0.0.1:7466. Empty disables it. This value is global to every project — for a per-project address, write one into <project>/.graphin/admin-addr, which wins over this setting."
-    },
     "model_type": {
       "type": "string",
       "title": "Embedding model",

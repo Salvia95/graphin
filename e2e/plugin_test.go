@@ -35,8 +35,9 @@ func argvStub(t *testing.T) string {
 }
 
 // TestLauncherArgv covers the reason .mcp.json carries no `args`: a static
-// JSON config cannot omit --admin-addr when it is empty, and cannot express
-// --offline at all. The launcher is what makes those conditional.
+// JSON config cannot omit a flag whose value is empty, and cannot express a
+// bare boolean like --offline at all. The launcher is what makes those
+// conditional.
 func TestLauncherArgv(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not on PATH")
@@ -85,14 +86,14 @@ func TestLauncherArgv(t *testing.T) {
 		// Every declared-but-unconfigured user_config option renders as an
 		// empty string, which must not become an empty flag value.
 		got := run(t, dir,
-			"GRAPHIN_ADMIN_ADDR=", "GRAPHIN_MODEL_TYPE=", "GRAPHIN_OFFLINE=",
+			"GRAPHIN_MODEL_TYPE=", "GRAPHIN_OFFLINE=",
 			"GRAPHIN_MODEL_DIR=", "GRAPHIN_SEMANTIC_MAX_NODES=", "GRAPHIN_WORKSPACE_SUBDIR=")
 		eq(t, got, []string{"--workspace", dir})
 	})
 
 	t.Run("unsubstituted literal is treated as unset", func(t *testing.T) {
 		dir := t.TempDir()
-		got := run(t, dir, "GRAPHIN_ADMIN_ADDR=${user_config.admin_addr}")
+		got := run(t, dir, "GRAPHIN_MODEL_TYPE=${user_config.model_type}")
 		eq(t, got, []string{"--workspace", dir})
 	})
 
@@ -108,26 +109,11 @@ func TestLauncherArgv(t *testing.T) {
 		eq(t, got, []string{"--workspace", filepath.Join(dir, "backend")})
 	})
 
-	// D5: plugin options live in user settings only, so admin_addr is one
-	// global value. Without a per-project override every project would fight
-	// over the same port the moment it is set.
-	t.Run("project admin-addr file beats the global option", func(t *testing.T) {
+	t.Run("valued options pass through", func(t *testing.T) {
 		dir := t.TempDir()
-		if err := os.MkdirAll(filepath.Join(dir, ".graphin"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, ".graphin", "admin-addr"),
-			[]byte("  127.0.0.1:7777\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		got := run(t, dir, "GRAPHIN_ADMIN_ADDR=127.0.0.1:7466")
-		eq(t, got, []string{"--workspace", dir, "--admin-addr", "127.0.0.1:7777"})
-	})
-
-	t.Run("global option applies with no project file", func(t *testing.T) {
-		dir := t.TempDir()
-		got := run(t, dir, "GRAPHIN_ADMIN_ADDR=127.0.0.1:7466")
-		eq(t, got, []string{"--workspace", dir, "--admin-addr", "127.0.0.1:7466"})
+		got := run(t, dir, "GRAPHIN_MODEL_TYPE=english_optimal", "GRAPHIN_SEMANTIC_MAX_NODES=80000")
+		eq(t, got, []string{"--workspace", dir,
+			"--model-type", "english_optimal", "--semantic-max-nodes", "80000"})
 	})
 }
 

@@ -92,8 +92,7 @@ func TestContainsRefreshesWhenChildAdded(t *testing.T) {
 
 // The mirror case: deleting a heading must not leave the parent pointing at a
 // node that no longer exists. Without the refresh the stale target survives as
-// a dangling edge, which is exactly what the admin page's 끊어진 엣지 view
-// counts.
+// a dangling edge, which is exactly what diagnose_index counts.
 func TestContainsDropsRemovedChild(t *testing.T) {
 	e := newEngine(t)
 	tree := merkle.NewTree()

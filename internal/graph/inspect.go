@@ -7,8 +7,8 @@ import (
 	"github.com/Salvia95/graphin/internal/graph/fbsgen"
 )
 
-// 진단용 읽기 API (admin 페이지): 열거·통계·dangling 검출. readUses와 같은
-// mmap 규율을 따른다 — RLock으로 핸들 스냅샷, RUnlock 전 Acquire, 문자열은
+// 진단용 읽기 API (MCP diagnose_index): 열거·통계·dangling 검출. readUses와
+// 같은 mmap 규율을 따른다 — RLock으로 핸들 스냅샷, RUnlock 전 Acquire, 문자열은
 // 전부 복사, 순회가 끝나면 Release.
 
 // NodeInfo is a copied-out snapshot of one node on the read path.
@@ -98,32 +98,6 @@ func (e *Engine) ForEachNode(fn func(NodeInfo) bool) {
 			}
 		}
 	}
-}
-
-// Info returns the copied-out snapshot of one visible node.
-func (e *Engine) Info(id string) (NodeInfo, bool) {
-	e.mu.RLock()
-	loc, ok := e.nodeLoc[id]
-	if !ok {
-		e.mu.RUnlock()
-		return NodeInfo{}, false
-	}
-	h := e.shards[loc.pkg]
-	if h == nil {
-		e.mu.RUnlock()
-		return NodeInfo{}, false
-	}
-	h.ref.Acquire()
-	e.mu.RUnlock()
-	defer h.ref.Release()
-
-	sh := fbsgen.GetRootAsShard(h.ref.Data, 0)
-	var node fbsgen.Node
-	if !sh.Nodes(&node, loc.idx) {
-		return NodeInfo{}, false
-	}
-	var edge fbsgen.Edge
-	return copyNode(&node, loc.pkg, &edge), true
 }
 
 // ShardStat summarizes one visible shard.

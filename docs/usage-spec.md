@@ -289,9 +289,10 @@ graphin usage prune --before <YYYY-MM-DD|72h> [--log <dir>] [--dry-run] [--json]
 - **상시 컨텍스트 비용**: 훅은 출력이 없는 한 harness-only(상시 0)이고,
   커맨드 1개가 ~100–200 tok을 더한다. **릴리스 게이트**:
   `claude plugin details graphin`으로 상시 비용을 확인한 뒤 배포한다. 다만
-  `graphin`은 커맨드가 4개(report·setup·doctor·admin)이므로 기준선은 그만큼이다.
-  **v0.2.0 실측(2026-08-07, CC 2.1.221): 상시 ~248 tok** — 커맨드 4개가
-  ~60–70씩이고 훅 2개는 0, MCP 도구 스키마는 런타임 해석이라 포함되지 않는다.
+  `graphin`은 커맨드가 3개(report·setup·doctor)이므로 기준선은 그만큼이다.
+  **v0.2.0 실측(2026-08-07, CC 2.1.221, 커맨드 4개 시절): 상시 ~248 tok** —
+  커맨드 하나가 ~60–70이고 훅 2개는 0, MCP 도구 스키마는 런타임 해석이라
+  포함되지 않는다. admin 커맨드가 빠진 지금은 그만큼 낮다.
   추정보다 싸다. (`graphin-guide`는 별도로 ~327 tok — 스킬 ~180 + 에이전트
   ~150. [plugin-distribution §10.3](plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07))
 - **네임스페이싱**: 호출형은 항상 `/graphin:report`.

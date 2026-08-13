@@ -1,10 +1,10 @@
 GO ?= go
 
 # packages with heavy concurrency — always exercised under -race at phase gates
-RACE_PKGS = ./internal/graph/... ./internal/store/... ./internal/workspace/... ./internal/watch/... ./internal/admin/...
+RACE_PKGS = ./internal/graph/... ./internal/store/... ./internal/workspace/... ./internal/watch/...
 
-# Build identity. These land in `graphin version`, the admin footer, and the
-# MCP handshake — the release workflow overrides VERSION on the command line.
+# Build identity. These land in `graphin version` and the MCP handshake — the
+# release workflow overrides VERSION on the command line.
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null)
 BUILDDATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)

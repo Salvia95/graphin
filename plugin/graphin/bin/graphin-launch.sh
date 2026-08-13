@@ -2,9 +2,9 @@
 # graphin MCP launcher.
 #
 # The plugin's .mcp.json carries no `args` — only env. This script is what
-# turns that env into a command line, which is the whole point: a static JSON
-# config cannot drop --admin-addr when the address is empty, and it cannot
-# express a boolean flag like --offline at all.
+# turns that env into a command line, which is the whole point: an unset user
+# option renders as an empty string, and a static JSON config can neither drop
+# the flag that would carry it nor express a bare boolean like --offline.
 #
 # Two rules, both of which break the MCP protocol when violated:
 #
@@ -66,20 +66,6 @@ fi
 
 # ── 3. Assemble argv ─────────────────────────────────────────────────────────
 set -- --workspace "$WS"
-
-# Admin address: the per-project file beats the plugin option. Plugin options
-# live in user settings only, so admin_addr is one global value — without this
-# file every project would fight over the same port the moment it is set.
-addr=""
-if [ -r "$WS/.graphin/admin-addr" ]; then
-  addr="$(tr -d '[:space:]' < "$WS/.graphin/admin-addr" | head -c 64)"
-fi
-if [ -z "$addr" ]; then
-  addr="$(val "${GRAPHIN_ADMIN_ADDR:-}" || true)"
-fi
-if [ -n "$addr" ]; then
-  set -- "$@" --admin-addr "$addr"
-fi
 
 v="$(val "${GRAPHIN_MODEL_TYPE:-}" || true)"
 if [ -n "$v" ]; then

@@ -4,7 +4,6 @@
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/graphin-launch.sh",
       "env": {
         "GRAPHIN_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}",
-        "GRAPHIN_ADMIN_ADDR": "${user_config.admin_addr}",
         "GRAPHIN_MODEL_TYPE": "${user_config.model_type}",
         "GRAPHIN_OFFLINE": "${user_config.offline}",
         "GRAPHIN_MODEL_DIR": "${user_config.model_dir}",

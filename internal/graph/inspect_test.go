@@ -27,7 +27,7 @@ func inspectFixture(t *testing.T) (*Engine, string, string) {
 	return e, runID, chargeID
 }
 
-func TestInspectStatsForEachInfo(t *testing.T) {
+func TestInspectStatsAndForEach(t *testing.T) {
 	e, runID, chargeID := inspectFixture(t)
 
 	st := e.Stats()
@@ -58,24 +58,29 @@ func TestInspectStatsForEachInfo(t *testing.T) {
 		t.Fatalf("early stop visited %d", seen)
 	}
 
-	info, ok := e.Info(runID)
-	if !ok {
-		t.Fatalf("Info miss for %s", runID)
+	// Copied-out fields and edges of one node.
+	var run NodeInfo
+	e.ForEachNode(func(n NodeInfo) bool {
+		if n.ID != runID {
+			return true
+		}
+		run = n
+		return false
+	})
+	if run.ID == "" {
+		t.Fatalf("ForEachNode never visited %s", runID)
 	}
-	if info.FilePath != "a/Flow.java" || info.Pkg != "com.a" || info.Kind != nodeid.KindMethod {
-		t.Fatalf("Info fields: %+v", info)
+	if run.FilePath != "a/Flow.java" || run.Pkg != "com.a" || run.Kind != nodeid.KindMethod {
+		t.Fatalf("node fields: %+v", run)
 	}
 	found := false
-	for _, u := range info.Uses {
+	for _, u := range run.Uses {
 		if u.TargetID == chargeID && u.Confidence == confSamePkg {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("Info.Uses missing call edge: %+v", info.Uses)
-	}
-	if _, ok := e.Info("no.such.Node"); ok {
-		t.Fatal("Info must miss unknown IDs")
+		t.Fatalf("Uses missing call edge: %+v", run.Uses)
 	}
 }
 

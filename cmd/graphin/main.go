@@ -15,7 +15,6 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/Salvia95/graphin/internal/admin"
 	"github.com/Salvia95/graphin/internal/dbimport"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/mcp/tools"
@@ -71,10 +70,7 @@ func main() {
 		semMaxNodes = flag.Int("semantic-max-nodes", def.SemanticMaxNodes,
 			"disable semantic search above this node count; lexical stays on (0 = no limit). "+
 				"Default from docs/eval cold-start: ~1.4GB peak / ~4.6min warmup at 40k on 8GB.")
-		verbose   = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
-		adminAddr = flag.String("admin-addr", "",
-			"serve the read-only local admin page at this loopback address "+
-				"(e.g. 127.0.0.1:7466); empty = disabled")
+		verbose = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
 	)
 	flag.Parse()
 
@@ -118,42 +114,19 @@ func main() {
 	reg := mcp.NewRegistry()
 	tools.Register(reg, ws)
 
-	// One resolved identity for both surfaces: the admin footer and the MCP
+	// One resolved identity for every surface: `graphin version` and the MCP
 	// handshake must never disagree about which binary is running.
 	ver, _ := buildIdentity()
 
-	// Admin page rides in-process so it shares the live workspace instead of
-	// fighting the single-writer lock. It must be shut down before ws.Close —
-	// the deferred stop below runs first (LIFO) and waits for handlers.
-	adminCtx, stopAdmin := context.WithCancel(context.Background())
-	adminDone := make(chan struct{})
-	if *adminAddr != "" {
-		go func() {
-			defer close(adminDone)
-			if err := admin.Serve(adminCtx, ws, *adminAddr, ver, lg); err != nil {
-				// The MCP server keeps running without the page — never fatal.
-				lg.Event("admin_serve_error", map[string]any{"error": err.Error()})
-				// A bare bind error leaves the operator with no next move, and
-				// the address usually comes from a plugin option rather than
-				// this flag — name both places it can be changed.
-				fmt.Fprintf(os.Stderr, "graphin: admin page unavailable: %v\n"+
-					"graphin:   %s is in use — pick another address with --admin-addr, "+
-					"or in the graphin plugin's admin_addr option (/plugin → Manage → graphin → Configure), "+
-					"or per project in %s\n",
-					err, *adminAddr, filepath.Join(abs, workspace.DataDirName, "admin-addr"))
-			}
-		}()
-		fmt.Fprintf(os.Stderr, "graphin: admin page at http://%s\n", *adminAddr)
-	} else {
-		close(adminDone)
-	}
-	defer func() { stopAdmin(); <-adminDone }()
+	// Process-start marker. Nothing else in agent-nav.log says "a server came
+	// up here, at this time", and adoption measurement needs that boundary to
+	// tell one run's events from the next — the 2026-08-11 remeasure took it
+	// from the admin listener's event, and the admin page is gone.
+	lg.Event("server_start", map[string]any{"version": ver, "workspace": abs})
 
 	srv := mcp.NewServer(os.Stdin, os.Stdout, reg, ver, lg)
 	if err := srv.Serve(context.Background()); err != nil && err != context.Canceled {
 		lg.Event("serve_error", map[string]any{"error": err.Error()})
-		stopAdmin()
-		<-adminDone
 		os.Exit(1)
 	}
 }

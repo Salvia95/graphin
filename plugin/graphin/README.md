@@ -16,8 +16,8 @@
 
 | 구성 | 내용 |
 |---|---|
-| MCP 서버 | `search_hybrid` · `explore_graph` · `read_code` · `bootstrap_workspace` · `run_local_benchmark` |
-| 명령 | `/graphin:doctor` · `/graphin:setup` · `/graphin:admin` · `/graphin:report` |
+| MCP 서버 | `search_hybrid` · `explore_graph` · `read_code` · `bootstrap_workspace` · `diagnose_index` · `run_local_benchmark` |
+| 명령 | `/graphin:doctor` · `/graphin:setup` · `/graphin:report` |
 | 훅 | SessionStart(설치 예열) · PostToolUse(채택 계측) |
 
 도구 이름은 `mcp__plugin_graphin_graphin__*`이다 — 플러그인이 제공하는 MCP 서버는
@@ -29,7 +29,6 @@ Claude Code가 `plugin:<플러그인>:<서버>`로 네임스페이싱하기 때�
 
 | 옵션 | 용도 |
 |---|---|
-| `admin_addr` | 관리자 페이지 주소(`127.0.0.1:7466`). 비우면 비활성 |
 | `model_type` | `english_optimal` \| `multilingual_cjk` |
 | `offline` | 다운로드 금지. `model_dir`과 함께 쓴다 |
 | `model_dir` | 로컬 ONNX 모델·토크나이저 디렉터리 |
@@ -37,10 +36,9 @@ Claude Code가 `plugin:<플러그인>:<서버>`로 네임스페이싱하기 때�
 | `workspace_subdir` | 프로젝트 루트 대신 하위 디렉터리를 인덱싱 |
 | `binary_path` | 내려받는 대신 이 바이너리를 쓴다 |
 
-> **`admin_addr`는 전역 값 하나다.** 플러그인 옵션은 user settings에만 저장되므로
-> 프로젝트별로 다르게 줄 수 없다. 프로젝트마다 다른 포트가 필요하면
-> `<프로젝트>/.graphin/admin-addr`에 주소를 한 줄 써라 — 런처가 전역 옵션보다 먼저
-> 읽는다. `/graphin:admin`이 대신 해 준다.
+> **플러그인 옵션은 user settings에만 저장된다** — 즉 전부 전역 값 하나이고
+> 프로젝트별로 다르게 줄 수 없다. 프로젝트마다 다른 대상을 인덱싱해야 하면
+> `workspace_subdir` 대신 그 프로젝트에서 서버를 따로 등록하라.
 
 ## 바이너리는 어디서 오는가
 
