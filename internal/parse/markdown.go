@@ -85,6 +85,15 @@ func extractMarkdown(src []byte, res *FileResult) {
 			end = heads[i+1].start
 		}
 		id := res.RelPath + "#" + h.slug
+		// The body begins after the heading line. Hashing from here gives a
+		// key that a retitle does not disturb, which is what lets a rename
+		// be told apart from a delete-plus-add.
+		bodyStart := h.start
+		if nl := indexByteFrom(src, int(h.start), '\n'); nl >= 0 && uint32(nl)+1 <= end {
+			bodyStart = uint32(nl) + 1
+		} else {
+			bodyStart = end
+		}
 		res.Nodes = append(res.Nodes, Node{
 			ID:          id,
 			DisplayName: h.text,
@@ -94,6 +103,7 @@ func extractMarkdown(src []byte, res *FileResult) {
 			StartByte:   h.start,
 			EndByte:     end,
 			Hash:        blake3.Sum256(src[h.start:end]),
+			RenameKey:   blake3.Sum256(src[bodyStart:end]),
 			Contains:    children[id],
 		})
 	}

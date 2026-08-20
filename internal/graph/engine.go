@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	flatbuffers "github.com/google/flatbuffers/go"
 
@@ -22,14 +23,19 @@ import (
 // nodeRecord is the engine's canonical per-node state. Records are owned by
 // the single-writer indexer; shards are their read-optimized projection.
 type nodeRecord struct {
-	ID           string
-	DisplayName  string
-	SimpleName   string
-	Kind         string
-	Container    string
-	FilePath     string
-	Start, End   uint32
-	Hash         []byte
+	ID          string
+	DisplayName string
+	SimpleName  string
+	Kind        string
+	Container   string
+	FilePath    string
+	Start, End  uint32
+	Hash        []byte
+	// RenameKey identifies content that outlives its own name, so a node
+	// that vanished can be matched to the one that replaced it. Persisted
+	// with the shard: without it, the first rename after a restart looks
+	// like a plain deletion, because the old record came back from disk.
+	RenameKey    []byte
 	Partial      bool
 	Pkg          string // shard key
 	ArityMin     int
@@ -74,6 +80,18 @@ type Engine struct {
 
 	res *resolver
 	rev *Reverse
+
+	// clock stamps redirect epochs. It is a field so a test can pin the
+	// value; nothing else in the engine reads a clock.
+	clock func() uint64
+}
+
+// now returns the current redirect epoch.
+func (e *Engine) now() uint64 {
+	if e.clock != nil {
+		return e.clock()
+	}
+	return uint64(time.Now().Unix())
 }
 
 // Open loads existing shards and the reverse index from dir (creating it).
@@ -137,6 +155,7 @@ func (e *Engine) loadShard(path string) error {
 			FilePath:    string(node.FilePath()),
 			Start:       node.StartByte(),
 			End:         node.EndByte(),
+			RenameKey:   append([]byte(nil), node.RenameKeyBytes()...),
 			Hash:        append([]byte(nil), node.SubtreeHashBytes()...),
 			Partial:     node.Partial(),
 			Pkg:         pkg,
@@ -198,6 +217,12 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 		changed[n.ID] = true
 	}
 
+	// created maps each newly appeared node's content hash to its ID, for the
+	// rename detection below. A hash that two new nodes share maps to "",
+	// marking it ambiguous: guessing which one a vanished node became would
+	// silently point every reference at the wrong section.
+	created := map[string]string{}
+
 	touched := false
 	for _, n := range res.Nodes {
 		rec := recs[n.ID]
@@ -205,6 +230,13 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 			rec = &nodeRecord{ID: n.ID, Pkg: pkg}
 			recs[n.ID] = rec
 			touched = true
+			if key := renameKeyOf(n.RenameKey[:]); key != "" {
+				if _, dup := created[key]; dup {
+					created[key] = ""
+				} else {
+					created[key] = n.ID
+				}
+			}
 		}
 		if rec.Start != n.StartByte || rec.End != n.EndByte || rec.FilePath != res.RelPath ||
 			rec.Partial != res.Partial || changed[n.ID] {
@@ -217,6 +249,7 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 		rec.FilePath = res.RelPath
 		rec.Start, rec.End = n.StartByte, n.EndByte
 		rec.Hash = append(rec.Hash[:0], n.Hash[:]...)
+		rec.RenameKey = append(rec.RenameKey[:0], n.RenameKey[:]...)
 		rec.Partial = res.Partial
 		rec.ArityMin, rec.ArityMax = n.ArityMin, n.ArityMax
 
@@ -256,6 +289,19 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 
 	for _, id := range diff.Removed {
 		if rec := recs[id]; rec != nil {
+			// A node that disappeared while a new one with identical content
+			// appeared in the same file is a rename, not a delete. Recording
+			// it keeps references to the old ID resolving.
+			//
+			// Identical content is the whole test, which is why this catches
+			// pure renames and nothing else. A heading rewritten at the same
+			// time as its body hashes differently, and a section split into
+			// two matches neither — both fall through to a dangling reference,
+			// which is the honest answer since no automatic choice is right.
+			key := renameKeyOf(rec.RenameKey)
+			if to := created[key]; key != "" && to != "" && rec.FilePath == res.RelPath {
+				e.rev.Redirect(id, to, e.now())
+			}
 			e.dropRecordLocked(pkg, rec)
 			touched = true
 		}
@@ -263,6 +309,22 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 	if touched {
 		e.dirty[pkg] = true
 	}
+}
+
+// renameKeyOf returns a map key for a rename key, or "" when there is none to
+// compare. An all-zero key means the node kind carries no rename identity, and
+// an empty body hashes to a constant that many sections share — matching on
+// either would pair up nodes that have nothing in common.
+func renameKeyOf(k []byte) string {
+	if len(k) == 0 {
+		return ""
+	}
+	for _, b := range k {
+		if b != 0 {
+			return string(k)
+		}
+	}
+	return ""
 }
 
 // firstSegmentChain yields the node's enclosing class chain (its own chain
@@ -487,6 +549,7 @@ func buildShard(pkg string, gen uint64, recs map[string]*nodeRecord) []byte {
 		kindOff := b.CreateString(rec.Kind)
 		fileOff := b.CreateString(rec.FilePath)
 		hashOff := b.CreateByteVector(rec.Hash)
+		renameOff := b.CreateByteVector(rec.RenameKey)
 
 		fbsgen.NodeStart(b)
 		fbsgen.NodeAddId(b, idOff)
@@ -496,6 +559,7 @@ func buildShard(pkg string, gen uint64, recs map[string]*nodeRecord) []byte {
 		fbsgen.NodeAddStartByte(b, rec.Start)
 		fbsgen.NodeAddEndByte(b, rec.End)
 		fbsgen.NodeAddSubtreeHash(b, hashOff)
+		fbsgen.NodeAddRenameKey(b, renameOff)
 		fbsgen.NodeAddPartial(b, rec.Partial)
 		fbsgen.NodeAddUses(b, usesVec)
 		nodeOffs = append(nodeOffs, fbsgen.NodeEnd(b))
@@ -526,6 +590,10 @@ func (e *Engine) UsedBySources(id string) []string {
 	}
 	return out
 }
+
+// ResolveID follows any redirect recorded for id and returns the node that is
+// current now, flattening the chain as a side effect.
+func (e *Engine) ResolveID(id string) string { return e.rev.ResolveID(id) }
 
 // HasNode reports whether id is currently visible on the read path.
 func (e *Engine) HasNode(id string) bool {

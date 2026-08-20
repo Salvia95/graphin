@@ -22,6 +22,14 @@ const (
 	compactingName = "reverse_delta.compacting"
 )
 
+// redirect is where a superseded node ID went, and when it was superseded.
+// The epoch is kept in memory because path compression has to date the
+// shortcut it writes, and only the chain it walked knows how old that is.
+type redirect struct {
+	to    string
+	epoch uint64
+}
+
 // Reverse is the global used_by index: a heap map replayed from the compacted
 // base plus the tombstone delta log (§2.1.3). The single-writer indexer calls
 // the mutating methods; queries take the read lock.
@@ -29,8 +37,14 @@ type Reverse struct {
 	dir string
 	log *obs.Logger
 
-	mu         sync.RWMutex
-	m          map[string][]RevEdge // targetID → incoming edges
+	mu sync.RWMutex
+	m  map[string][]RevEdge // targetID → incoming edges
+	// redirects is old node ID → where it went. It is a separate table from
+	// m on purpose: routing redirects into the edge map would put a filter on
+	// Query and UsedBySources, which run on every explore and on every
+	// invalidation pass. Splitting at apply costs one branch there and
+	// nothing at all on the read path.
+	redirects  map[string]redirect
 	delta      *deltaLog
 	records    int // records in the current delta log
 	tombstones int
@@ -41,7 +55,7 @@ type Reverse struct {
 
 // OpenReverse loads base + (crash-leftover compacting log) + delta log.
 func OpenReverse(dir string, lg *obs.Logger) (*Reverse, error) {
-	r := &Reverse{dir: dir, log: lg, m: map[string][]RevEdge{}}
+	r := &Reverse{dir: dir, log: lg, m: map[string][]RevEdge{}, redirects: map[string]redirect{}}
 
 	if data, err := os.ReadFile(filepath.Join(dir, baseName)); err == nil {
 		recs, _ := replay(data)
@@ -76,6 +90,11 @@ func OpenReverse(dir string, lg *obs.Logger) (*Reverse, error) {
 // apply mutates the in-memory map only (no logging). Caller holds mu or is
 // still single-threaded during load.
 func (r *Reverse) apply(rec record) {
+	if rec.Op == opRedirect {
+		// Never reaches r.m. See the note on Reverse.redirects.
+		r.redirects[rec.TargetID] = redirect{to: rec.SourceID, epoch: rec.Epoch}
+		return
+	}
 	edges := r.m[rec.TargetID]
 	idx := -1
 	for i, e := range edges {
@@ -113,6 +132,70 @@ func (r *Reverse) Upsert(target, source string, t EdgeType, conf float32) {
 // Tombstone removes source→target and logs a DELETE marker.
 func (r *Reverse) Tombstone(target, source string, t EdgeType) {
 	r.write(record{Op: opTombstone, TargetID: target, SourceID: source, Type: t})
+}
+
+// Redirect records that oldID was replaced by newID.
+//
+// Self-redirects and empty IDs are dropped rather than stored: they would
+// make ResolveID loop or return nothing, and there is no caller for whom
+// either is the intent.
+func (r *Reverse) Redirect(oldID, newID string, epoch uint64) {
+	if oldID == "" || newID == "" || oldID == newID {
+		return
+	}
+	r.write(record{Op: opRedirect, TargetID: oldID, SourceID: newID, Epoch: epoch})
+}
+
+// ResolveID follows a redirect chain to the ID that is current now.
+//
+// Chains are flattened as they are walked (§4.3 path compression): A→B→C
+// becomes A→C, appended as a new record so the shortcut survives a restart.
+// Without it every rename of an already-renamed heading adds a hop, and the
+// walk grows without bound over a document's lifetime.
+//
+// Unknown IDs come back unchanged, so callers can pass anything.
+func (r *Reverse) ResolveID(id string) string {
+	r.mu.RLock()
+	if len(r.redirects) == 0 {
+		r.mu.RUnlock()
+		return id
+	}
+	cur, hops := id, 0
+	newest := uint64(0)
+	seen := map[string]bool{id: true}
+	for {
+		next, ok := r.redirects[cur]
+		// A cycle can only come from a corrupt or hand-edited log, but
+		// looping forever inside a read lock is not an acceptable response
+		// to bad input.
+		if !ok || seen[next.to] {
+			break
+		}
+		seen[next.to] = true
+		if next.epoch > newest {
+			newest = next.epoch
+		}
+		cur, hops = next.to, hops+1
+	}
+	r.mu.RUnlock()
+
+	if hops > 1 {
+		// The shortcut carries the NEWEST epoch on the chain it replaces.
+		// The GC in §4.3 collects redirects that are old enough, so dating
+		// the shortcut by the oldest hop — or by zero — would make it look
+		// collectable while the last rename that created it is still recent,
+		// and collecting it breaks every reference relying on the chain.
+		r.write(record{Op: opRedirect, TargetID: id, SourceID: cur, Epoch: newest})
+	}
+	return cur
+}
+
+// Redirected reports whether id has been superseded, and by what.
+func (r *Reverse) Redirected(id string) (string, bool) {
+	r.mu.RLock()
+	e, ok := r.redirects[id]
+	r.mu.RUnlock()
+	return e.to, ok
 }
 
 func (r *Reverse) write(rec record) {
@@ -199,6 +282,10 @@ func (r *Reverse) Compact() {
 		copy(cp, v)
 		snapshot[k] = cp
 	}
+	redirects := make(map[string]redirect, len(r.redirects))
+	for k, v := range r.redirects {
+		redirects[k] = v
+	}
 	r.mu.Unlock()
 
 	// 2) Serialize the snapshot (upserts only) into the new base.
@@ -218,6 +305,20 @@ func (r *Reverse) Compact() {
 			edgeCount++
 		}
 	}
+	// Redirects go into the base too. They are the reason opRedirect is
+	// upsert-class: this loop is what a tombstone would have been dropped by,
+	// and a redirect that vanished at compaction would break every reference
+	// that had been relying on it — silently, and only after a rename.
+	olds := make([]string, 0, len(redirects))
+	for k := range redirects {
+		olds = append(olds, k)
+	}
+	sort.Strings(olds)
+	for _, o := range olds {
+		buf = encodeRecord(buf, record{
+			Op: opRedirect, TargetID: o, SourceID: redirects[o].to, Epoch: redirects[o].epoch})
+	}
+
 	if err := store.WriteFileAtomic(filepath.Join(r.dir, baseName), buf, 0o644); err != nil {
 		r.log.Event("compact_error", map[string]any{"step": "base", "error": err.Error()})
 		return // .compacting stays; replayed on next start
@@ -225,7 +326,8 @@ func (r *Reverse) Compact() {
 
 	// 3) The snapshot is durable: the rotated log is no longer needed.
 	_ = os.Remove(compactingPath)
-	r.log.Event("compaction", map[string]any{"edges": edgeCount, "bytes": len(buf)})
+	r.log.Event("compaction", map[string]any{
+		"edges": edgeCount, "redirects": len(redirects), "bytes": len(buf)})
 }
 
 // Close drains any in-flight compaction, then flushes and closes the log.

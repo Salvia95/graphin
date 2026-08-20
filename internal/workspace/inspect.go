@@ -22,6 +22,17 @@ func (w *Workspace) engineForRead() *graph.Engine {
 	return w.graph
 }
 
+// ResolveNodeID maps a node ID that was superseded — a renamed markdown
+// heading, most often — to the one that replaced it. Unknown and current IDs
+// come back unchanged, so callers can pass anything.
+func (w *Workspace) ResolveNodeID(id string) string {
+	eng := w.engineForRead()
+	if eng == nil {
+		return id
+	}
+	return eng.ResolveID(id)
+}
+
 // GraphStats aggregates node/edge counts per shard (zero before bootstrap).
 func (w *Workspace) GraphStats() graph.Stats {
 	e := w.engineForRead()

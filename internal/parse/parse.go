@@ -158,8 +158,16 @@ type Node struct {
 	// StartLine is the 1-based line of StartByte, recorded at parse time so
 	// search results can name a location without re-reading the file. It goes
 	// stale together with StartByte — read_code reparses and fixes both.
-	StartLine   uint32
-	Hash        [32]byte // BLAKE3 of the subtree source slice
+	StartLine uint32
+	Hash      [32]byte // BLAKE3 of the subtree source slice
+	// RenameKey is the hash of the content that survives a rename: for a
+	// markdown section, its body with the heading line removed. Zero for
+	// node kinds where renaming cannot be told from replacement.
+	//
+	// Hash cannot serve: a section's span starts at its heading, so editing
+	// the title alone changes it. Finding "same content, new id" therefore
+	// needs a key the title is not part of.
+	RenameKey   [32]byte
 	ArityMin    int
 	ArityMax    int      // nodeid.UnboundedArity when open
 	Params      []string // parameter type texts as written; DB 노드는 컬럼 "name type"
