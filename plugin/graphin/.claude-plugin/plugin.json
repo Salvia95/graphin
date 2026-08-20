@@ -1,7 +1,7 @@
 {
   "name": "graphin",
   "description": "Local codebase-navigation MCP server: search_hybrid → explore_graph → read_code progressive disclosure over a tree-sitter graph of Java/Kotlin/Python/JS/TS and RDB schema snapshots. Ships its own binary and adoption instrumentation.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Salvia95",
     "url": "https://github.com/Salvia95"
