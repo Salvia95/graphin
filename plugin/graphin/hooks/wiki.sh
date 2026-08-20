@@ -9,6 +9,7 @@
 # the binary exits 0, because this fires on every tool call in every project
 # on the machine and a broken install must not be able to stop someone's work.
 
+# shellcheck source-path=SCRIPTDIR
 . "$(dirname "$0")/lib.sh"
 
 verb="${1:-}"

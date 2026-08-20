@@ -6,6 +6,7 @@
 # path exits 0 with empty stdout — any stdout would be parsed by Claude Code
 # as a hook decision.
 
+# shellcheck source-path=SCRIPTDIR
 . "$(dirname "$0")/lib.sh"
 
 root="$(graphin_root)" || exit 0

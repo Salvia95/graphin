@@ -1,4 +1,9 @@
-# Shared resolution for graphin's hook handlers. Sourced, never executed.
+# shellcheck shell=sh
+# Shared resolution for graphin's hook handlers.
+#
+# Sourced, never executed, so there is no shebang — a shebang here would claim
+# otherwise, and the directive above is what tells shellcheck which dialect to
+# check this as.
 #
 # Every handler has to answer the same two questions before it can do anything
 # — which workspace is this, and where is the binary — and they have to answer
