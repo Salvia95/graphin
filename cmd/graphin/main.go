@@ -21,6 +21,7 @@ import (
 	"github.com/Salvia95/graphin/internal/obs"
 	"github.com/Salvia95/graphin/internal/provision"
 	"github.com/Salvia95/graphin/internal/usage"
+	"github.com/Salvia95/graphin/internal/wiki"
 	"github.com/Salvia95/graphin/internal/workspace"
 )
 
@@ -55,6 +56,13 @@ func main() {
 	// (docs/usage-spec.md). ingest is the graphin plugin's PostToolUse sink.
 	if len(os.Args) > 1 && os.Args[1] == "usage" {
 		os.Exit(usage.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+	// Subcommand: `graphin wiki check|repin` — knowledge layer maintenance.
+	// Deliberately index-free: graph.Open truncates the delta log, so a verb
+	// CI or a hook may run while a server holds the workspace must not need
+	// it. Section hashes are re-derived from the documents instead.
+	if len(os.Args) > 1 && os.Args[1] == "wiki" {
+		os.Exit(wiki.Run(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
 	// Flag defaults live in workspace.DefaultConfig so diagnose_index can say

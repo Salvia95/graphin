@@ -1,3 +1,10 @@
+---
+type: knowledge_set
+roles: []
+prerequisites: []
+mode: live
+---
+
 # 릴리스
 
 릴리스를 낼 때 필요한 지식. 버전 자리를 고를 때, 릴리스 노트에 한 줄을 적을지
@@ -8,40 +15,40 @@
 
 ## 버전 자리 고르기
 
-- [§13.3 0.x 규칙](../plugin-distribution.md#133-0x-규칙) —
+- [§13.3 0.x 규칙](../../plugin-distribution.md#133-0x-규칙) —
   0.x에서 minor는 "사용자가 손댈 게 생겼다"는 뜻이고 나머지는 전부 patch다.
   변경의 크기가 아니라 사용자의 부담이 자리를 정한다.
-- [§13.2 무엇이 진짜 깨지는가](../plugin-distribution.md#132-무엇이-진짜-깨지는가) —
+- [§13.2 무엇이 진짜 깨지는가](../../plugin-distribution.md#132-무엇이-진짜-깨지는가) —
   깨지는 표면은 다섯뿐이다: 도구 이름·`userConfig` 키·CLI 플래그·최소 Claude
   Code 버전·`.graphindb.json` 계약. 온디스크 포맷은 fail-soft라 여기 없다.
-- [§13.1 기계가 강제하는 사실 셋](../plugin-distribution.md#131-먼저-기계가-강제하는-사실-셋) —
+- [§13.1 기계가 강제하는 사실 셋](../../plugin-distribution.md#131-먼저-기계가-강제하는-사실-셋) —
   버전 필드는 의미가 아니라 배달 트리거이고, graphin 버전은 바이너리 버전이며,
   마켓플레이스는 태그가 아니라 `main`을 서빙한다.
 
 ## 릴리스 노트
 
-- [§13.4 재인덱싱은 릴리스 노트 자리다](../plugin-distribution.md#134-재인덱싱은-릴리스-노트-자리다) —
+- [§13.4 재인덱싱은 릴리스 노트 자리다](../../plugin-distribution.md#134-재인덱싱은-릴리스-노트-자리다) —
   전체 재인덱싱·옵션 키 변경·최소 CC 상승에는 프렐류드를 **반드시** 적는다.
   자동 생성 노트는 커밋을 요약할 뿐 "이게 나한테 비용을 물리나"에 답하지 않는다.
 
 ## 워크플로가 왜 그런가
 
-- [§5.2 릴리스 워크플로](../plugin-distribution.md#52-릴리스--githubworkflowsreleaseyml) —
+- [§5.2 릴리스 워크플로](../../plugin-distribution.md#52-릴리스--githubworkflowsreleaseyml) —
   태그 트리거가 아니라 `workflow_dispatch`인 이유는 매니페스트가 아직 빌드되지
   않은 에셋의 SHA256을 담아야 하는 닭-달걀이기 때문이다.
-- [§13.5 CI가 지키는 것](../plugin-distribution.md#135-ci가-지키는-것) —
+- [§13.5 CI가 지키는 것](../../plugin-distribution.md#135-ci가-지키는-것) —
   두 플러그인이 정반대 기계로 버저닝되므로 불변식을 한 잡에 모았다. graphin은
   손 범프가 오답이고, graphin-guide는 안 올리는 것이 오답이다.
-- [§10.3 릴리스 게이트 실측](../plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07) —
+- [§10.3 릴리스 게이트 실측](../../plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07) —
   glibc 바닥의 실측값은 2.17이고, `release.yml`의 2.31 단언은 의존성이 아니라
   **컨테이너 교체를 막는 트립와이어**다.
 
 ## 함정
 
-- [§10.4 배달 실측](../plugin-distribution.md#104-배달-실측-2026-08-08) —
+- [§10.4 배달 실측](../../plugin-distribution.md#104-배달-실측-2026-08-08) —
   **공개는 배달이 아니다.** 사용자가 마켓플레이스 캐시를 갱신하고 `plugin
   update`를 돌리기 전까지 런처는 옛 매니페스트대로 옛 바이너리를 계속 설치한다.
   이 머신에서 세 릴리스가 그렇게 도착하지 않았다.
-- [§12 하지 말 것](../plugin-distribution.md#12-하지-말-것) —
+- [§12 하지 말 것](../../plugin-distribution.md#12-하지-말-것) —
   bullseye EOL(2026-08-31)을 bookworm 승격으로 해결하면 glibc 바닥이 2.36으로
   뛰어 RHEL 9·AL2023이 잘린다. 답은 `archive.debian.org` 폴백이다.

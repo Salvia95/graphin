@@ -27,10 +27,16 @@ own node (`docs/spec.md#some-heading`), so a set can point at a paragraph of a
 
 ## The format
 
-Sets live in `docs/knowledge/<name>.md`. **The filename is the set's name** —
+Sets live in `docs/wiki/sets/<name>.md`. **The filename is the set's name** —
 there is no second place that declares it.
 
 ```markdown
+---
+roles: []                 # push targets; empty means pull-only
+prerequisites: []         # other set names, pulled in ahead of this one
+mode: live                # live | pinned
+---
+
 # Release
 
 What you need when cutting a release: picking the version digit, deciding
@@ -38,16 +44,16 @@ whether the notes need a prelude, and why the workflow looks the way it does.
 
 ## Picking the version
 
-- [§13.3 The 0.x rule](../plugin-distribution.md#133-the-0x-rule) —
+- [§13.3 The 0.x rule](../../plugin-distribution.md#133-the-0x-rule) —
   In 0.x, minor means "the user has to fix something" and everything else is a
   patch. The size of the change is irrelevant.
-- [§13.2 What actually breaks](../plugin-distribution.md#132-what-actually-breaks) —
+- [§13.2 What actually breaks](../../plugin-distribution.md#132-what-actually-breaks) —
   Only five surfaces break: tool names, option keys, CLI flags, the minimum
   Claude Code version, and the DB snapshot contract.
 
 ## Why the workflow is like that
 
-- [§5.2 The release workflow](../plugin-distribution.md#52-the-release-workflow) —
+- [§5.2 The release workflow](../../plugin-distribution.md#52-the-release-workflow) —
   It is dispatch-driven, not tag-driven, because the manifest must carry hashes
   of assets that do not exist until the build runs.
 ```
@@ -56,7 +62,7 @@ Rules that matter:
 
 - **One entry is one line**: `- [title](relative/path.md#anchor) — summary`.
 - **The node id is the link target resolved against the set file's directory.**
-  `docs/knowledge/release.md` + `../plugin-distribution.md#133-the-0x-rule`
+  `docs/wiki/sets/release.md` + `../../plugin-distribution.md#133-the-0x-rule`
   → `docs/plugin-distribution.md#133-the-0x-rule`. That resolved string is what
   you pass to `read_code`.
 - **The anchor is a GitHub heading anchor**, which is also exactly graphin's node
@@ -72,7 +78,7 @@ Rules that matter:
 ## Using a set
 
 1. Read the set — or one group of it, which is its own node:
-   `read_code("docs/knowledge/release.md#picking-the-version")`.
+   `read_code("docs/wiki/sets/release.md#picking-the-version")`.
 2. Choose from the summaries. Skipping is the point; loading everything defeats
    the set.
 3. Resolve the chosen links to node ids and fetch them in one call:
@@ -109,10 +115,25 @@ set; then there are two versions of it and they drift.
 
 ## Keeping sets honest
 
-Entries point at anchors, and **renaming a heading silently breaks them**. Check
-them in CI with a text-only script (no graphin needed) that re-derives each
-target file's anchors and compares. Without that guard, a set rots invisibly.
+Run `graphin wiki check`. It reports three things, and the difference between
+them is what you act on:
 
-A summary can also go stale while its anchor still resolves — the section was
-rewritten and the one-liner no longer matches. Nothing catches that
-automatically, so re-read the sections a set names whenever you touch it.
+- **dangling** — the anchor no longer resolves. A renamed heading does this and
+  leaves no trace in the set file. Fix the link.
+- **drift** — the section still exists but its text changed since the entry was
+  admitted, so the summary may now describe something that is gone. Re-read the
+  section, confirm or rewrite the sentence, then `graphin wiki repin`.
+- **unpinned** — no hash was ever recorded, so drift cannot be detected for that
+  entry at all. `graphin wiki repin`.
+
+The hashes live in `docs/wiki/pins.lock`, which is generated and **committed**.
+Committing it is not bookkeeping: the runtime data directory is gitignored, so a
+lockfile kept there would vanish on clone and every entry would silently re-pin
+to whatever the document says now — drift detection that can never fire.
+
+Both verbs work with no index and no running server. A section's hash is BLAKE3
+over its source slice, so re-parsing the document reproduces exactly what the
+indexer recorded, which is why this runs in CI anywhere.
+
+Never hand-edit `pins.lock`. A hash you typed asserts that you compared the
+content, and nothing else in the system can tell that you did not.

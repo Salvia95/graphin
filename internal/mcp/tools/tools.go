@@ -99,6 +99,8 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Handler:     diagnoseHandler(ws),
 	})
 
+	registerWiki(reg, ws)
+
 	reg.Register(&mcp.Tool{
 		Name:        "run_local_benchmark",
 		Description: "Compare grep-style context bytes vs graphin navigation bytes for a query, as a markdown report.",

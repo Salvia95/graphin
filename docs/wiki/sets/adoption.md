@@ -1,3 +1,10 @@
+---
+type: knowledge_set
+roles: []
+prerequisites: []
+mode: live
+---
+
 # 채택 계측
 
 graphin이 실제로 쓰이는지를 재는 일에 필요한 지식. 리포트의 숫자를 읽을 때,
@@ -9,91 +16,91 @@ graphin이 실제로 쓰이는지를 재는 일에 필요한 지식. 리포트�
 
 ## 지표가 무엇을 세는가
 
-- [§0 목표와 지표 철학](../usage-spec.md#0-목표와-지표-철학) —
+- [§0 목표와 지표 철학](../../usage-spec.md#0-목표와-지표-철학) —
   헤드라인은 네 시퀀스지만 **진짜 신호는 같은 의도의 폴백 하나**다. graphin
   쿼리와 후속 grep 패턴의 토큰이 겹치면 그 (query, pattern) 쌍이 곧 재현
   케이스이고, 겹치지 않는 폴백은 새 검색일 뿐 실패가 아니다.
-- [§4.1 스트림·윈도우 구성](../usage-spec.md#41-스트림윈도우-구성) —
+- [§4.1 스트림·윈도우 구성](../../usage-spec.md#41-스트림윈도우-구성) —
   단위는 `prompt_id` 윈도우다. 이벤트는 `ts`가 **아니라 파일 append 순서**로
   읽고(클럭 스큐 면역), 연속 `parallel` 런은 무순서 배치 노드 하나로 접는다.
-- [§4.2 헤드라인 4종](../usage-spec.md#42-헤드라인-4종) —
+- [§4.2 헤드라인 4종](../../usage-spec.md#42-헤드라인-4종) —
   판정은 내비 콜의 최대 연속 런마다 첫 비-`other` 후속으로 내린다. `read_code`로
   끝나면 퍼널이 graphin 안에서 완결된 것이라 채택이고, 후속 배치에 `search`가
   섞이면 **비관적으로 폴백**이다(read 옆의 병렬 grep도 미충족 수요다).
-- [§4.2.1 검색 형태 — 발견 실패의 분모](../usage-spec.md#421-검색-형태--발견-실패의-분모) —
+- [§4.2.1 검색 형태 — 발견 실패의 분모](../../usage-spec.md#421-검색-형태--발견-실패의-분모) —
   심볼형 검색만 분자·분모에 넣는다. **민짜 소문자 한 단어는 심볼이 아니다** —
   산문과 구별할 수 없고 이 지표의 고장 방향이 실패의 과대보고이므로, 애매하면
   분모에서 뺀다. 실측 대가는 65% → 47%.
-- [§4.3 부가 지표](../usage-spec.md#43-부가-지표) —
+- [§4.3 부가 지표](../../usage-spec.md#43-부가-지표) —
   code/db/docs 타깃은 **분할이 아니라 겹치는 모집단**이고 단위는 윈도우가 아니라
   런이다. search가 돌려준 `result_ids`까지 분류에 넣는다 — 스키마 노드를 띄워
   놓고 grep으로 도망간 런이 이 분리가 찾으려던 바로 그 케이스다.
-- [§5 `graphin usage report`](../usage-spec.md#5-graphin-usage-report) —
+- [§5 `graphin usage report`](../../usage-spec.md#5-graphin-usage-report) —
   로그는 cwd walk-up으로 찾고 회전 파일까지 읽는다. 리더는 관대해서 깨진 줄은
   `problems` 카운트로만 남기고 죽지 않는다. 경계를 자를 때는 `--since`.
 
 ## 실측이 밝힌 것 (kinder, 661 이벤트, 2026-08-07)
 
-- [배제된 가설 둘](../eval/2026-08-07-adoption-diagnosis/findings.md#배제된-가설-둘) —
+- [배제된 가설 둘](../../eval/2026-08-07-adoption-diagnosis/findings.md#배제된-가설-둘) —
   "도구가 깨졌다"와 "에이전트가 몰랐다"는 **데이터로 기각됐다.** 서버는 매 세션
   정상 기동했고(에러 0) 에이전트는 2·5·8번째 툴콜에서 bootstrap했다. 다시
   꺼내지 말 것.
-- [원인 ① 단건 조회에서는 grep이 더 싸다](../eval/2026-08-07-adoption-diagnosis/findings.md#원인--단건-조회에서는-grep이-실제로-더-싸다) —
+- [원인 ① 단건 조회에서는 grep이 더 싸다](../../eval/2026-08-07-adoption-diagnosis/findings.md#원인--단건-조회에서는-grep이-실제로-더-싸다) —
   "어디 있나"에 grep은 1콜로 답한다. **이 구간의 0%는 실패가 아니라 옳은
   선택이고**, 지표는 그것까지 실패로 세고 있었다.
-- [원인 ② 다단계 탐색에서는 진짜로 놓쳤다](../eval/2026-08-07-adoption-diagnosis/findings.md#원인--다단계-탐색에서는-진짜로-놓쳤다) —
+- [원인 ② 다단계 탐색에서는 진짜로 놓쳤다](../../eval/2026-08-07-adoption-diagnosis/findings.md#원인--다단계-탐색에서는-진짜로-놓쳤다) —
   발견 실패 15창 중 7창이 심볼 위주였다. 한 프롬프트에서 심볼 15개를 grep하는
   것 — 그게 진짜 놓친 기회다.
-- [원인 ③ 불렀을 때 답이 착지하지 않았다](../eval/2026-08-07-adoption-diagnosis/findings.md#원인--불렀을-때-답이-착지하지-않았다) —
+- [원인 ③ 불렀을 때 답이 착지하지 않았다](../../eval/2026-08-07-adoption-diagnosis/findings.md#원인--불렀을-때-답이-착지하지-않았다) —
   5건을 받고 무시한 뒤 같은 토큰을 두 번 더 grep했다. 가용성이 아니라 랭킹의
   문제이고, 이 한 쌍이 ④의 회귀 케이스가 됐다.
-- [지표의 결함](../eval/2026-08-07-adoption-diagnosis/findings.md#지표의-결함) —
+- [지표의 결함](../../eval/2026-08-07-adoption-diagnosis/findings.md#지표의-결함) —
   `database is locked`·`^E`를 찾던 윈도우까지 분모에 있었다. **"발견 실패 57%"는
   과장이고 정직한 수는 7/15다.**
-- [검색의 형태](../eval/2026-08-07-adoption-diagnosis/findings.md#검색의-형태) —
+- [검색의 형태](../../eval/2026-08-07-adoption-diagnosis/findings.md#검색의-형태) —
   패턴 173건의 손분류: 심볼 49% · 정규식·glob 30% · 리터럴·한국어 14%. §4.2.1의
   판정 규칙은 이 표를 코드로 옮긴 것이다.
 
 ## 다시 측정하기 전에
 
-- [배달 — 재측정의 컷 지점](../eval/2026-08-07-adoption-diagnosis/findings.md#배달--재측정의-컷-지점-2026-08-08) —
+- [배달 — 재측정의 컷 지점](../../eval/2026-08-07-adoption-diagnosis/findings.md#배달--재측정의-컷-지점-2026-08-08) —
   **경계는 하나가 아니라 셋이다**: 0.2.0 → 0.2.3(08-08T01:27Z, 위치 반환·섹션
   노드) → 0.2.5(08-10T15:37Z, 문장 내 심볼 Tier-0). 시각은 플러그인을 업데이트한
   때가 아니라 **그 바이너리로 서버가 뜬 때**다. ②(분모)는 리포트 시점 분류라
   전 구간에 소급되므로 이 축을 쪼개지 않는다.
-- [Phase 1이 이미 바꾼 것](../eval/2026-08-07-adoption-diagnosis/findings.md#phase-1이-이미-바꾼-것) —
+- [Phase 1이 이미 바꾼 것](../../eval/2026-08-07-adoption-diagnosis/findings.md#phase-1이-이미-바꾼-것) —
   여러 윈도우가 마크다운을 grep하고 있었는데 그건 그때 graphin이 **할 수 없던**
   일이다. 섹션 노드가 생기며 범위에 들어왔으므로 이 수치들은 이후와 직접 비교할
   수 없다.
-- [§10.4 배달 실측](../plugin-distribution.md#104-배달-실측-2026-08-08) —
+- [§10.4 배달 실측](../../plugin-distribution.md#104-배달-실측-2026-08-08) —
   **공개는 배달이 아니다.** 사용자가 마켓플레이스 캐시를 갱신하고 `plugin
   update`를 돌리기 전까지 런처는 옛 매니페스트대로 옛 바이너리를 설치한다.
   릴리스 셋이 그렇게 도착하지 않은 채 있었다.
-- [이어받을 것](../eval/2026-08-07-adoption-diagnosis/findings.md#이어받을-것) —
+- [이어받을 것](../../eval/2026-08-07-adoption-diagnosis/findings.md#이어받을-것) —
   ①②④는 구현·릴리스·확인까지 끝났고 **남은 것은 ③(재측정) 하나**다. ②가 분모를
   고쳤으므로 새 수치를 옛 수치와 나란히 놓으면 안 된다.
-- [방법](../eval/2026-08-07-adoption-diagnosis/findings.md#방법) —
+- [방법](../../eval/2026-08-07-adoption-diagnosis/findings.md#방법) —
   원시 `events.jsonl`을 `prompt_id` 연속 구간으로 재구성해 분석한다. 집계는
   §4.2와 같은 정의를 쓰되 분류는 그 문서 전용이고, **스크립트는 커밋하지 않는다
   — `events.jsonl`이 좌표다.**
 
 ## 고친 것과 그 대가
 
-- [권고 1 — 위치 반환](../eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-1-2026-08-07) —
+- [권고 1 — 위치 반환](../../eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-1-2026-08-07) —
   `search_hybrid`가 `file`·`line`을 함께 준다. 라인은 **파싱 시점에** 기록한다 —
   질의 시점에 세면 파일이 바뀌었을 때 낡은 오프셋으로 틀린 줄을 낸다. 이 변경이
   벤치마크의 비교 축을 `grep -C20 ↔ graphin locate`로 바꿨다.
-- [권고 2 — 분모 필터링](../eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-2-2026-08-08) —
+- [권고 2 — 분모 필터링](../../eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-2-2026-08-08) —
   같은 로그에서 발견 실패 65% → 47%. 느슨한 규칙(소문자 한 단어도 심볼)이
   되돌리는 것은 `admin`·`design`·`context` 같은 **주제어**였다.
-- [권고 4 — 문장 내 심볼 Tier-0](../eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-4-2026-08-08) —
+- [권고 4 — 문장 내 심볼 Tier-0](../../eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-4-2026-08-08) —
   정의가 **제 호출부에 밀리고 있었다**(3위, 산문 질의에선 top-5 밖). 원인은
   "multi-word 질의는 Tier-0를 타지 않는다"였고, 식별자 모양 토큰만 `topK/2`
   상한으로 고정하도록 고쳤다.
-- [tier0 판정](../eval/2026-08-08-tier0-ranking/findings.md#판정--출하-기본값-k5-rrf60-mc85-n451) —
+- [tier0 판정](../../eval/2026-08-08-tier0-ranking/findings.md#판정--출하-기본값-k5-rrf60-mc85-n451) —
   **회귀 없음, 개선 미증명.** ndcg@300이 상대 +9.8%인데 인스턴스 단위 부호검정이
   p=0.25다. 평균으로 개선이라 부르지 않는다 — 1차 H1이 그 모양에서 뒤집혔다.
-- [tier0 경고 — k20 precision](../eval/2026-08-08-tier0-ranking/findings.md#기록해-둘-경고--k20의-precision) —
+- [tier0 경고 — k20 precision](../../eval/2026-08-08-tier0-ranking/findings.md#기록해-둘-경고--k20의-precision) —
   크기는 0에 가까운데(−0.04%p) **방향이 유의하다**(47승 73패, p=0.022). 정의를
   상단에 고정하면 한 자리가 밀려나기 때문이다. top_k를 올리는 변경을 검토할 때
   먼저 볼 표다.

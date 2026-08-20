@@ -1,0 +1,133 @@
+{
+  "v": 1,
+  "pins": {
+    "adoption": {
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#phase-1이-이미-바꾼-것": {
+        "h": "b3:840ed1920975a6e62a95521933bc3dfe6dd9042a63fec4215d45db1dd17128bf",
+        "r": "b3:44eb4bc1e8d99ce5574fdc953f584c114a90bf1b70e63499f15f8babcb33a7f5"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#검색의-형태": {
+        "h": "b3:5505b219238cc25d077480ba9b31802c25562aa81d11449b9d80f6aa135d9ecd",
+        "r": "b3:27fb3bf2b73e8af36578cf43271e89311fe114cf18816d50ba09a9e65dabf738"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-1-2026-08-07": {
+        "h": "b3:1c38c15c1255af063008ac769ef633804159e178d79def048f682f58ad32fd33",
+        "r": "b3:5f134e919f695414ea24b2b903d901453f36ff21beef49194d4929c74cdfd213"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-2-2026-08-08": {
+        "h": "b3:308c9ec58d499ea75fce85d82b26b46ffc938feb044d38b71d7c78f42deed58d",
+        "r": "b3:6e9eae4fbae300058b355e0bb29b0e92e82fe3d08192fa84a750d3eb13b01cd1"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#구현-결과--권고-4-2026-08-08": {
+        "h": "b3:a38aa63ba61e60736475617e09e7851231ec783ab231c09ca7b9d0d67adfd41e",
+        "r": "b3:a7fe9388552737031d28c991f01a425b2d113bb469bf3ed6a7e986e3b97dad6b"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#방법": {
+        "h": "b3:9e1e877f28ee94e79c7183cb86c939825758e9c84474a8f2ce6b8f27a057ecc1",
+        "r": "b3:d11b77106be612ada23de2ecb30d6acc2ea33e477d399aee8f8d2c50f818bcf5"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#배달--재측정의-컷-지점-2026-08-08": {
+        "h": "b3:23df1c403fe185071aec289d8eeb8832b58fd72ebbfa4b06b1ab10df214336a8",
+        "r": "b3:ae85be6ec4819bdf3eaa2ee489304ba2712da6d788fe8f75c8430925c9975649"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#배제된-가설-둘": {
+        "h": "b3:6800ac4c9138ac6486715e12fd69ab03e5c09b20d72366e5028cca7926427c3c",
+        "r": "b3:c47320c9d19a86bbaf4044cc77c1ec1f926b1f3536a1f000eda43b4f26198144"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#원인--다단계-탐색에서는-진짜로-놓쳤다": {
+        "h": "b3:76199d740a802f078dc3a14d9b87045926c2bef26e744ff3959de3393156484b",
+        "r": "b3:255cd984bd4acb7e2d7a583ff218676f28f79a7548eb4c2caa2d47efccf706d3"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#원인--단건-조회에서는-grep이-실제로-더-싸다": {
+        "h": "b3:c2502a3ff760beea31c2849d6d5d30ce8b47f91df7708cfff45a6eb757ce02b6",
+        "r": "b3:9cfc25a24b496b1481b91ef81f233183fbd2b9bec62c50c08c5c67c5605732f3"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#원인--불렀을-때-답이-착지하지-않았다": {
+        "h": "b3:6fc210ad0b0b4e3c0423525b37cdeb0a3b6d784c094bc5c1b7303cdafdc3ca6f",
+        "r": "b3:a4bf834a452347b35667f48ea2fafeb00edb12e5739d04be2c11a5d42b6df031"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#이어받을-것": {
+        "h": "b3:1c9ae8763123da676c71b7bc3752dbe4b6f5eccb952a6d881088cd47eef12d5b",
+        "r": "b3:840e912fba128092ca2ce8f524a67a836af4e61305dbbd9f44fcb468a2dd21ae"
+      },
+      "docs/eval/2026-08-07-adoption-diagnosis/findings.md#지표의-결함": {
+        "h": "b3:1fa9f4c59b2e11371a4ee74d5ce3e75786f30a58a3fe21683ad0f5cc72bbe09d",
+        "r": "b3:4e52ffee7dc2f60d0f2515afdc0e1d838654b5b661ca1fae3d96e394041d53e1"
+      },
+      "docs/eval/2026-08-08-tier0-ranking/findings.md#기록해-둘-경고--k20의-precision": {
+        "h": "b3:726c0dbed9a469c5128b582a3beefa6dd04b7aa8f0d2556f7fa368ed3748278a",
+        "r": "b3:cad1c33f5eaf75a6131d444bdbef1390a8d7dee4287361429d7e6ed493969500"
+      },
+      "docs/eval/2026-08-08-tier0-ranking/findings.md#판정--출하-기본값-k5-rrf60-mc85-n451": {
+        "h": "b3:806c0e72d02e20e62ba84b78ae62897fe074b740121f56202eb622a2dcbd0b3f",
+        "r": "b3:709696a3adcdcb97643f829fdd731ed017f0434336e022c12298d8fc2d8ec317"
+      },
+      "docs/plugin-distribution.md#104-배달-실측-2026-08-08": {
+        "h": "b3:7a219e2c3046dbbb3c42e06de8fcf59d8597aa66a03a687d6bc9ec0fed297bbd",
+        "r": "b3:344a8d2fd4f65aebb78ccdd9f6e06090e433363e2b1c3cf4f44a7386b333c02d"
+      },
+      "docs/usage-spec.md#0-목표와-지표-철학": {
+        "h": "b3:22fe4b2aea3ee4bf99ad0de9c62785c2aacb3a0f3e081696147f7e3ce860dfca",
+        "r": "b3:94e4acd1792fe279f1f53291f5b40ddfc5a3ed79a9f511439135742f381bdebe"
+      },
+      "docs/usage-spec.md#41-스트림윈도우-구성": {
+        "h": "b3:b2966700655f5320f213bc171f1a849e28fce50cec763a013cc12e6b8509e6ae",
+        "r": "b3:f415129c3e0f792e844fb92c07a2eae350d0914fc9973a146df797d998bbde72"
+      },
+      "docs/usage-spec.md#42-헤드라인-4종": {
+        "h": "b3:b6569b1cdaeccdd5e00212afce2da2672b87304b67e3c97a1e2792cf3582dc55",
+        "r": "b3:3e937322c2cd95e1a565eac40c8a5dc59194a4848458bd273b42a99b038136a4"
+      },
+      "docs/usage-spec.md#421-검색-형태--발견-실패의-분모": {
+        "h": "b3:3a0342b8c7d055b1e630e7fffa9cb0774e92e84a31a75eb3e00be17111a48acd",
+        "r": "b3:9d95e77080c658d95793cdd7a54f5f782d9b29b1754969bb2eeb396f91aecf34"
+      },
+      "docs/usage-spec.md#43-부가-지표": {
+        "h": "b3:4a8e3907d12b757c2ed6412dd2947400b2638b318058ffeb6f30306b1a095c6d",
+        "r": "b3:cd52e6173802ca898daf40d2330e4a3c2f6c26c9214f0f098da11eb46ef17077"
+      },
+      "docs/usage-spec.md#5-graphin-usage-report": {
+        "h": "b3:cebf7b78ee12c5301dfe100aa486155af7902844ba6c5e996dbe94fa07b6b45e",
+        "r": "b3:2d1df7cf096e3971952c9c03c1b3fd82adaaa0d989f323be71aa6f2e894744ee"
+      }
+    },
+    "release": {
+      "docs/plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07": {
+        "h": "b3:b4c500e61df2588ca8ebae28941ee70d4767f81a2388b7e19733b08681bcaa33",
+        "r": "b3:a5d4d49d55713f8efd06804e532788d9037ec6254ccdd6b66d43ebac32e737ae"
+      },
+      "docs/plugin-distribution.md#104-배달-실측-2026-08-08": {
+        "h": "b3:7a219e2c3046dbbb3c42e06de8fcf59d8597aa66a03a687d6bc9ec0fed297bbd",
+        "r": "b3:344a8d2fd4f65aebb78ccdd9f6e06090e433363e2b1c3cf4f44a7386b333c02d"
+      },
+      "docs/plugin-distribution.md#12-하지-말-것": {
+        "h": "b3:0daeaeb04561694a738bdf94845b175a0f167384dea76f7fc5e9072c2efc278b",
+        "r": "b3:4a205c15582d45833aaeacf88b28ed0eb50cecc23162fb36d15ec3ae30ab4ddb"
+      },
+      "docs/plugin-distribution.md#131-먼저-기계가-강제하는-사실-셋": {
+        "h": "b3:aa762dae6f7f4176de5dbbc0bf16938541d82d1c334ea014f0f0ee50783ccdae",
+        "r": "b3:1a1157eb664f933cf49b0948479b4b863f47f6727e3047ef92884fa973d7302f"
+      },
+      "docs/plugin-distribution.md#132-무엇이-진짜-깨지는가": {
+        "h": "b3:54843d5a359e77d75bb9cfd6c38631edb18f417a5090b1ef1a4dd9654065e09f",
+        "r": "b3:84229e589cd81c0f7672ee3c8c1962246279434c027f436ae2aa6eed01781046"
+      },
+      "docs/plugin-distribution.md#133-0x-규칙": {
+        "h": "b3:34141523d8ee04185b6f74782d4b34485be752bac868a3ffb6ad475368f9b2bc",
+        "r": "b3:41e8ed156f1858a57b5f09cb4c60879bbb7bd1aaa8b6c2e1e55cfb440cc1154a"
+      },
+      "docs/plugin-distribution.md#134-재인덱싱은-릴리스-노트-자리다": {
+        "h": "b3:7c09b7e68d3374d0e3f7a41a5dfb5f1ab4d70c7799647a09da880a4709fc702b",
+        "r": "b3:ff87d7e1333eb897025faa011bee344b3472f7d4fdd1760081b2076a29350820"
+      },
+      "docs/plugin-distribution.md#135-ci가-지키는-것": {
+        "h": "b3:eb9bffe44e122ee593266944ebcc64654a1409ff7490ddf992268111d04b26c6",
+        "r": "b3:6639010cee688b89d0aba2d1b3b131a5d1e0175326e04cb043bd51e40fc437ae"
+      },
+      "docs/plugin-distribution.md#52-릴리스--githubworkflowsreleaseyml": {
+        "h": "b3:10a174ad208a1815d16873b2ceca6dac954d2a3d3bf2ba0b5484e30f10e09c1f",
+        "r": "b3:2536e0ae39d7202cb5bdfe4fb85909728d9d462ffe31d4789d7b3b53ac4473b2"
+      }
+    }
+  }
+}
