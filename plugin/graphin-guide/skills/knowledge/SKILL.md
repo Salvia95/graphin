@@ -77,17 +77,42 @@ Rules that matter:
 
 ## Using a set
 
-1. Read the set — or one group of it, which is its own node:
-   `read_code("docs/wiki/sets/release.md#picking-the-version")`.
+1. `wiki_preflight(task, role)` — the catalogue for this work: which sets
+   apply, one line each, no bodies. It returns a **token**; include it in the
+   delegation prompt if you are handing this work to a subagent.
 2. Choose from the summaries. Skipping is the point; loading everything defeats
    the set.
-3. Resolve the chosen links to node ids and fetch them in one call:
-   `read_code(node_ids=[…])`.
+3. `wiki_resolve(sets=[…])` — or `wiki_resolve(node_ids=[…])` for a few
+   specific entries once you have read the catalogue.
 4. If the response lists `<omitted reason="budget">`, request those in a second
    call. It never cuts inside a section, so what you got is complete.
 
+Read the attributes on each `<section>`; they are not decoration:
+
+- `drift="changed-since-registration"` — the section was rewritten after this
+  entry was written, so the one-line summary may no longer describe it. Trust
+  the text you were given, not the summary.
+- `drift="unpinned"` — nothing was recorded to compare against, so "unchanged"
+  is not being claimed.
+- `redirected_from="…"` — the heading was renamed. The content is right and the
+  set's link is stale; fix the link when you are next in that file.
+
 Do not re-read a document you already loaded a section of, and do not read the
 whole file "for context" — the set exists to make that unnecessary.
+
+## The gate
+
+Where a project has a `docs/wiki`, graphin blocks two things: delegating without
+a manifest token, and editing before knowledge has been loaded. Both blocks name
+the command that clears them, so read the message rather than retrying.
+
+An **empty catalogue is a normal answer** and still returns a token. A project
+the wiki has nothing to say about is not a project you are stuck in.
+
+The gate arms only where `docs/wiki` exists, so projects that never adopted this
+are untouched. If it is blocking you wrongly, `GRAPHIN_WIKI_GATE=off` in the
+environment disables it — that is for a bug in the gate, not for a knowledge set
+you would rather not read.
 
 ## Building a set
 

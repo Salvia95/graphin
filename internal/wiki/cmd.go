@@ -7,7 +7,9 @@ import (
 )
 
 const usageLine = `usage: graphin wiki check [--root <dir>]
-       graphin wiki repin [--root <dir>] [--dry-run]`
+       graphin wiki repin [--root <dir>] [--dry-run]
+       graphin wiki gate            # PreToolUse hook sink, reads JSON on stdin
+       graphin wiki mark            # SubagentStart/PostToolUse hook sink`
 
 // Run executes the `graphin wiki` subcommand and returns a process exit code.
 //
@@ -16,7 +18,7 @@ const usageLine = `usage: graphin wiki check [--root <dir>]
 // step or a hook may run while a server holds the workspace must never need
 // it. Section hashes come from re-parsing the documents, which is exactly
 // what the indexer did to produce them.
-func Run(args []string, stdout, stderr io.Writer) int {
+func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, usageLine)
 		return 2
@@ -26,8 +28,12 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runCheck(args[1:], stdout, stderr)
 	case "repin":
 		return runRepin(args[1:], stdout, stderr)
+	case "gate":
+		return runGate(stdin, stderr)
+	case "mark":
+		return runMark(stdin, stderr)
 	default:
-		fmt.Fprintf(stderr, "graphin wiki: unknown verb %q (check | repin)\n", args[0])
+		fmt.Fprintf(stderr, "graphin wiki: unknown verb %q (check | repin | gate | mark)\n", args[0])
 		return 2
 	}
 }

@@ -31,6 +31,14 @@ type Store struct {
 	Pins   *Pins
 	Agents *AgentTable
 
+	// Present reports whether this workspace has a wiki directory at all.
+	//
+	// It is what arms the gate. The hooks are installed once and fire in
+	// every project on the machine, so a project that never adopted the wiki
+	// must be untouched by it — requiring a preflight there would add a
+	// blocked call to every edit in exchange for nothing.
+	Present bool
+
 	// redirector is set by callers that have an index. See Redirector.
 	redirector Redirector
 }
@@ -63,6 +71,7 @@ func Load(root string) (*Store, error) {
 	if _, err := os.Stat(base); os.IsNotExist(err) {
 		return s, nil
 	}
+	s.Present = true
 
 	if err := s.loadDir(setsSubdir, func(rel string, src []byte) error {
 		set, err := ParseSet(rel, src)

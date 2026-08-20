@@ -62,7 +62,7 @@ func main() {
 	// CI or a hook may run while a server holds the workspace must not need
 	// it. Section hashes are re-derived from the documents instead.
 	if len(os.Args) > 1 && os.Args[1] == "wiki" {
-		os.Exit(wiki.Run(os.Args[2:], os.Stdout, os.Stderr))
+		os.Exit(wiki.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
 
 	// Flag defaults live in workspace.DefaultConfig so diagnose_index can say
