@@ -1,6 +1,7 @@
 package wiki
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -11,7 +12,7 @@ import (
 
 const usageLine = `usage: graphin wiki check [--root <dir>]
        graphin wiki repin [--root <dir>] [--dry-run]
-       graphin wiki queue [--root <dir>]
+       graphin wiki queue [--root <dir>] [--misses N] [--json]
        graphin wiki skills [--root <dir>] [--out <dir>] [--check]
        graphin wiki export --okf --out <dir> [--root <dir>]
        graphin wiki gate            # PreToolUse hook sink, reads JSON on stdin
@@ -156,67 +157,26 @@ func runQueue(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	root := fs.String("root", ".", "workspace root containing "+DirName)
 	limit := fs.Int("misses", 10, "how many recent coverage misses to list")
+	asJSON := fs.Bool("json", false, "emit the raw QueueReport as JSON instead of text")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
-	store, err := Load(*root)
+	q, err := BuildQueueReport(*root)
 	if err != nil {
 		fmt.Fprintf(stderr, "graphin wiki queue: %v\n", err)
 		return 1
 	}
-	proposals, err := store.Queue()
-	if err != nil {
-		fmt.Fprintf(stderr, "graphin wiki queue: %v\n", err)
-		return 1
-	}
-	report := Summarize(ReadFriction(*root))
-
-	fmt.Fprintf(stdout, "glossary: %d of %d\n\n", len(store.Terms), GlossaryCap)
-
-	fmt.Fprintf(stdout, "awaiting review (%d)\n", len(proposals))
-	for _, p := range proposals {
-		fmt.Fprintf(stdout, "  %-24s seen %d, %d citation(s)\n", p.Canonical, p.Seen, len(p.Evidence))
-	}
-	if len(proposals) == 0 {
-		fmt.Fprintln(stdout, "  (nothing)")
-	}
-
-	fmt.Fprintf(stdout, "\nwork the wiki had no answer for (%d, newest first)\n", len(report.Misses))
-	for i, m := range report.Misses {
-		if i >= *limit {
-			fmt.Fprintf(stdout, "  … %d more\n", len(report.Misses)-*limit)
-			break
+	if *asJSON {
+		b, err := json.MarshalIndent(q, "", "  ")
+		if err != nil {
+			fmt.Fprintf(stderr, "graphin wiki queue: %v\n", err)
+			return 1
 		}
-		role := m.Role
-		if role == "" {
-			role = "-"
-		}
-		fmt.Fprintf(stdout, "  [%s] %s\n", role, m.Task)
+		fmt.Fprintln(stdout, string(b))
+		return 0
 	}
-	if len(report.Misses) == 0 {
-		fmt.Fprintln(stdout, "  (nothing)")
-	}
-
-	if unread := report.Unread(); len(unread) > 0 {
-		fmt.Fprintf(stdout, "\noffered but never opened (%d)\n", len(unread))
-		for _, s := range unread {
-			fmt.Fprintf(stdout, "  %-24s offered %d times, resolved 0\n", s, report.Matched[s])
-		}
-	}
-
-	if len(report.Drifted) > 0 {
-		fmt.Fprintf(stdout, "\nserved with a stale pin (%d)\n", len(report.Drifted))
-		nodes := make([]string, 0, len(report.Drifted))
-		for n := range report.Drifted {
-			nodes = append(nodes, n)
-		}
-		sort.Strings(nodes)
-		for _, n := range nodes {
-			fmt.Fprintf(stdout, "  %s (%d)\n", n, report.Drifted[n])
-		}
-		fmt.Fprintln(stdout, "  re-read each, confirm the summary still holds, then `graphin wiki repin`")
-	}
+	RenderQueue(stdout, q, *limit)
 	return 0
 }
 
