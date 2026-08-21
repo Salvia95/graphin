@@ -93,24 +93,24 @@
     },
     "console": {
       "docs/console-spec.md#1-왜-안-지었나": {
-        "h": "b3:cde9b7520f0781d72733f3a24251a3c06a51edc5470744655ea3d4542a739d2a",
-        "r": "b3:f28b682941a88cde299f35a208091c972e4a1ffaa20775d39fa88436360775e1"
+        "h": "b3:67d554fa80d7111ba22f4f6430b4882075d153f68b64253cc3d805e3b011d0a9",
+        "r": "b3:7950ca8fce0cc9ff79e651eaa89cf0f99787bc39f8997a2da808a2af972612d6"
       },
       "docs/console-spec.md#2-다시-볼-조건": {
-        "h": "b3:008a712db89cf8f4a9c977e6e373d2c70bf1e7b1282982283714efc0dd545480",
-        "r": "b3:530d64491e72799b0d9b7cdc1c15997b95b9aa948c7c4b86a4795592842b61ae"
+        "h": "b3:847256a0092bd774a70816eb0314f6113b3adcf549b21f25ec7e8a52a9eb8395",
+        "r": "b3:8e3791fc38c9a75725870f4b44e653549d9bcc0b1908380d3a383ee943484c58"
       },
       "docs/console-spec.md#3-먼저-알아야-할-제약--콘솔은-인덱스를-열-수-없다": {
         "h": "b3:e298ea37823345f9ef59d4f8b2bbbc3153e77232da532017080fd5341235468e",
         "r": "b3:f0fab32efa67f3f042c7759d0a1d60bf815e13bc9a27f862b17adc0055579242"
       },
       "docs/console-spec.md#4-스택-설계-확정분-뒤집으려면-근거가-필요": {
-        "h": "b3:4d961ced398b77c856f2a07fb61773608dee8aadff4f64a5cf4feb9e39bbb964",
-        "r": "b3:4ad960eb8a66346b4cd8d29f6850f82766c81431923507fc5dc8e1d637f319b6"
+        "h": "b3:dde4bd11e417ac1a61b678e6721e7589182bb44ca817c2eaf2523ec37a1ad433",
+        "r": "b3:45147468307da7de15780051273465438a9bbd9113e486d29232eb555209caa0"
       },
       "docs/console-spec.md#5-규율--api는-커맨드와-같은-함수의-얇은-껍질": {
-        "h": "b3:0e388710bdf2133ab193cc89c0d063804349be9b52f71823116610cd436dd533",
-        "r": "b3:a563f8e5368d4c1ccde6ed8c3461bfc7352d381fe02fa850a154db7e56f97a86"
+        "h": "b3:6eb61b574dd44fbd91d9ad4078bf8cd663f1f01386705e78ee67da40bc34209c",
+        "r": "b3:a2f5f65ff6a13898a2a761c63e38631ce3734de49f236127a708958d8a71786c"
       },
       "docs/console-spec.md#6-빌드릴리스에-붙는-것": {
         "h": "b3:0279faa40ff6173287c7b187b80e66d2bfa7ad1ea5088bc428a848a141306f24",
@@ -121,12 +121,12 @@
         "r": "b3:e7b75a84facfc561036c6e6fb9c011225b972583f475a38662923e49586bd04a"
       },
       "docs/console-spec.md#8-열린-질문": {
-        "h": "b3:7754f508aece323c63e91b23071d6ec24761c479335b11cb194fd7bb90c0773a",
-        "r": "b3:b57271cf65b2aa7b90cea60166e0b8c0167bd7db9e06d7e47c7613d7300e3948"
+        "h": "b3:fd6d755d278c46cf7152dd31ba193f644c74e8fa7c2c093fea91fffdcbb30cf8",
+        "r": "b3:def88449ba1095ae37ad2ed376df3aa2e63554aa883d6f66c1ac53676936af8d"
       },
       "docs/console-spec.md#9-짓기로-했다면--첫-조각": {
-        "h": "b3:a435b20d6f4231140cb099838070148ec34fc6ed8fbb0d932b651439da88cfb2",
-        "r": "b3:02c6f94b274bed9c9d65847ca4a437e8bbc1cf70acb808666b483988db30a1f3"
+        "h": "b3:4ccf45fcf688f7bb22a499a64eb6fe7d201f9329cfe0e57943b8d1b597e8c20b",
+        "r": "b3:17b1c3607b93fd927b7826fdf95015a7f8b90ced72318c376ce96c1ab01c618a"
       }
     },
     "release": {
