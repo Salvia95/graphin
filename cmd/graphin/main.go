@@ -15,6 +15,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/Salvia95/graphin/internal/console"
 	"github.com/Salvia95/graphin/internal/dbimport"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/mcp/tools"
@@ -63,6 +64,13 @@ func main() {
 	// it. Section hashes are re-derived from the documents instead.
 	if len(os.Args) > 1 && os.Args[1] == "wiki" {
 		os.Exit(wiki.Run(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+	// Subcommand: `graphin console` — the same read-only views over HTTP, for
+	// the one job that is genuinely worse in a terminal: approving knowledge
+	// candidates (docs/console-spec.md §2). Index-free for the reason above,
+	// which is what lets it run alongside a live server.
+	if len(os.Args) > 1 && os.Args[1] == "console" {
+		os.Exit(console.Run(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
 	// Flag defaults live in workspace.DefaultConfig so diagnose_index can say
