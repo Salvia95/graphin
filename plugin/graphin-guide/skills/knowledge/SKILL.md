@@ -140,6 +140,21 @@ the review an ordinary diff. Three rules reject before a human ever looks:
 The test for a set, not a term: **would this knowledge have made the session
 shorter?** If the answer needs a paragraph of hedging, it is not a set yet.
 
+## Push versus pull
+
+A set can be tagged `roles:`, and `graphin wiki skills` turns those tags into a
+per-role block that is injected whole at the start of every session for that
+role. Reserve it for what an agent **cannot notice it is missing** — layering
+rules, forbidden patterns, project vocabulary. Everything an agent can tell it
+needs stays in the catalogue, where it costs nothing until asked for.
+
+The block is capped, because it is paid for on every session whether or not it
+is read. Overflow is reported in the block itself rather than trimmed quietly.
+
+Generated files are owned by the generator: edit `docs/wiki/` and regenerate.
+Which agents should declare which block is **reported, not applied** — agent
+definitions are yours.
+
 ## The gate
 
 Where a project has a `docs/wiki`, graphin blocks two things: delegating without

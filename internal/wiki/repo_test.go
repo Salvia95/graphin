@@ -24,6 +24,14 @@ func TestRepoWikiIsHonest(t *testing.T) {
 		t.Skip("no knowledge sets in this tree")
 	}
 
+	// Generated blocks are checked here rather than in a CI step of their own:
+	// it is the same question — does what we ship still match what we wrote —
+	// and a step that no-ops until someone adds a role tag is noise nobody
+	// reads when it finally fires.
+	for _, name := range store.StaleSkills(root + "/.claude/skills") {
+		t.Errorf("generated skill %s is stale — run `graphin wiki skills` and commit the result", name)
+	}
+
 	for _, p := range Check(root, sets, store.Pins) {
 		switch p.Kind {
 		case ProblemDangling:
