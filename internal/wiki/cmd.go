@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"sort"
 )
 
 const usageLine = `usage: graphin wiki check [--root <dir>]
        graphin wiki repin [--root <dir>] [--dry-run]
+       graphin wiki queue [--root <dir>]
        graphin wiki gate            # PreToolUse hook sink, reads JSON on stdin
        graphin wiki mark            # SubagentStart/PostToolUse hook sink`
 
@@ -32,8 +34,10 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runGate(stdin, stderr)
 	case "mark":
 		return runMark(stdin, stderr)
+	case "queue":
+		return runQueue(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "graphin wiki: unknown verb %q (check | repin | gate | mark)\n", args[0])
+		fmt.Fprintf(stderr, "graphin wiki: unknown verb %q (check | repin | queue | gate | mark)\n", args[0])
 		return 2
 	}
 }
@@ -129,6 +133,81 @@ func runRepin(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "wrote %s\n", store.PinsPath())
 	if len(problems) > 0 {
 		return 1
+	}
+	return 0
+}
+
+// runQueue shows what is waiting for a person: candidates to approve, work the
+// wiki could not answer, sets nobody opens, and entries to re-verify.
+//
+// One command for all four because they are one decision. Reading the queue
+// without the misses invites approving whatever happened to be submitted,
+// rather than writing what the work actually wanted.
+func runQueue(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("wiki queue", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	root := fs.String("root", ".", "workspace root containing "+DirName)
+	limit := fs.Int("misses", 10, "how many recent coverage misses to list")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	store, err := Load(*root)
+	if err != nil {
+		fmt.Fprintf(stderr, "graphin wiki queue: %v\n", err)
+		return 1
+	}
+	proposals, err := store.Queue()
+	if err != nil {
+		fmt.Fprintf(stderr, "graphin wiki queue: %v\n", err)
+		return 1
+	}
+	report := Summarize(ReadFriction(*root))
+
+	fmt.Fprintf(stdout, "glossary: %d of %d\n\n", len(store.Terms), GlossaryCap)
+
+	fmt.Fprintf(stdout, "awaiting review (%d)\n", len(proposals))
+	for _, p := range proposals {
+		fmt.Fprintf(stdout, "  %-24s seen %d, %d citation(s)\n", p.Canonical, p.Seen, len(p.Evidence))
+	}
+	if len(proposals) == 0 {
+		fmt.Fprintln(stdout, "  (nothing)")
+	}
+
+	fmt.Fprintf(stdout, "\nwork the wiki had no answer for (%d, newest first)\n", len(report.Misses))
+	for i, m := range report.Misses {
+		if i >= *limit {
+			fmt.Fprintf(stdout, "  … %d more\n", len(report.Misses)-*limit)
+			break
+		}
+		role := m.Role
+		if role == "" {
+			role = "-"
+		}
+		fmt.Fprintf(stdout, "  [%s] %s\n", role, m.Task)
+	}
+	if len(report.Misses) == 0 {
+		fmt.Fprintln(stdout, "  (nothing)")
+	}
+
+	if unread := report.Unread(); len(unread) > 0 {
+		fmt.Fprintf(stdout, "\noffered but never opened (%d)\n", len(unread))
+		for _, s := range unread {
+			fmt.Fprintf(stdout, "  %-24s offered %d times, resolved 0\n", s, report.Matched[s])
+		}
+	}
+
+	if len(report.Drifted) > 0 {
+		fmt.Fprintf(stdout, "\nserved with a stale pin (%d)\n", len(report.Drifted))
+		nodes := make([]string, 0, len(report.Drifted))
+		for n := range report.Drifted {
+			nodes = append(nodes, n)
+		}
+		sort.Strings(nodes)
+		for _, n := range nodes {
+			fmt.Fprintf(stdout, "  %s (%d)\n", n, report.Drifted[n])
+		}
+		fmt.Fprintln(stdout, "  re-read each, confirm the summary still holds, then `graphin wiki repin`")
 	}
 	return 0
 }

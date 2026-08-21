@@ -62,6 +62,35 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 
 	reg.Register(&mcp.Tool{
+		Name: "wiki_propose",
+		Description: "Submit a glossary candidate for review. Never writes to the glossary itself — " +
+			"it files a proposal and returns the mechanical verdict. A word the code index already " +
+			"resolves is rejected outright: that is structure, and search answers it. Cite evidence " +
+			"as node ids from at least two different files, or the candidate is one author's coinage.",
+		InputSchema: objSchema(map[string]any{
+			"canonical":  map[string]any{"type": "string", "description": "The one word the project should use."},
+			"definition": map[string]any{"type": "string", "description": "One paragraph. What it means and why the project needs the word."},
+			"aliases": map[string]any{
+				"type": "array", "items": map[string]any{"type": "string"},
+				"description": "Variants interchangeable with it in EVERY context here. Partial overlap is a separate term, not an alias.",
+			},
+			"evidence": map[string]any{
+				"type": "array", "items": map[string]any{"type": "string"},
+				"description": "Node ids where the term is actually used, from at least two different files.",
+			},
+			"not_to_be_confused_with": map[string]any{
+				"type": "array", "items": map[string]any{"type": "string"},
+				"description": "Near-misses, written as \"other term — why they differ\".",
+			},
+			"scope": map[string]any{
+				"type": "array", "items": map[string]any{"type": "string"},
+				"description": "Roles this applies to, or \"all\".",
+			},
+		}, []string{"canonical", "definition", "evidence"}),
+		Handler: wikiProposeHandler(ws),
+	})
+
+	reg.Register(&mcp.Tool{
 		Name: "wiki_resolve",
 		Description: "Load the sections a knowledge set names, by set name or by node id. " +
 			"Each section carries a drift verdict: absent means it is byte-for-byte what it was when " +
@@ -107,6 +136,21 @@ type wsRedirector struct{ ws *workspace.Workspace }
 
 func (r wsRedirector) ResolveID(id string) string { return r.ws.ResolveNodeID(id) }
 
+// wsDefiner answers the admission test's first rule from the symbol table.
+//
+// This is the boundary between graphin and the wiki, expressed as a function
+// rather than a rule in a document: if the index already resolves the word,
+// it is structure and the wiki has nothing to add that will not drift.
+type wsDefiner struct{ ws *workspace.Workspace }
+
+func (d wsDefiner) Defines(word string) (string, string, bool) {
+	ids := d.ws.Sym.Lookup(word)
+	if len(ids) == 0 {
+		return "", "", false
+	}
+	return ids[0], d.ws.NodeKind(ids[0]), true
+}
+
 func wikiPreflightHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
 		Task string `json:"task"`
@@ -125,10 +169,23 @@ func wikiPreflightHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		sel := store.Select(a.Role, a.Task)
 		man := store.Manifest(sel, secret)
 
+		// Record what was asked and whether anything answered. A miss is the
+		// only trigger that grows the wiki — there is no retroactive sweep —
+		// so it has to be written down where it happens.
+		ev := wiki.FrictionEvent{Kind: wiki.FrictionHit, Task: a.Task, Role: a.Role}
+		if sel.Empty() {
+			ev.Kind = wiki.FrictionMiss
+		}
+		for _, s := range sel.Sets {
+			ev.Sets = append(ev.Sets, s.Name)
+		}
+		wiki.AppendFriction(ws.Root, ev)
+
 		var sb strings.Builder
 		writeStatusPrefix(&sb, ws)
-		fmt.Fprintf(&sb, "<knowledge_manifest sets=\"%d\" token=\"%s\">\n", len(man.Sets), mcp.EscapeAttr(man.Token))
-		if len(man.Sets) == 0 {
+		fmt.Fprintf(&sb, "<knowledge_manifest sets=\"%d\" terms=\"%d\" token=\"%s\">\n",
+			len(man.Sets), len(man.Terms), mcp.EscapeAttr(man.Token))
+		if len(man.Sets) == 0 && len(man.Terms) == 0 {
 			// Say what to do, not just what was found. A bare empty element
 			// reads as a failure and invites a retry that cannot succeed.
 			sb.WriteString("  <none>No recorded knowledge applies to this work. " +
@@ -145,6 +202,19 @@ func wikiPreflightHandler(ws *workspace.Workspace) mcp.ToolHandler {
 					mcp.EscapeAttr(g.Title), mcp.EscapeAttr(g.NodeID), g.Entries)
 			}
 			sb.WriteString("  </set>\n")
+		}
+		for _, t := range man.Terms {
+			fmt.Fprintf(&sb, "  <term canonical=\"%s\"", mcp.EscapeAttr(t.Canonical))
+			if len(t.Aliases) > 0 {
+				fmt.Fprintf(&sb, " aliases=\"%s\"", mcp.EscapeAttr(strings.Join(t.Aliases, ", ")))
+			}
+			sb.WriteString(">\n")
+			fmt.Fprintf(&sb, "    <definition>%s</definition>\n", mcp.EscapeText(t.Definition))
+			for _, c := range t.Confusions {
+				fmt.Fprintf(&sb, "    <not_to_be_confused_with term=\"%s\">%s</not_to_be_confused_with>\n",
+					mcp.EscapeAttr(c.Term), mcp.EscapeText(c.Why))
+			}
+			sb.WriteString("  </term>\n")
 		}
 		for _, m := range man.Missing {
 			// A prerequisite naming a set that does not exist is an
@@ -186,9 +256,22 @@ func wikiResolveHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			for _, s := range res.Sets {
 				entries = append(entries, s.Entries...)
 			}
+			names := make([]string, 0, len(res.Sets))
+			for _, s := range res.Sets {
+				names = append(names, s.Name)
+			}
+			wiki.AppendFriction(ws.Root, wiki.FrictionEvent{Kind: wiki.FrictionResolve, Sets: names})
 		}
 		if len(a.NodeIDs) > 0 {
 			entries = append(entries, store.ResolveNodes(r, a.NodeIDs)...)
+		}
+		for _, e := range entries {
+			// Noticed here, fixed elsewhere. Writing it down at the point of
+			// service is what keeps the re-verification queue from depending
+			// on someone remembering.
+			if e.Drift == wiki.DriftChanged || e.Drift == wiki.DriftGone {
+				wiki.AppendFriction(ws.Root, wiki.FrictionEvent{Kind: wiki.FrictionDrift, Node: e.NodeID})
+			}
 		}
 
 		return renderResolved(ws, entries, missing), false
@@ -296,5 +379,69 @@ func omitReasonFor(e wiki.ResolvedEntry) string {
 		return omitReason(e.Block.Err)
 	default:
 		return "empty"
+	}
+}
+
+func wikiProposeHandler(ws *workspace.Workspace) mcp.ToolHandler {
+	type args struct {
+		Canonical  string   `json:"canonical"`
+		Definition string   `json:"definition"`
+		Aliases    []string `json:"aliases"`
+		Evidence   []string `json:"evidence"`
+		Confusions []string `json:"not_to_be_confused_with"`
+		Scope      []string `json:"scope"`
+	}
+	return func(_ context.Context, raw json.RawMessage) (string, bool) {
+		var a args
+		_ = json.Unmarshal(raw, &a)
+		st := ws.FSM.Status()
+		if strings.TrimSpace(a.Canonical) == "" || strings.TrimSpace(a.Definition) == "" {
+			return mcp.ErrorXML(mcp.ErrInternal, "canonical and definition are required", &st), true
+		}
+
+		store, _, err := loadWiki(ws)
+		if err != nil {
+			return mcp.ErrorXML(mcp.ErrInternal, "read wiki: "+err.Error(), &st), true
+		}
+
+		t := &wiki.Term{
+			Canonical: strings.TrimSpace(a.Canonical),
+			Aliases:   a.Aliases,
+			Scope:     a.Scope,
+			Evidence:  a.Evidence,
+			Body:      strings.TrimSpace(a.Definition),
+			Status:    wiki.StatusProposed,
+		}
+		for _, c := range a.Confusions {
+			t.Confusions = append(t.Confusions, wiki.SplitConfusion(c))
+		}
+
+		verdict := store.Judge(t, wsDefiner{ws})
+		if verdict.Blocked() {
+			// Blocked candidates are not filed. The queue is a review list,
+			// and padding it with things a rule already rejected is how a
+			// review list stops being read.
+			var sb strings.Builder
+			writeStatusPrefix(&sb, ws)
+			sb.WriteString("<proposal accepted=\"false\">\n")
+			for _, f := range verdict.Findings {
+				fmt.Fprintf(&sb, "  <rejected rule=\"%s\">%s</rejected>\n",
+					mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
+			}
+			sb.WriteString("</proposal>")
+			return sb.String(), false
+		}
+
+		p, err := store.Propose(t)
+		if err != nil {
+			return mcp.ErrorXML(mcp.ErrInternal, "file proposal: "+err.Error(), &st), true
+		}
+		var sb strings.Builder
+		writeStatusPrefix(&sb, ws)
+		fmt.Fprintf(&sb, "<proposal accepted=\"true\" status=\"%s\" seen=\"%d\" file=\"%s\">\n",
+			verdict.Status, p.Seen, mcp.EscapeAttr(p.File))
+		sb.WriteString("  <note>Queued for review. It is not in the glossary until a person moves it there.</note>\n")
+		sb.WriteString("</proposal>")
+		return sb.String(), false
 	}
 }

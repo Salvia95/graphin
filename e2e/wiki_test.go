@@ -223,3 +223,81 @@ Handlers never touch storage directly.
 		t.Fatalf("both sections should still be served:\n%s", body)
 	}
 }
+
+func TestWikiProposeRejectsAnIdentifier(t *testing.T) {
+	root := wikiWorkspace(t)
+	// A Go file so the symbol table has something the wiki must refuse.
+	write(t, filepath.Join(root, "order.go"), `package main
+
+// OrderService cancels payments.
+type OrderService struct{}
+
+func (s *OrderService) Cancel() {}
+`)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("wiki_propose", map[string]any{
+		"canonical":  "OrderService",
+		"definition": "The thing that cancels payments.",
+		"evidence":   []string{"docs/handbook.md#versioning-rules", "docs/handbook.md#layering-rules"},
+	})
+	if isErr {
+		t.Fatalf("propose errored: %s", text)
+	}
+	// The boundary as a function: the index resolves this, so search answers
+	// it and a glossary entry would only drift from the code.
+	if !strings.Contains(text, `accepted="false"`) || !strings.Contains(text, `rule="identifier"`) {
+		t.Fatalf("an indexed identifier was not rejected:\n%s", text)
+	}
+}
+
+func TestWikiProposeQueuesARealTerm(t *testing.T) {
+	root := wikiWorkspace(t)
+	write(t, filepath.Join(root, "docs", "other.md"), "# Other\n\n## Posting rules\n\nPostings are units.\n")
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("wiki_propose", map[string]any{
+		"canonical":  "posting",
+		"definition": "A unit of published writing.",
+		"aliases":    []string{"post"},
+		"evidence": []string{
+			"docs/handbook.md#layering-rules",
+			"docs/other.md#posting-rules",
+		},
+	})
+	if isErr {
+		t.Fatalf("propose errored: %s", text)
+	}
+	if !strings.Contains(text, `accepted="true"`) {
+		t.Fatalf("candidate not queued:\n%s", text)
+	}
+	// Filed for review, never published: an agent that can write to the
+	// glossary writes the artifact it just built.
+	if !strings.Contains(text, "not in the glossary until a person moves it") {
+		t.Fatalf("response does not say it is only queued:\n%s", text)
+	}
+	if _, err := os.Stat(wiki.ProposalPath(root, "posting")); err != nil {
+		t.Fatalf("proposal file not written: %v", err)
+	}
+}
+
+func TestWikiPreflightRecordsACoverageMiss(t *testing.T) {
+	root := wikiWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	if _, isErr := c.tool("wiki_preflight", map[string]any{"task": "rotate the tls certificates"}); isErr {
+		t.Fatal("preflight errored")
+	}
+	// Misses are the only thing that grows the wiki — there is no
+	// retroactive sweep — so they have to be written down where they happen.
+	report := wiki.Summarize(wiki.ReadFriction(root))
+	if len(report.Misses) != 1 {
+		t.Fatalf("misses = %+v", report.Misses)
+	}
+	if !strings.Contains(report.Misses[0].Task, "tls") {
+		t.Fatalf("the task was not recorded: %+v", report.Misses[0])
+	}
+}

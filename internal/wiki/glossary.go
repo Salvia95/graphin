@@ -71,3 +71,9 @@ func (t *Term) Matches(word string) bool {
 	}
 	return false
 }
+
+// SplitConfusion parses one "other term — why they differ" line.
+func SplitConfusion(s string) Confusion {
+	term, why := splitPair(s)
+	return Confusion{Term: term, Why: why}
+}

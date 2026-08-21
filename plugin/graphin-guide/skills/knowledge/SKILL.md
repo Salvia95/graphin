@@ -100,6 +100,46 @@ Read the attributes on each `<section>`; they are not decoration:
 Do not re-read a document you already loaded a section of, and do not read the
 whole file "for context" — the set exists to make that unnecessary.
 
+## Glossary terms arrive with the catalogue
+
+`wiki_preflight` also returns `<term>` elements when the task's own wording
+touched a project word. Definitions come **inline**, unlike sets: a definition
+is one paragraph, and the failure a glossary prevents is using the wrong word
+without noticing — precisely the state in which nobody goes looking for it.
+
+Read `<not_to_be_confused_with>` when it is there. It exists because two words
+in this project are close enough that someone already got them wrong.
+
+## Growing it
+
+The wiki is grown from work that wanted knowledge and did not get it. There is
+no retroactive sweep, and writing entries nobody asked for is how a glossary
+becomes a dictionary.
+
+`graphin wiki queue` shows four things at once, because they are one decision:
+
+- **awaiting review** — candidates already filed.
+- **work the wiki had no answer for** — every `wiki_preflight` that matched
+  nothing, newest first. This is the list to write from.
+- **offered but never opened** — sets that keep appearing in catalogues and are
+  never resolved. Demote or delete; they cost every delegation and return
+  nothing.
+- **served with a stale pin** — entries to re-read and `repin`.
+
+To add a term, call `wiki_propose`. It **files a candidate and never publishes**
+— approving is a person moving the file into `docs/wiki/glossary/`, which makes
+the review an ordinary diff. Three rules reject before a human ever looks:
+
+- **identifier** — the code index already resolves the word. That is structure;
+  `search_hybrid` answers it, and a glossary entry would only drift from it.
+- **evidence** — cited in fewer than two different files. One place is one
+  author's usage, not a vocabulary the project speaks. Cite node ids.
+- **cap** — the glossary is full (30). Displacing an entry is a judgement about
+  which knowledge matters more, so it is left to a person.
+
+The test for a set, not a term: **would this knowledge have made the session
+shorter?** If the answer needs a paragraph of hedging, it is not a set yet.
+
 ## The gate
 
 Where a project has a `docs/wiki`, graphin blocks two things: delegating without
