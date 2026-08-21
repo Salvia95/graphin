@@ -53,10 +53,61 @@ func (st *Store) ExportOKF(dir string) ([]string, error) {
 			return nil, err
 		}
 	}
+	// An index per directory, which is what published bundles do. The spec
+	// only requires the root one to be possible; a consumer walking a
+	// subdirectory with no index has to guess what is in it.
+	if len(st.Terms) > 0 {
+		if err := emit("glossary/index.md", st.dirIndex("Glossary", st.termLines())); err != nil {
+			return nil, err
+		}
+	}
+	if len(st.Sets) > 0 {
+		if err := emit("sets/index.md", st.dirIndex("Knowledge Sets", st.setLines())); err != nil {
+			return nil, err
+		}
+	}
 	if err := emit("index.md", st.bundleIndex()); err != nil {
 		return nil, err
 	}
 	return written, nil
+}
+
+// dirIndex renders one directory listing. Index files carry no frontmatter —
+// the bundle root is the sole exception, and only for the version.
+func (st *Store) dirIndex(heading string, lines []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# %s\n\n", heading)
+	for _, l := range lines {
+		b.WriteString(l)
+	}
+	return b.String()
+}
+
+// termLines and setLines are shared by the root index and the directory ones,
+// so a rename cannot make the two disagree about what is in the bundle.
+func (st *Store) termLines() []string {
+	names := make([]string, 0, len(st.Terms))
+	for n := range st.Terms {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		t := st.Terms[n]
+		out = append(out, fmt.Sprintf("* [%s](%s.md) - %s\n",
+			t.Title, safeName(n), firstSentence(descriptionOf(t))))
+	}
+	return out
+}
+
+func (st *Store) setLines() []string {
+	sets := st.SetList()
+	out := make([]string, 0, len(sets))
+	for _, s := range sets {
+		out = append(out, fmt.Sprintf("* [%s](%s.md) - %s\n",
+			setTitle(s), safeName(s.Name), firstSentence(s.Summary())))
+	}
+	return out
 }
 
 // termConcept renders one glossary entry as an OKF concept.
@@ -65,6 +116,10 @@ func (st *Store) termConcept(t *Term) string {
 	b.WriteString("---\n")
 	b.WriteString("type: Glossary Term\n")
 	yamlField(&b, "title", t.Title)
+	// The underlying asset is the authored file: that is the thing this
+	// concept is a rendering of, and the path is what still finds it in the
+	// repository the bundle was produced from.
+	yamlField(&b, "resource", t.RelPath)
 	yamlField(&b, "description", firstSentence(descriptionOf(t)))
 	yamlList(&b, "tags", t.Tags)
 	yamlField(&b, "status", string(t.Status))
@@ -124,6 +179,7 @@ func (st *Store) setConcept(s *Set, usage FrictionReport) string {
 	b.WriteString("---\n")
 	b.WriteString("type: Knowledge Set\n")
 	yamlField(&b, "title", setTitle(s))
+	yamlField(&b, "resource", s.RelPath)
 	yamlField(&b, "description", firstSentence(s.Summary()))
 	yamlList(&b, "tags", s.Tags)
 	// Sets have no status field of their own; the OKF default is stable and
@@ -186,25 +242,12 @@ func (st *Store) bundleIndex() string {
 		"source repository rather than in this bundle: each `sources[].resource` is a\n" +
 		"graphin node id of the form `path/to/file.md#heading-slug`.\n")
 
+	b.WriteString("\n# Subdirectories\n\n")
 	if len(st.Terms) > 0 {
-		b.WriteString("\n## Glossary\n\n")
-		names := make([]string, 0, len(st.Terms))
-		for n := range st.Terms {
-			names = append(names, n)
-		}
-		sort.Strings(names)
-		for _, n := range names {
-			t := st.Terms[n]
-			fmt.Fprintf(&b, "* [%s](glossary/%s.md) - %s\n",
-				t.Title, safeName(n), firstSentence(descriptionOf(t)))
-		}
+		b.WriteString("* [glossary](glossary/index.md) - Words this project uses precisely.\n")
 	}
-	if sets := st.SetList(); len(sets) > 0 {
-		b.WriteString("\n## Knowledge Sets\n\n")
-		for _, s := range sets {
-			fmt.Fprintf(&b, "* [%s](sets/%s.md) - %s\n",
-				setTitle(s), safeName(s.Name), firstSentence(s.Summary()))
-		}
+	if len(st.Sets) > 0 {
+		b.WriteString("* [sets](sets/index.md) - Curated reading lists over the repository's own documents.\n")
 	}
 	return b.String()
 }

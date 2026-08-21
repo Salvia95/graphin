@@ -59,16 +59,18 @@ func TestExportEmitsConformantConcepts(t *testing.T) {
 		}
 	}
 	// Conformance turns on exactly one field being present on every
-	// non-reserved document.
+	// NON-RESERVED document. index.md is reserved at any level, not just at
+	// the root, and reserved files carry no frontmatter at all.
 	for rel, body := range files {
-		if rel == "index.md" {
+		if strings.HasSuffix(rel, "index.md") {
 			continue
 		}
 		if !strings.HasPrefix(body, "---\ntype: ") {
 			t.Errorf("%s does not lead with a type:\n%s", rel, body[:60])
 		}
 	}
-	// The version is declared in the bundle-root index and nowhere else.
+	// The bundle root is the sole index that may carry frontmatter, and the
+	// version is the only thing it may carry.
 	if !strings.Contains(files["index.md"], `okf_version: "0.2"`) {
 		t.Errorf("root index carries no version:\n%s", files["index.md"])
 	}
@@ -76,6 +78,33 @@ func TestExportEmitsConformantConcepts(t *testing.T) {
 		if rel != "index.md" && strings.Contains(body, "okf_version") {
 			t.Errorf("%s declares a version it may not", rel)
 		}
+	}
+	for rel, body := range files {
+		if strings.HasSuffix(rel, "/index.md") && strings.HasPrefix(body, "---") {
+			t.Errorf("%s is a reserved index and must carry no frontmatter:\n%s", rel, body[:40])
+		}
+	}
+	// The underlying asset is named, the way published bundles name theirs.
+	if !strings.Contains(files["sets/release.md"], `resource: docs/wiki/sets/release.md`) {
+		t.Errorf("set concept names no resource:\n%s", files["sets/release.md"])
+	}
+}
+
+func TestExportWritesAnIndexPerDirectory(t *testing.T) {
+	_, files := exported(t, exportStore(t))
+	// A consumer walking a subdirectory with no index has to guess what is
+	// in it, which is why published bundles carry one per level.
+	for _, rel := range []string{"glossary/index.md", "sets/index.md"} {
+		if _, ok := files[rel]; !ok {
+			t.Fatalf("missing %s", rel)
+		}
+	}
+	// Links inside a directory index are relative to that directory.
+	if !strings.Contains(files["sets/index.md"], "(release.md)") {
+		t.Errorf("sets index does not link its own members:\n%s", files["sets/index.md"])
+	}
+	if !strings.Contains(files["index.md"], "(sets/index.md)") {
+		t.Errorf("root index does not point at the subdirectory:\n%s", files["index.md"])
 	}
 }
 
