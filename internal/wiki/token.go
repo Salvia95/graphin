@@ -89,10 +89,14 @@ func (st *Store) Fingerprint() string {
 		h.Write([]byte{1})
 	}
 	for _, s := range st.SetList() {
-		field(s.Name, s.Title, string(s.Mode))
+		field(s.Name, s.Title, string(s.Mode), s.StaleAfter)
 		field(s.Roles...)
 		field(s.Prerequisites...)
-		field(s.Intro)
+		field(s.Tags...)
+		// Summary, not Intro: a declared description overrides the opening
+		// prose in the catalogue, so hashing Intro alone would let an edit
+		// change what a delegate sees while its token still verified.
+		field(s.Summary())
 		for _, g := range s.Groups {
 			field(g.Title)
 			for _, e := range g.Entries {

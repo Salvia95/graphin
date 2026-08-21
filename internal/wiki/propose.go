@@ -63,8 +63,11 @@ type Finding struct {
 // makes a candidate reviewable, not accepted.
 type Verdict struct {
 	Findings []Finding
-	// Status is what the entry would carry if a person approves it.
-	Status Status
+	// Contexts is how many distinct files cited the term. It is reported
+	// rather than folded into a status, because "corroborated twice" and
+	// "corroborated nine times" are both reviewable and the difference is
+	// something a reviewer should see, not something a rule should decide.
+	Contexts int
 }
 
 // Blocked reports whether any rule objected.
@@ -72,7 +75,7 @@ func (v Verdict) Blocked() bool { return len(v.Findings) > 0 }
 
 func (v Verdict) String() string {
 	if !v.Blocked() {
-		return "reviewable (" + string(v.Status) + ")"
+		return fmt.Sprintf("reviewable (%d contexts)", v.Contexts)
 	}
 	parts := make([]string, 0, len(v.Findings))
 	for _, f := range v.Findings {
@@ -94,7 +97,7 @@ type Definer interface {
 // passed — the caller is told, because "no index available" and "not an
 // identifier" are very different states to approve on.
 func (st *Store) Judge(t *Term, d Definer) Verdict {
-	v := Verdict{Status: StatusUnverified}
+	var v Verdict
 
 	if d != nil {
 		for _, word := range append([]string{t.Canonical}, t.Aliases...) {
@@ -111,13 +114,10 @@ func (st *Store) Judge(t *Term, d Definer) Verdict {
 		rel, _, _ := strings.Cut(e, "#")
 		files[rel] = true
 	}
+	v.Contexts = len(files)
 	if len(files) < minEvidenceFiles {
 		v.Findings = append(v.Findings, Finding{RuleEvidence,
 			fmt.Sprintf("cited in %d context(s), need %d", len(files), minEvidenceFiles)})
-	} else if len(files) >= minEvidenceFiles+1 {
-		// Corroborated well past the floor: no reason to make a reader treat
-		// it as provisional.
-		v.Status = StatusActive
 	}
 
 	if _, existing := st.Terms[t.Canonical]; !existing && len(st.Terms) >= GlossaryCap {
@@ -164,6 +164,13 @@ func (p *Proposal) render() string {
 	var b strings.Builder
 	b.WriteString("---\ntype: glossary\n")
 	fmt.Fprintf(&b, "canonical: %s\n", p.Canonical)
+	if p.Title != "" && p.Title != p.Canonical {
+		fmt.Fprintf(&b, "title: %s\n", p.Title)
+	}
+	if p.Description != "" {
+		fmt.Fprintf(&b, "description: %s\n", p.Description)
+	}
+	writeList(&b, "tags", p.Tags)
 	writeList(&b, "aliases", p.Aliases)
 	if p.DerivesFrom != "" {
 		fmt.Fprintf(&b, "derives_from: %s\n", p.DerivesFrom)
@@ -176,7 +183,11 @@ func (p *Proposal) render() string {
 	}
 	writeList(&b, "scope", p.Scope)
 	writeList(&b, "evidence", p.Evidence)
-	fmt.Fprintf(&b, "status: %s\n", StatusProposed)
+	if p.StaleAfter != "" {
+		fmt.Fprintf(&b, "stale_after: %s\n", p.StaleAfter)
+	}
+	// Everything in the queue is a draft, whatever the submitter said.
+	fmt.Fprintf(&b, "status: %s\n", StatusDraft)
 	fmt.Fprintf(&b, "seen: %d\n", p.Seen)
 	fmt.Fprintf(&b, "last_verified: %s\n---\n\n", time.Now().UTC().Format("2006-01-02"))
 	b.WriteString(strings.TrimSpace(p.Body))

@@ -13,6 +13,7 @@ const usageLine = `usage: graphin wiki check [--root <dir>]
        graphin wiki repin [--root <dir>] [--dry-run]
        graphin wiki queue [--root <dir>]
        graphin wiki skills [--root <dir>] [--out <dir>] [--check]
+       graphin wiki export --okf --out <dir> [--root <dir>]
        graphin wiki gate            # PreToolUse hook sink, reads JSON on stdin
        graphin wiki mark            # SubagentStart/PostToolUse hook sink`
 
@@ -41,8 +42,10 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runQueue(args[1:], stdout, stderr)
 	case "skills":
 		return runSkills(args[1:], stdout, stderr)
+	case "export":
+		return runExport(args[1:], stdout, stderr)
 	default:
-		fmt.Fprintf(stderr, "graphin wiki: unknown verb %q (check | repin | queue | skills | gate | mark)\n", args[0])
+		fmt.Fprintf(stderr, "graphin wiki: unknown verb %q (check | repin | queue | skills | export | gate | mark)\n", args[0])
 		return 2
 	}
 }
@@ -289,5 +292,50 @@ func runSkills(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "  skills: [%s]  →  %s\n", s, strings.Join(needing[s], ", "))
 		}
 	}
+	return 0
+}
+
+// runExport writes the wiki out in an interchange format.
+//
+// Export, not adopt. The authored form addresses a heading inside a document;
+// the Open Knowledge Format addresses a file. Producing a bundle beside the
+// wiki keeps that granularity and costs nothing until someone wants to read
+// one, which is the same trade the portability decision made originally.
+func runExport(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("wiki export", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	root := fs.String("root", ".", "workspace root containing "+DirName)
+	out := fs.String("out", "", "directory to write the bundle into (required)")
+	okf := fs.Bool("okf", false, "write an Open Knowledge Format bundle")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if !*okf {
+		fmt.Fprintln(stderr, "graphin wiki export: --okf is the only format; pass it explicitly")
+		return 2
+	}
+	if *out == "" {
+		fmt.Fprintln(stderr, "graphin wiki export: --out is required")
+		return 2
+	}
+
+	store, err := Load(*root)
+	if err != nil {
+		fmt.Fprintf(stderr, "graphin wiki export: %v\n", err)
+		return 1
+	}
+	if !store.Present {
+		fmt.Fprintf(stderr, "graphin wiki export: no wiki under %s\n", DirName)
+		return 1
+	}
+	written, err := store.ExportOKF(*out)
+	if err != nil {
+		fmt.Fprintf(stderr, "graphin wiki export: %v\n", err)
+		return 1
+	}
+	for _, w := range written {
+		fmt.Fprintf(stdout, "  %s\n", w)
+	}
+	fmt.Fprintf(stdout, "wrote %d files to %s (OKF v%s)\n", len(written), *out, OKFVersion)
 	return 0
 }

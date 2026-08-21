@@ -69,7 +69,7 @@ func (st *Store) termsForRole(role string) []*Term {
 	var out []*Term
 	for _, n := range names {
 		t := st.Terms[n]
-		if t.Status == StatusProposed {
+		if t.Status == StatusDraft {
 			continue
 		}
 		for _, s := range t.Scope {
@@ -137,7 +137,7 @@ func (st *Store) GenerateSkill(role string) GeneratedSkill {
 		b.WriteString("## Background this role is expected to have\n\n")
 		b.WriteString("Load what the work needs; do not load all of it.\n\n")
 		for _, s := range sets {
-			fmt.Fprintf(&b, "- `%s` (%d entries) — %s\n", s.Name, len(s.Entries()), firstSentence(s.Intro))
+			fmt.Fprintf(&b, "- `%s` (%d entries) — %s\n", s.Name, len(s.Entries()), firstSentence(s.Summary()))
 		}
 		b.WriteString("\nFetch with `wiki_resolve(sets=[…])`. The catalogue lives at " +
 			"`docs/wiki/sets/`, and each set is a section node you can read directly.\n\n")

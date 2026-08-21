@@ -175,7 +175,7 @@ func TestPrismaExtract(t *testing.T) {
 	if users.Kind != nodeid.KindTable || !slices.Contains(users.Params, "created_at DateTime") {
 		t.Fatalf("users = %+v", users)
 	}
-	posts := dbFind(t, res, "db.app.blog.posts") // @@schema + @@map
+	posts := dbFind(t, res, "db.app.blog.posts")                      // @@schema + @@map
 	if !slices.Equal(posts.Supers, []string{"db.app.public.users"}) { // @relation
 		t.Fatalf("relation FK = %v", posts.Supers)
 	}

@@ -51,7 +51,7 @@ func TestProposedTermsAreNotServed(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, filepath.Join(root, "docs", "target.md"), targetDoc)
 	mustWrite(t, filepath.Join(root, DirName, glossarySubdir, "draft.md"),
-		"---\ncanonical: draft\nstatus: proposed\n---\nNot approved yet.\n")
+		"---\ncanonical: draft\nstatus: draft\n---\nNot approved yet.\n")
 	store, _ := Load(root)
 
 	// The queue is not the glossary. Serving from it would make the human

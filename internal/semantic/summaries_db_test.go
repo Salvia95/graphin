@@ -37,8 +37,8 @@ func TestSummarizeDBTable(t *testing.T) {
 	s := dbSummaryOf(t, res, "db.main.public.job_posting")
 	for _, want := range []string{
 		"table main.public.job_posting in db.main",
-		"job posting",                        // 식별자 분해
-		"; columns ", "company_id bigint",    // 접힌 컬럼
+		"job posting",                     // 식별자 분해
+		"; columns ", "company_id bigint", // 접힌 컬럼
 		"; references db.main.public.company", // FK
 		"; content ",                          // 스냅샷 블록 토큰(주석 포함)
 	} {

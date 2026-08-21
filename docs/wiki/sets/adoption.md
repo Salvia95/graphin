@@ -1,5 +1,7 @@
 ---
 type: knowledge_set
+description: graphin이 실제로 쓰이는지 재는 일에 필요한 지식 — 지표 정의, 실측, 재측정 설계.
+tags: [metrics, adoption, instrumentation]
 roles: []
 prerequisites: []
 mode: live

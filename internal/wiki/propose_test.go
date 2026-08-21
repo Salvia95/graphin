@@ -66,20 +66,22 @@ func TestJudgeRequiresCrossContextEvidence(t *testing.T) {
 	}
 }
 
-func TestJudgeGradesStatusByCorroboration(t *testing.T) {
+func TestJudgeReportsCorroboration(t *testing.T) {
 	st := proposeStore(t)
 
 	v := st.Judge(candidate("docs/a.md#x", "docs/b.md#y"), nil)
 	if v.Blocked() {
 		t.Fatalf("two contexts should pass: %v", v)
 	}
-	if v.Status != StatusUnverified {
-		t.Errorf("status = %q, want unverified at the floor", v.Status)
+	if v.Contexts != 2 {
+		t.Errorf("Contexts = %d, want 2", v.Contexts)
 	}
 
+	// How well corroborated it is gets reported, not folded into a status:
+	// both are reviewable, and the difference is for the reviewer to weigh.
 	v = st.Judge(candidate("docs/a.md#x", "docs/b.md#y", "docs/c.md#z"), nil)
-	if v.Status != StatusActive {
-		t.Errorf("status = %q, want active when corroborated past the floor", v.Status)
+	if v.Blocked() || v.Contexts != 3 {
+		t.Errorf("verdict = %v", v)
 	}
 }
 
@@ -129,7 +131,7 @@ func TestProposeWritesSomethingThatParsesBack(t *testing.T) {
 	}
 	// Approving is a file move, so what is written has to be the authored
 	// format — not a serialization that a human then has to translate.
-	if back.Canonical != "posting" || back.Status != StatusProposed {
+	if back.Canonical != "posting" || back.Status != StatusDraft {
 		t.Fatalf("round trip = %+v", back)
 	}
 	if len(back.Confusions) != 1 || back.Confusions[0].Why == "" {

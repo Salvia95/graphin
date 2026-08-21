@@ -53,8 +53,10 @@ func TestLoadSetsAndTerms(t *testing.T) {
 	if term.Confusions[0].Why == "" {
 		t.Error("the reason is the whole value of a confusion note")
 	}
-	if term.Status != StatusActive {
-		t.Errorf("Status = %q, want active by default", term.Status)
+	// A file that exists and says nothing about its own status is being
+	// used, not drafted.
+	if term.Status != StatusStable {
+		t.Errorf("Status = %q, want stable by default", term.Status)
 	}
 }
 

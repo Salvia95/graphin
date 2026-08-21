@@ -33,12 +33,12 @@ func TestWalkFilters(t *testing.T) {
 	write(t, root, "src/A.java", "class A {}")
 	write(t, root, "src/b.py", "x = 1")
 	write(t, root, "src/readme.md", "docs are plain-indexable") // §보완 A
-	write(t, root, "src/logo.png", "binary-ish")               // still excluded
-	write(t, root, "package-lock.json", "{}")                  // lock-file noise
-	write(t, root, "build/Gen.java", "class Gen {}")           // default exclude
-	write(t, root, "node_modules/x/y.py", "x")                 // default exclude
-	write(t, root, ".graphin/tmp.py", "x")                     // hard exclude
-	write(t, root, "ignored/C.java", "class C {}")             // via .gitignore
+	write(t, root, "src/logo.png", "binary-ish")                // still excluded
+	write(t, root, "package-lock.json", "{}")                   // lock-file noise
+	write(t, root, "build/Gen.java", "class Gen {}")            // default exclude
+	write(t, root, "node_modules/x/y.py", "x")                  // default exclude
+	write(t, root, ".graphin/tmp.py", "x")                      // hard exclude
+	write(t, root, "ignored/C.java", "class C {}")              // via .gitignore
 	write(t, root, ".gitignore", "ignored/\n")
 	write(t, root, "big/Big.java", "class B { "+strings.Repeat("int x;", 300000)+" }") // >1MB
 

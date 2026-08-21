@@ -96,7 +96,7 @@ func (st *Store) termsIn(task string) []*Term {
 	var out []*Term
 	for _, n := range names {
 		t := st.Terms[n]
-		if t.Status == StatusProposed {
+		if t.Status == StatusDraft {
 			continue
 		}
 		keys := keySet(strings.Join(append([]string{t.Canonical}, t.Aliases...), " "))
@@ -135,7 +135,7 @@ func setText(s *Set) string {
 	b.WriteString(" ")
 	b.WriteString(s.Title)
 	b.WriteString(" ")
-	b.WriteString(s.Intro)
+	b.WriteString(s.Summary())
 	for _, g := range s.Groups {
 		b.WriteString(" ")
 		b.WriteString(g.Title)
@@ -207,7 +207,7 @@ func (st *Store) Manifest(sel Selection, secret []byte) Manifest {
 		ms := ManifestSet{
 			Name:    s.Name,
 			NodeID:  s.RelPath,
-			Summary: firstSentence(s.Intro),
+			Summary: firstSentence(s.Summary()),
 			Entries: len(s.Entries()),
 		}
 		for _, g := range s.Groups {

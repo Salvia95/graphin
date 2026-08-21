@@ -155,6 +155,31 @@ Generated files are owned by the generator: edit `docs/wiki/` and regenerate.
 Which agents should declare which block is **reported, not applied** — agent
 definitions are yours.
 
+## Lifecycle and trust are separate fields
+
+Frontmatter follows the Open Knowledge Format where the field is flat, so these
+files read as an OKF bundle without translation:
+
+- `status: draft | stable | deprecated` — **only** where it is in its life.
+  Drafts are not served. Deprecated entries **are**: a reader who arrives with
+  the old word needs to be told it is the old word.
+- `stale_after: YYYY-MM-DD` — re-read after this date **whether or not anything
+  changed**. This is a different question from drift, and both are needed: a
+  decision record can be byte-for-byte what it was and describe a world that is
+  gone. No hash will ever say so.
+- `reviewed:` — a flat list of `actor — date`. Trust is **derived** from it, not
+  declared: `human:<id>` gives human-reviewed, anything else machine-confirmed,
+  nothing gives unverified. Nobody can assert their own tier.
+- `title`, `description`, `tags` — the ordinary labels. `description` beats the
+  opening paragraph in catalogues.
+
+`graphin wiki export --okf --out DIR` writes the wiki as an OKF bundle. It
+**exports rather than converts**: OKF identity is a file path, and this system
+addresses a heading inside a document, which is what lets a set point at one
+paragraph of a 50KB file. Pins ride along as extension keys, because OKF has no
+content hash and a bundle without them cannot tell whether it still matches its
+source.
+
 ## The gate
 
 Where a project has a `docs/wiki`, graphin blocks two things: delegating without

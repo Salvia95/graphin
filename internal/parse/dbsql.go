@@ -22,7 +22,7 @@ func extractDBSQL(src []byte, route *DBRoute, res *FileResult) bool {
 	ds := route.Datasource
 	res.Package = "db." + ds
 
-	tableIdx := map[string]int{}    // table FQN → res.Nodes index (ALTER 병합)
+	tableIdx := map[string]int{}      // table FQN → res.Nodes index (ALTER 병합)
 	alterMix := map[string][][]byte{} // FQN → 병합된 ALTER 문 원문 (해시 혼합)
 
 	for _, sp := range splitSQLStatements(src) {
@@ -390,7 +390,7 @@ func dbStmtNode(fqn, ds, schema, simple, kind string, sp dbSpan, stmt []byte) No
 
 // ---- statement splitter ----
 
-// splitSQLStatements splits on top-level ';', honoring 'strings' (with ''
+// splitSQLStatements splits on top-level ';', honoring 'strings' (with ”
 // escapes), "quoted idents", `backticks`, line/block comments and Postgres
 // $tag$ dollar quotes. Statement spans start at the first significant byte
 // (leading comments excluded) and exclude the terminator.
@@ -448,7 +448,7 @@ func splitSQLStatements(src []byte) []dbSpan {
 
 func isSQLSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
-// skipSQLQuote returns the index just past the closing quote; '' doubles
+// skipSQLQuote returns the index just past the closing quote; ” doubles
 // escape inside single quotes.
 func skipSQLQuote(src []byte, i int, q byte) int {
 	n := len(src)

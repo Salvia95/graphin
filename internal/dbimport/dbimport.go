@@ -187,7 +187,7 @@ func convertTbls(src []byte, ds, out, engineOverride, stamp string) ([]string, e
 		relByTable[r.Table] = append(relByTable[r.Table], fk)
 	}
 
-	schemas := map[string]map[string]any{}   // schema → {"tables": …, "views": …}
+	schemas := map[string]map[string]any{}    // schema → {"tables": …, "views": …}
 	trgSchemas := map[string]map[string]any{} // schema → table → [trigger]
 	section := func(m map[string]map[string]any, schema, key string) map[string]any {
 		sc := m[schema]

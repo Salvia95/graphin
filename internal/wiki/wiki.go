@@ -19,6 +19,8 @@
 // file needs none of that, which is what makes pins verifiable in CI.
 package wiki
 
+import "strings"
+
 // Mode decides what a stale pin means for a set.
 type Mode string
 
@@ -33,19 +35,69 @@ const (
 	ModePinned Mode = "pinned"
 )
 
-// Status tracks an entry's progress through admission.
+// Status is where an entry sits in its life, using the Open Knowledge Format
+// vocabulary so a bundle of these needs no translation.
+//
+// It deliberately says nothing about who vouched for the content. That was
+// conflated here originally — one field carrying both "is this current" and
+// "did a person approve it" — and the two answers move independently: an
+// entry can be stable and unreviewed, or deprecated and human-reviewed.
+// Approval lives in Reviewed.
 type Status string
 
 const (
-	// StatusProposed is a candidate awaiting review. Nothing serves it.
-	StatusProposed Status = "proposed"
-	// StatusUnverified passed admission from a single session's evidence.
-	// It is served, marked, and promoted to active when it recurs — one
-	// session cannot tell a convention from a coincidence.
-	StatusUnverified Status = "unverified"
-	// StatusActive is admitted knowledge.
-	StatusActive Status = "active"
+	// StatusDraft is not ready to be served. Everything in the propose queue
+	// is a draft.
+	StatusDraft Status = "draft"
+	// StatusStable is the default: served.
+	StatusStable Status = "stable"
+	// StatusDeprecated is still served, because a reader who arrives with the
+	// old word needs to be told it is the old word — withholding it just
+	// leaves them using it.
+	StatusDeprecated Status = "deprecated"
 )
+
+// Review is one confirmation event: who vouched for this, and when.
+type Review struct {
+	// By follows the actor convention: "human:<id>" for people,
+	// "<producer>/<version>" for agents, "process:<id>" for automation. The
+	// human: prefix is load-bearing — it is what separates a person's
+	// judgement from a machine's confidence.
+	By string
+	At string
+}
+
+// Trust is how much a reader should lean on an entry, derived from Reviewed
+// rather than declared. Deriving it means nobody can assert it.
+type Trust string
+
+const (
+	TrustUnverified Trust = "unverified"
+	TrustMachine    Trust = "machine-confirmed"
+	TrustHuman      Trust = "human-reviewed"
+)
+
+// Trust derives the tier. A human review outranks any number of machine ones.
+func (t *Term) Trust() Trust {
+	tier := TrustUnverified
+	for _, r := range t.Reviewed {
+		if strings.HasPrefix(r.By, "human:") {
+			return TrustHuman
+		}
+		tier = TrustMachine
+	}
+	return tier
+}
+
+// Stale reports whether the entry has passed its own expiry date.
+//
+// This is a different question from drift, and both are needed. Drift catches
+// content that changed; this catches content that did not. A decision record
+// can be byte-for-byte what it was and still describe a world that is gone,
+// and no hash will ever say so.
+func (t *Term) Stale(today string) bool {
+	return t.StaleAfter != "" && today >= t.StaleAfter
+}
 
 // Set is one knowledge set: a curriculum, not a search result. It names the
 // sections a reader needs before starting a kind of work, and it names them
@@ -64,8 +116,29 @@ type Set struct {
 	// and not the one it assumes.
 	Prerequisites []string
 	Mode          Mode
-	Intro         string // body above the first group
-	Groups        []Group
+	// Description, Tags and StaleAfter are the same Open Knowledge Format
+	// fields the glossary carries. Description falls back to Intro: the
+	// opening paragraph already served this purpose before the field existed.
+	Description string
+	Tags        []string
+	StaleAfter  string
+	Intro       string // body above the first group
+	Groups      []Group
+}
+
+// Stale reports whether the set has passed its own expiry date. See
+// Term.Stale for why this is a separate question from drift.
+func (s *Set) Stale(today string) bool {
+	return s.StaleAfter != "" && today >= s.StaleAfter
+}
+
+// Summary is the one line that describes the set, preferring the declared
+// description over the opening prose.
+func (s *Set) Summary() string {
+	if s.Description != "" {
+		return s.Description
+	}
+	return s.Intro
 }
 
 // Group is one `##` section of a set. Groups are not decoration: the set file
@@ -116,6 +189,17 @@ func (s *Set) NodeIDs() []string {
 type Term struct {
 	Canonical string
 	RelPath   string
+	// Title and Description are the human-facing labels. Both are Open
+	// Knowledge Format fields and both are flat, so adopting them cost
+	// nothing and made these files readable by anything that speaks OKF.
+	Title       string
+	Description string
+	Tags        []string
+	// StaleAfter is an absolute date (YYYY-MM-DD) after which this should be
+	// re-read regardless of whether anything changed.
+	StaleAfter string
+	// Reviewed records confirmations. See Trust.
+	Reviewed []Review
 	// Aliases are interchangeable in every context in this project. Partial
 	// overlap is not an alias — that is a separate term with a stated
 	// relation, and merging the two hides the difference that mattered.

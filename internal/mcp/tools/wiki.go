@@ -410,7 +410,7 @@ func wikiProposeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			Scope:     a.Scope,
 			Evidence:  a.Evidence,
 			Body:      strings.TrimSpace(a.Definition),
-			Status:    wiki.StatusProposed,
+			Status:    wiki.StatusDraft,
 		}
 		for _, c := range a.Confusions {
 			t.Confusions = append(t.Confusions, wiki.SplitConfusion(c))
@@ -438,8 +438,8 @@ func wikiProposeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		var sb strings.Builder
 		writeStatusPrefix(&sb, ws)
-		fmt.Fprintf(&sb, "<proposal accepted=\"true\" status=\"%s\" seen=\"%d\" file=\"%s\">\n",
-			verdict.Status, p.Seen, mcp.EscapeAttr(p.File))
+		fmt.Fprintf(&sb, "<proposal accepted=\"true\" contexts=\"%d\" seen=\"%d\" file=\"%s\">\n",
+			verdict.Contexts, p.Seen, mcp.EscapeAttr(p.File))
 		sb.WriteString("  <note>Queued for review. It is not in the glossary until a person moves it there.</note>\n")
 		sb.WriteString("</proposal>")
 		return sb.String(), false

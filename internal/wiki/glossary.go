@@ -34,6 +34,10 @@ func ParseTerm(relPath string, src []byte) (*Term, error) {
 	t := &Term{
 		Canonical:    front.Get("canonical"),
 		RelPath:      relPath,
+		Title:        front.Get("title"),
+		Description:  front.Get("description"),
+		Tags:         front.List("tags"),
+		StaleAfter:   front.Get("stale_after"),
 		Aliases:      front.List("aliases"),
 		DerivesFrom:  front.Get("derives_from"),
 		Scope:        front.List("scope"),
@@ -45,8 +49,24 @@ func ParseTerm(relPath string, src []byte) (*Term, error) {
 	if t.Canonical == "" {
 		t.Canonical = strings.TrimSuffix(pathpkg.Base(relPath), ".md")
 	}
+	if t.Title == "" {
+		t.Title = t.Canonical
+	}
+	// Stable is the default because most entries are: a file that exists and
+	// says nothing about its own status is being used, not drafted.
 	if t.Status == "" {
-		t.Status = StatusActive
+		t.Status = StatusStable
+	}
+	// `reviewed`, not `verified`. The Open Knowledge Format spells this field
+	// as a list of {by, at} mappings, and this parser reads flat lists only —
+	// writing strings under their key would hand a conforming consumer the
+	// wrong type. An extra key of our own is explicitly tolerated by the
+	// spec, and the exporter translates it into the real shape.
+	for _, raw := range front.List("reviewed") {
+		by, at := splitPair(raw)
+		if by != "" {
+			t.Reviewed = append(t.Reviewed, Review{By: by, At: at})
+		}
 	}
 	for _, raw := range front.List("not_to_be_confused_with") {
 		term, why := splitPair(raw)

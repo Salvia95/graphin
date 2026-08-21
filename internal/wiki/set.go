@@ -35,6 +35,10 @@ func ParseSet(relPath string, src []byte) (*Set, error) {
 	set := &Set{
 		Name:          strings.TrimSuffix(pathpkg.Base(relPath), ".md"),
 		RelPath:       relPath,
+		Title:         front.Get("title"),
+		Description:   front.Get("description"),
+		Tags:          front.List("tags"),
+		StaleAfter:    front.Get("stale_after"),
 		Roles:         front.List("roles"),
 		Prerequisites: front.List("prerequisites"),
 		Mode:          Mode(front.Get("mode")),
@@ -88,6 +92,8 @@ func ParseSet(relPath string, src []byte) (*Set, error) {
 		if m := headingRe.FindStringSubmatch(line); m != nil {
 			lastLine = nil
 			if len(m[1]) == 1 {
+				// A declared title wins: the heading is prose the author may
+				// rewrite, the field is what other documents were told.
 				if set.Title == "" {
 					set.Title = strings.TrimSpace(strings.TrimRight(strings.TrimSpace(m[2]), "#"))
 				}

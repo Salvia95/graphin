@@ -23,8 +23,8 @@ type FSM struct {
 	progress atomic.Int32
 }
 
-func (f *FSM) Set(p Phase)   { f.phase.Store(int32(p)) }
-func (f *FSM) Phase() Phase  { return Phase(f.phase.Load()) }
+func (f *FSM) Set(p Phase)  { f.phase.Store(int32(p)) }
+func (f *FSM) Phase() Phase { return Phase(f.phase.Load()) }
 
 // SetProgress clamps p to 0..100.
 func (f *FSM) SetProgress(p int) {

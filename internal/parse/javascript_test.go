@@ -21,7 +21,7 @@ func TestJSModuleAndNodeIDs(t *testing.T) {
 		"src.order.service.OrderService.handle",
 		"src.order.service.OrderService.process",
 		"src.order.service.OrderService.of",
-		"src.order.service.OrderService.onDone", // 클래스 필드 화살표 함수
+		"src.order.service.OrderService.onDone",            // 클래스 필드 화살표 함수
 		"src.order.service.OrderService.process.normalize", // 중첩 함수
 		"src.order.service.placeOrder",
 		"src.order.service.default", // 익명 default export (§설계 결정 3)
