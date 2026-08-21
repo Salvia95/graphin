@@ -13,12 +13,24 @@ const OKFVersion = "0.2"
 
 // ExportOKF writes the wiki as an Open Knowledge Format bundle.
 //
-// Exporting rather than adopting is the whole design. OKF identity is a file
-// path, while this system addresses a heading inside a document — that is what
-// lets a set point at one paragraph of a 50KB file — and there is no fragment
-// in OKF to carry it. So the authored form stays as it is and this produces a
-// bundle beside it, which costs nothing until someone actually wants to
-// consume one.
+// Exporting rather than adopting is settled, not deferred. OKF identity is a
+// file path; this system addresses a heading inside a document, and measuring
+// what that is worth in this repository decided it:
+//
+//   - a cited section runs ~1.5% of the file holding it, so file-scoped
+//     reading costs ~65x the bytes for the same answer;
+//   - 31 curated entries resolve to 4 distinct files, so file-scoped identity
+//     collapses 31 decisions into 4 and turns the catalogue back into a table
+//     of contents;
+//   - over 30 days one of those files changed 16 times while the section a set
+//     cites changed once, so a file-scoped pin would raise 15 false drift
+//     alarms for every true one — which is how a drift flag stops being read.
+//
+// The last one is decisive: this system already refuses to report a renamed
+// heading as drift for exactly that reason.
+//
+// So the authored form keeps section identity and this writes a projection
+// beside it. It costs nothing until someone wants to consume one.
 //
 // Nothing here parses YAML; it only writes it. That is why this needs no
 // dependency the authoring parser deliberately does without.
@@ -141,7 +153,11 @@ func (st *Store) termConcept(t *Term) string {
 	if len(t.Evidence) > 0 {
 		b.WriteString("sources:\n")
 		for _, e := range t.Evidence {
-			fmt.Fprintf(&b, "  - resource: %s\n", yamlScalar(e))
+			file, anchor, _ := strings.Cut(e, "#")
+			fmt.Fprintf(&b, "  - resource: %s\n", yamlScalar(file))
+			if anchor != "" {
+				fmt.Fprintf(&b, "    graphin_node: %s\n", yamlScalar(e))
+			}
 		}
 	}
 
@@ -186,15 +202,27 @@ func (st *Store) setConcept(s *Set, usage FrictionReport) string {
 	// declaring it here would only be a place for the two to disagree later.
 	yamlField(&b, "stale_after", s.StaleAfter)
 
-	// The sections this set is made of. `resource` carries the node id
-	// rather than a bundle path on purpose: the sections live in the
-	// repository, not in the bundle, and the id is what still resolves there.
+	// The sections this set is made of.
+	//
+	// `resource` names the FILE, because that is the only thing an OKF
+	// consumer can resolve — its concept identity is a path, with no notion
+	// of an address inside a document. The heading this entry actually means
+	// goes in graphin_node beside it.
+	//
+	// Putting the full node id in `resource` would have been quietly wrong in
+	// the direction that matters: a consumer would read it as the whole file
+	// and never learn that the entry meant 1.5% of it. Saying less in the
+	// standard field and saying the rest in our own is the honest shape.
 	entries := s.Entries()
 	if len(entries) > 0 {
 		b.WriteString("sources:\n")
 		for _, e := range entries {
-			fmt.Fprintf(&b, "  - resource: %s\n", yamlScalar(e.NodeID))
+			file, anchor, _ := strings.Cut(e.NodeID, "#")
+			fmt.Fprintf(&b, "  - resource: %s\n", yamlScalar(file))
 			fmt.Fprintf(&b, "    title: %s\n", yamlScalar(e.Title))
+			if anchor != "" {
+				fmt.Fprintf(&b, "    graphin_node: %s\n", yamlScalar(e.NodeID))
+			}
 			if pin, ok := st.Pins.Get(s.Name, e.NodeID); ok {
 				// Integrity travels with the bundle. OKF has no content
 				// hash — its freshness signal is a declared date — so
@@ -238,9 +266,15 @@ func (st *Store) bundleIndex() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "---\nokf_version: %q\n---\n\n", OKFVersion)
 	b.WriteString("# Knowledge\n\n")
-	b.WriteString("Exported from a graphin wiki. Sections named under Knowledge Sets live in the\n" +
-		"source repository rather than in this bundle: each `sources[].resource` is a\n" +
-		"graphin node id of the form `path/to/file.md#heading-slug`.\n")
+	b.WriteString("Exported from a graphin wiki.\n\n" +
+		"**This bundle is a projection, not the source.** The knowledge here is scoped to\n" +
+		"individual headings inside the documents it cites — a set entry typically means\n" +
+		"one or two percent of the file it points at. The Open Knowledge Format addresses\n" +
+		"whole files, so each `sources[].resource` names the file and `graphin_node`\n" +
+		"beside it carries the address that was actually meant, in the form\n" +
+		"`path/to/file.md#heading-slug`. Ignore `graphin_node` and you get the right\n" +
+		"documents; use it and you get the right paragraphs.\n\n" +
+		"The cited documents live in the source repository, not in this bundle.\n")
 
 	b.WriteString("\n# Subdirectories\n\n")
 	if len(st.Terms) > 0 {

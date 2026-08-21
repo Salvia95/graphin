@@ -157,8 +157,12 @@ definitions are yours.
 
 ## Lifecycle and trust are separate fields
 
-Frontmatter follows the Open Knowledge Format where the field is flat, so these
-files read as an OKF bundle without translation:
+Frontmatter borrows field names from the Open Knowledge Format wherever the
+field is flat and we wanted it anyway. What is **not** borrowed is OKF's notion
+of identity: a concept there is a whole file, while a set here points at one
+heading, and that is the thing this system is for. Fields are cheap to share;
+identity is not.
+
 
 - `status: draft | stable | deprecated` — **only** where it is in its life.
   Drafts are not served. Deprecated entries **are**: a reader who arrives with
@@ -173,12 +177,13 @@ files read as an OKF bundle without translation:
 - `title`, `description`, `tags` — the ordinary labels. `description` beats the
   opening paragraph in catalogues.
 
-`graphin wiki export --okf --out DIR` writes the wiki as an OKF bundle. It
-**exports rather than converts**: OKF identity is a file path, and this system
-addresses a heading inside a document, which is what lets a set point at one
-paragraph of a 50KB file. Pins ride along as extension keys, because OKF has no
-content hash and a bundle without them cannot tell whether it still matches its
-source.
+`graphin wiki export --okf --out DIR` writes a **projection** of the wiki as an
+OKF bundle — the source stays here. Each `sources[].resource` names the file,
+because that is all an OKF consumer can resolve, and `graphin_node` beside it
+carries the heading actually meant. Ignore it and you get the right documents;
+use it and you get the right paragraphs. Pins ride along as extension keys,
+because OKF has no content hash and a bundle without them cannot tell whether it
+still matches its source.
 
 ## The gate
 

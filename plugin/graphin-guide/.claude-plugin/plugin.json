@@ -1,7 +1,7 @@
 {
   "name": "graphin-guide",
   "description": "Usage guidance for the graphin MCP server: skills for progressive-disclosure navigation (search → explore → read) and for building/using knowledge sets over documentation sections, plus a read-only explorer subagent that returns cited summaries instead of raw search output. Install alongside the graphin plugin.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": {
     "name": "Salvia95",
     "url": "https://github.com/Salvia95"

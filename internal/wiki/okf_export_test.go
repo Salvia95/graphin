@@ -135,10 +135,28 @@ func TestExportCarriesPinsAsExtensions(t *testing.T) {
 	if !strings.Contains(body, "graphin_rename_key: \"b3:") {
 		t.Fatalf("rename key not carried:\n%s", body)
 	}
-	// The sections live in the repository, not the bundle, so the id is what
-	// still resolves there.
-	if !strings.Contains(body, "resource: \"docs/target.md#section-one\"") {
-		t.Fatalf("node id not used as the resource:\n%s", body)
+	// `resource` names only what an OKF consumer can resolve — a file. The
+	// address actually meant sits beside it, because putting a fragment in
+	// the standard field would read as the whole file and quietly lose the
+	// fact that the entry meant a fraction of it.
+	if !strings.Contains(body, "resource: docs/target.md\n") {
+		t.Fatalf("resource should name the file:\n%s", body)
+	}
+	if !strings.Contains(body, `graphin_node: "docs/target.md#section-one"`) {
+		t.Fatalf("the real address is not carried:\n%s", body)
+	}
+}
+
+func TestExportSaysItIsAProjection(t *testing.T) {
+	_, files := exported(t, exportStore(t))
+	index := files["index.md"]
+	// A consumer that reads only the standard fields gets the right
+	// documents and the wrong granularity. The bundle has to say so, or the
+	// omission reads as a claim.
+	for _, want := range []string{"projection", "graphin_node"} {
+		if !strings.Contains(index, want) {
+			t.Errorf("root index does not mention %q:\n%s", want, index)
+		}
 	}
 }
 
