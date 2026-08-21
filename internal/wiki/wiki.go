@@ -63,8 +63,8 @@ type Review struct {
 	// "<producer>/<version>" for agents, "process:<id>" for automation. The
 	// human: prefix is load-bearing — it is what separates a person's
 	// judgement from a machine's confidence.
-	By string
-	At string
+	By string `json:"by"`
+	At string `json:"at"`
 }
 
 // Trust is how much a reader should lean on an entry, derived from Reviewed
@@ -186,43 +186,50 @@ func (s *Set) NodeIDs() []string {
 
 // Term is one glossary entry: a canonical word plus everything needed to keep
 // people from using a different one for the same thing.
+// Term is one glossary entry.
+//
+// The JSON names are the frontmatter keys, deliberately. A reviewer's form is
+// the file's fields, so keeping one set of names means the API, the file and
+// the form cannot disagree about what something is called. Which of these an
+// approval may actually change is decided by applyEdits, not by what a client
+// is able to send.
 type Term struct {
-	Canonical string
-	RelPath   string
+	Canonical string `json:"canonical"`
+	RelPath   string `json:"rel_path,omitempty"`
 	// Title and Description are the human-facing labels. Both are Open
 	// Knowledge Format fields and both are flat, so adopting them cost
 	// nothing and made these files readable by anything that speaks OKF.
-	Title       string
-	Description string
-	Tags        []string
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 	// StaleAfter is an absolute date (YYYY-MM-DD) after which this should be
 	// re-read regardless of whether anything changed.
-	StaleAfter string
+	StaleAfter string `json:"stale_after,omitempty"`
 	// Reviewed records confirmations. See Trust.
-	Reviewed []Review
+	Reviewed []Review `json:"reviewed,omitempty"`
 	// Aliases are interchangeable in every context in this project. Partial
 	// overlap is not an alias — that is a separate term with a stated
 	// relation, and merging the two hides the difference that mattered.
-	Aliases []string
+	Aliases []string `json:"aliases,omitempty"`
 	// DerivesFrom names a root term whose definition this one inherits.
 	// Compounds are not defined twice.
-	DerivesFrom string
+	DerivesFrom string `json:"derives_from,omitempty"`
 	// Confusions are the near-misses worth naming outright, written as
 	// "other term — why they differ".
-	Confusions []Confusion
-	Scope      []string
+	Confusions []Confusion `json:"not_to_be_confused_with,omitempty"`
+	Scope      []string    `json:"scope,omitempty"`
 	// Evidence are node IDs showing the term used across separate contexts.
 	// Without them a candidate is one author's coinage, and admission fails.
-	Evidence     []string
-	Status       Status
-	LastVerified string
-	Body         string
+	Evidence     []string `json:"evidence,omitempty"`
+	Status       Status   `json:"status,omitempty"`
+	LastVerified string   `json:"last_verified,omitempty"`
+	Body         string   `json:"body,omitempty"`
 }
 
 // Confusion is one "not to be confused with" pair.
 type Confusion struct {
-	Term string
-	Why  string
+	Term string `json:"term"`
+	Why  string `json:"why"`
 }
 
 // Reader is the narrow view of the code index that serving a set needs. It

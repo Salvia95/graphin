@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"time"
 
@@ -122,30 +123,135 @@ func checkLoopback(addr string) error {
 
 // NewMux builds the routes. Exported so a test can exercise them without
 // binding a port.
+//
+// Patterns carry their method, so the mux answers a wrong one with 405 and an
+// Allow header of its own accord. That matters more here than tidiness: the
+// write routes and the read routes sit on the same path prefix, and a hand-
+// rolled method check is exactly where one of them would eventually be let
+// through by accident.
 func NewMux(root, ui string) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/queue", readOnly(func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/queue", func(w http.ResponseWriter, _ *http.Request) {
 		q, err := wiki.BuildQueueReport(root)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, q)
-	}))
-	mux.HandleFunc("/api/usage", readOnly(func(w http.ResponseWriter, r *http.Request) {
+	})
+	mux.HandleFunc("GET /api/usage", func(w http.ResponseWriter, _ *http.Request) {
 		rep, err := usageReport(root)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
 		writeJSON(w, rep)
-	}))
+	})
+	mux.HandleFunc("POST /api/queue/{canonical}/approve", approveHandler(root))
+	mux.HandleFunc("POST /api/queue/{canonical}/discard", discardHandler(root))
 	if ui != "" {
-		mux.Handle("/", http.FileServer(http.Dir(ui)))
+		mux.Handle("GET /", http.FileServer(http.Dir(ui)))
 	} else {
-		mux.HandleFunc("/", readOnly(placeholder))
+		mux.HandleFunc("GET /", placeholder)
 	}
 	return mux
+}
+
+// maxBody caps a reviewer's form. A glossary entry is a paragraph; anything
+// approaching this is a mistake or an attempt.
+const maxBody = 256 << 10
+
+// approved is what a successful approval answers with.
+//
+// File and Note are not decoration. The whole design rests on the reviewer
+// still seeing an ordinary diff, so the response says where the change landed
+// and states that it stopped there — a UI that renders this cannot leave
+// someone believing the term is published.
+type approved struct {
+	Term *wiki.Term `json:"term"`
+	File string     `json:"file"`
+	Note string     `json:"note"`
+}
+
+func approveHandler(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var edits wiki.Term
+		if err := decodeBody(r, &edits); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		st, err := wiki.Load(root)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		canonical := r.PathValue("canonical")
+		t, err := st.Approve(canonical, &edits, reviewer())
+		if err != nil {
+			writeError(w, statusFor(err), err)
+			return
+		}
+		writeJSON(w, approved{
+			Term: t,
+			File: wiki.GlossaryPath(root, canonical),
+			Note: "written to the working tree and not committed — review it with git diff",
+		})
+	}
+}
+
+func discardHandler(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		st, err := wiki.Load(root)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if err := st.Discard(r.PathValue("canonical")); err != nil {
+			writeError(w, statusFor(err), err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// statusFor maps the failures a reviewer can actually cause. Everything else
+// is ours and answers 500.
+func statusFor(err error) int {
+	switch {
+	case errors.Is(err, wiki.ErrNoProposal):
+		return http.StatusNotFound
+	case errors.Is(err, wiki.ErrAlreadyInGlossary), errors.Is(err, wiki.ErrGlossaryFull):
+		return http.StatusConflict
+	case errors.Is(err, wiki.ErrNotHuman):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func decodeBody(r *http.Request, v any) error {
+	if r.Body == nil {
+		return nil
+	}
+	dec := json.NewDecoder(io.LimitReader(r.Body, maxBody))
+	if err := dec.Decode(v); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	return nil
+}
+
+// reviewer names who vouched, in the actor convention Trust reads.
+//
+// The account on this machine is the honest answer: the socket is loopback, so
+// whoever reached it is sitting here. It is not an identity claim and does not
+// need to be — the durable record of who approved what is the commit the
+// reviewer makes next, which is the same place it lived before this endpoint
+// existed.
+func reviewer() string {
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		return "human:" + u.Username
+	}
+	return "human:local"
 }
 
 // usageReport is the same pair of calls `graphin usage report` makes. The
@@ -159,23 +265,6 @@ func usageReport(root string) (usage.Report, error) {
 		return usage.Report{}, err
 	}
 	return usage.Compute(events, problems, usage.Options{}), nil
-}
-
-// readOnly rejects anything but GET.
-//
-// Writing arrives in its own step with its own decisions — approving a
-// candidate moves a file, and the boundary of that write (the working tree,
-// never a commit) is settled in docs/console-spec.md §8. Until then a method
-// that is not GET is a bug in the caller, and answering it would be worse.
-func readOnly(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			w.Header().Set("Allow", "GET, HEAD")
-			writeError(w, http.StatusMethodNotAllowed, fmt.Errorf("%s not allowed; the console is read-only", r.Method))
-			return
-		}
-		h(w, r)
-	}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

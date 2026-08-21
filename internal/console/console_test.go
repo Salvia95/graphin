@@ -2,9 +2,12 @@ package console
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -123,5 +126,112 @@ func TestFailuresStayJSON(t *testing.T) {
 	}
 	if body["error"] == "" {
 		t.Errorf("error body has no message: %s", rec.Body)
+	}
+}
+
+func queueCandidate(t *testing.T, root string) {
+	t.Helper()
+	st, err := wiki.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Propose(&wiki.Term{
+		Canonical: "posting",
+		Body:      "A unit of published writing.",
+		Evidence:  []string{"pkg.a", "pkg.b"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestApproveEndpointStopsAtTheWorkingTree checks the write and, just as
+// importantly, that the response says where it stopped. A UI rendering this
+// cannot leave someone believing the term is published when what actually
+// happened is an uncommitted file move.
+func TestApproveEndpointStopsAtTheWorkingTree(t *testing.T) {
+	root := t.TempDir()
+	queueCandidate(t, root)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/queue/posting/approve",
+		strings.NewReader(`{"title":"Posting","description":"A unit of published writing."}`))
+	NewMux(root, "").ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	var got struct {
+		Term *wiki.Term `json:"term"`
+		File string     `json:"file"`
+		Note string     `json:"note"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response: %v\n%s", err, rec.Body)
+	}
+	if got.Term == nil || got.Term.Title != "Posting" {
+		t.Errorf("edits were not applied: %+v", got.Term)
+	}
+	if got.File != wiki.GlossaryPath(root, "posting") {
+		t.Errorf("file = %q, want the glossary path", got.File)
+	}
+	if !strings.Contains(got.Note, "not committed") {
+		t.Errorf("note does not state the boundary: %q", got.Note)
+	}
+	if _, err := os.Stat(wiki.GlossaryPath(root, "posting")); err != nil {
+		t.Errorf("glossary entry missing: %v", err)
+	}
+	if _, err := os.Stat(wiki.ProposalPath(root, "posting")); !errors.Is(err, os.ErrNotExist) {
+		t.Error("candidate still queued")
+	}
+}
+
+// TestApproveEndpointMapsRefusals keeps the failures a reviewer can cause
+// distinguishable at the wire. A form that cannot tell "no such candidate"
+// from "the glossary is full" has to say "something went wrong", which is the
+// friction this surface exists to remove.
+func TestApproveEndpointMapsRefusals(t *testing.T) {
+	root := t.TempDir()
+	mux := NewMux(root, "")
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue/nothing/approve", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("unknown candidate = %d, want 404: %s", rec.Code, rec.Body)
+	}
+
+	queueCandidate(t, root)
+	live := wiki.GlossaryPath(root, "posting")
+	if err := os.MkdirAll(filepath.Dir(live), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(live,
+		[]byte("---\ntype: glossary\ncanonical: posting\n---\n\nHere.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue/posting/approve", nil))
+	if rec.Code != http.StatusConflict {
+		t.Errorf("clobber = %d, want 409: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestDiscardEndpoint(t *testing.T) {
+	root := t.TempDir()
+	queueCandidate(t, root)
+	mux := NewMux(root, "")
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue/posting/discard", nil))
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204: %s", rec.Code, rec.Body)
+	}
+	if _, err := os.Stat(wiki.ProposalPath(root, "posting")); !errors.Is(err, os.ErrNotExist) {
+		t.Error("candidate survived discard")
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue/posting/discard", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("second discard = %d, want 404", rec.Code)
 	}
 }

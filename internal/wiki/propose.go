@@ -160,32 +160,43 @@ func (st *Store) Propose(t *Term) (*Proposal, error) {
 
 // render writes the proposal back out in the authored format, so approving it
 // is a file move and the review is an ordinary diff.
-func (p *Proposal) render() string {
-	var b strings.Builder
+// writeTermFront writes the frontmatter fields a queued candidate and an
+// approved entry share, in the order the parser and the OKF exporter expect.
+//
+// Split out rather than duplicated because the two renderers differ only in
+// their tail — draft plus a recurrence count, or a status plus who vouched —
+// and a second copy of the field order would drift the moment one of them
+// gains a key.
+func writeTermFront(b *strings.Builder, t *Term) {
 	b.WriteString("---\ntype: glossary\n")
-	fmt.Fprintf(&b, "canonical: %s\n", p.Canonical)
-	if p.Title != "" && p.Title != p.Canonical {
-		fmt.Fprintf(&b, "title: %s\n", p.Title)
+	fmt.Fprintf(b, "canonical: %s\n", t.Canonical)
+	if t.Title != "" && t.Title != t.Canonical {
+		fmt.Fprintf(b, "title: %s\n", t.Title)
 	}
-	if p.Description != "" {
-		fmt.Fprintf(&b, "description: %s\n", p.Description)
+	if t.Description != "" {
+		fmt.Fprintf(b, "description: %s\n", t.Description)
 	}
-	writeList(&b, "tags", p.Tags)
-	writeList(&b, "aliases", p.Aliases)
-	if p.DerivesFrom != "" {
-		fmt.Fprintf(&b, "derives_from: %s\n", p.DerivesFrom)
+	writeList(b, "tags", t.Tags)
+	writeList(b, "aliases", t.Aliases)
+	if t.DerivesFrom != "" {
+		fmt.Fprintf(b, "derives_from: %s\n", t.DerivesFrom)
 	}
-	if len(p.Confusions) > 0 {
+	if len(t.Confusions) > 0 {
 		b.WriteString("not_to_be_confused_with:\n")
-		for _, c := range p.Confusions {
-			fmt.Fprintf(&b, "  - %s — %s\n", c.Term, c.Why)
+		for _, c := range t.Confusions {
+			fmt.Fprintf(b, "  - %s — %s\n", c.Term, c.Why)
 		}
 	}
-	writeList(&b, "scope", p.Scope)
-	writeList(&b, "evidence", p.Evidence)
-	if p.StaleAfter != "" {
-		fmt.Fprintf(&b, "stale_after: %s\n", p.StaleAfter)
+	writeList(b, "scope", t.Scope)
+	writeList(b, "evidence", t.Evidence)
+	if t.StaleAfter != "" {
+		fmt.Fprintf(b, "stale_after: %s\n", t.StaleAfter)
 	}
+}
+
+func (p *Proposal) render() string {
+	var b strings.Builder
+	writeTermFront(&b, &p.Term)
 	// Everything in the queue is a draft, whatever the submitter said.
 	fmt.Fprintf(&b, "status: %s\n", StatusDraft)
 	fmt.Fprintf(&b, "seen: %d\n", p.Seen)
