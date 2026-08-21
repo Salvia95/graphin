@@ -1,5 +1,5 @@
 ---
-description: graphin 설치·연결 진단 — 바이너리 출처, 버전 드리프트, 플랫폼 지원, 인덱스 상태와 그래프 건강, 중복 MCP 등록, 붙어 있는데 안 쓰이는 워크스페이스를 점검한다
+description: graphin 설치·연결 진단 — 바이너리 출처, 버전 드리프트, 플랫폼 지원, 인덱스 상태와 그래프 건강, MCP 등록(중복·빈 도구 목록), 붙어 있는데 안 쓰이는 워크스페이스를 점검한다
 allowed-tools: Bash(*), Read, mcp__plugin_graphin_graphin__diagnose_index
 ---
 
@@ -29,16 +29,27 @@ cat "$D/state/last-error.txt" 2>/dev/null
 실측으로 세 릴리스가 이렇게 미배달로 남은 적이 있다(2026-08-08, 0.2.1~0.2.3).
 
 ```sh
-claude plugin marketplace update graphin > /dev/null 2>&1   # 캐시만 갱신, 플러그인은 안 건드린다
+M="$HOME/.claude/plugins/marketplaces/graphin"
+git -C "$M" log -1 --format='캐시 갱신 전: %h %cd' --date=short 2>/dev/null
+claude plugin marketplace update graphin                     # 캐시만 갱신, 플러그인은 안 건드린다
+git -C "$M" log -1 --format='캐시 갱신 후: %h %cd' --date=short 2>/dev/null
 claude plugin list 2>/dev/null | grep -A1 '@graphin'
-M="$HOME/.claude/plugins/marketplaces/graphin/plugin"
-grep -m1 '"version"' "$M/graphin/.claude-plugin/plugin.json" "$M/graphin-guide/.claude-plugin/plugin.json"
+grep -m1 '"version"' "$M/plugin/graphin/.claude-plugin/plugin.json" \
+                     "$M/plugin/graphin-guide/.claude-plugin/plugin.json"
 ```
 
 앞(설치본)과 뒤(마켓플레이스가 서빙 중인 `main`)가 다르면 낡은 것이다.
 
 - **첫 줄을 건너뛰지 말 것.** 마켓플레이스 캐시 자체가 낡으면 드리프트가 아예
-  안 보인다 — 그게 정확히 위 사고가 눈에 안 띈 이유다.
+  안 보인다 — 그게 정확히 위 사고가 눈에 안 띈 이유다. 2026-08-21에 다시 걸렸다:
+  캐시가 일주일간 v0.3.0에 묶여 있는 동안 `main`은 v0.4.0까지 갔고, 갱신 전에는
+  설치본 0.3.0 ↔ 캐시 0.3.0으로 **일치해 보였다.** 릴리스 둘이 통째로 안 보였다.
+- 그래서 갱신 명령의 출력을 **버리지 말고 보여라.** 실패해도 이 진단은 계속
+  굴러가고, 낡은 캐시끼리 비교해 "일치"라는 거짓 정상을 만들어낸다. `%h`가 안
+  움직였다면 이미 최신이거나 갱신이 실패한 것이고, **둘은 해시만으로 구분되지
+  않는다** — 갱신 명령이 성공했다고 말했는지를 함께 봐야 한다.
+- **"일치"는 그냥 쓰지 말고 비교한 두 버전과 캐시 날짜를 같이 적어라.** 무엇과
+  무엇을 대조했는지 안 적힌 "정상"은 위 사고를 한 번 더 통과시킨다.
 - 조치: `claude plugin update graphin@graphin` ·
   `claude plugin update graphin-guide@graphin` → **재시작**. 재시작 전까지
   `installed.json`은 옛 버전 그대로다(런처가 아직 안 돌았다).
@@ -48,8 +59,10 @@ grep -m1 '"version"' "$M/graphin/.claude-plugin/plugin.json" "$M/graphin-guide/.
   가리킨다. **정상이다** — 훅은 심링크를 먼저 보고, 다음 서버 기동이 다시 쓴다.
 - 위 `$M` 경로가 없으면 마켓플레이스를 다른 이름으로(포크·로컬 경로로) 추가한
   것이다. `claude plugin marketplace list`로 실제 위치를 찾아 같은 비교를 하라.
+  git 클론이 아닌 경로라면 `%h` 대조는 건너뛰고 버전 비교만 하되, **캐시가
+  최신이라는 근거가 없다는 사실을 보고에 적어라.**
 
-## 3. 중복 MCP 등록 — 가장 흔한 사고
+## 3. MCP 서버 — 중복 등록과 빈 도구 목록
 
 ```sh
 claude mcp list 2>/dev/null | grep -i graphin
@@ -68,6 +81,33 @@ claude mcp remove graphin -s project
 ```
 
 (등록된 스코프에서만 성공한다. 나머지는 실패해도 무시)
+
+### 연결됐는데 도구가 하나도 없다
+
+같은 명령이 이렇게 답하는 경우가 있다:
+
+```
+plugin:graphin:graphin: … - ! Connected · tools fetch failed —
+  Invalid result for tools/list: tools.4.inputSchema.properties:
+  Invalid input: expected record, received null
+```
+
+**중복 등록이 아니다.** 서버는 정상 기동해서 응답까지 했고, 클라이언트가 그 응답의
+스키마를 거부한 것이다. 거부 단위가 도구 하나가 아니라 `tools/list` **응답 전체**라
+한 도구의 스키마가 틀리면 도구가 **전부** 사라진다.
+
+이게 특히 고약한 이유는 어디에서도 고장으로 보이지 않기 때문이다. 서버 로그는
+깨끗하고(제가 의도한 응답을 보냈다), `agent-nav.log`에는 `server_start`만 쌓이고,
+`/mcp`는 "연결됨"이라고 한다. 채택 지표에서는 **도구를 안 쓴 것과 구분되지 않는다.**
+`usage report`의 하락이 진짜 하락인지 도구 부재인지 알 방법이 없다.
+
+- **0.3.0 ~ 0.4.0이면 알려진 버그다.** 인자를 받지 않는 `diagnose_index`의 입력
+  스키마가 `"properties": null`로 나갔다(nil Go 맵은 `{}`가 아니다). **0.4.1에서
+  고쳤다** — §2대로 업그레이드하는 것이 유일한 조치다. 재설치·재등록·`/graphin:setup`
+  으로는 안 고쳐진다. 스키마는 바이너리 안에 있다.
+- 그 외 버전이면 오류의 `tools.N`이 등록 순서상 N번째(0부터) 도구를 가리킨다. 그
+  이름과 메시지 전문을 그대로 보고하라.
+- **이 상태면 §5를 건너뛴다.** `diagnose_index`도 함께 사라졌으므로 호출할 수 없다.
 
 ## 4. 인덱스와 계측
 
@@ -93,8 +133,10 @@ truncate하므로, 라이브 워크스페이스는 MCP 도구로만 안전하게
 
 **`diagnose_index`를 인자 없이 한 번 호출하라.**
 
-- 도구가 목록에 없으면(=MCP 미연결) 이 절은 "확인 불가"로 두고 **§3 중복 등록과
-  §1 바이너리를 먼저 해결하게 하라.** 여기서 막히면 그게 곧 진단 결과다.
+- 도구가 목록에 없으면 이 절은 "확인 불가"로 두고 원인을 **§3에서** 찾아라.
+  **도구 부재는 미연결과 같은 말이 아니다** — 연결된 서버가 `tools/list` 거부로
+  도구를 전부 잃는 경우가 실제로 있었고, 그걸 "미연결"로 읽고 중복 등록과 바이너리를
+  뒤지면 둘 다 멀쩡해서 아무것도 안 나온다. 여기서 막히면 그게 곧 진단 결과다.
 - 부트스트랩 전이면 `state="not_bootstrapped"`와 설정·용량만 돌아온다. 오류가
   아니라 §4와 같은 판정이다.
 
@@ -150,9 +192,9 @@ ps -eo args= 2>/dev/null |
 | 항목 | 상태 | 조치 |
 |---|---|---|
 | 바이너리 | 버전·출처·경로 | |
-| 버전 | 설치본 ↔ 마켓플레이스 일치 / 낡음(몇 버전) | |
+| 버전 | 설치본 ↔ 마켓플레이스 — 비교한 두 버전과 캐시 갱신 날짜를 적는다 | |
 | 의미 검색 | 가능/불가(사유) | |
-| MCP 등록 | 플러그인 단독 / 중복 | |
+| MCP 등록 | 플러그인 단독 / 중복 / **연결됐으나 도구 0개** | |
 | 인덱스 | 부트스트랩 여부·노드 수 | |
 | 그래프 건강 | 끊어진 엣지(코드/DB)·partial 노드 | |
 | 의미 인덱스 | 모델 일치·게이트·임베딩 백로그 | |
