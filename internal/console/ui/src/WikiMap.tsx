@@ -20,7 +20,7 @@ export function WikiMap({ o }: { o: Overview }) {
     <div className="space-y-10">
       <section className="space-y-4">
         <Head>
-          세트 <Num>{o.sets.length}</Num> · 엔트리 <Num>{o.health.entries}</Num>
+          <Num>{o.sets.length}</Num> sets · <Num>{o.health.entries}</Num> entries
         </Head>
         <div className="space-y-3">
           {o.sets.map((s) => {
@@ -34,7 +34,7 @@ export function WikiMap({ o }: { o: Overview }) {
                     <span className="num text-number-md text-on-dark">{s.name}</span>
                     <span className="text-body-md text-muted-strong">{s.title}</span>
                     <Badge>
-                      <Num>{s.entries}</Num>&nbsp;엔트리
+                      <Num>{s.entries}</Num>&nbsp;entries
                     </Badge>
                     {s.mode !== "live" && <Badge>{s.mode}</Badge>}
                     {s.roles.map((r) => (
@@ -42,23 +42,23 @@ export function WikiMap({ o }: { o: Overview }) {
                     ))}
                     {s.dangling > 0 && (
                       <Badge className="border-status-alert/40 text-status-alert">
-                        끊어짐&nbsp;<Num>{s.dangling}</Num>
+                        <Num>{s.dangling}</Num>&nbsp;broken
                       </Badge>
                     )}
                     {s.drifted > 0 && (
                       <Badge className="border-status-watch/40 text-status-watch">
-                        드리프트&nbsp;<Num>{s.drifted}</Num>
+                        <Num>{s.drifted}</Num>&nbsp;drifted
                       </Badge>
                     )}
                     {s.expired && (
-                      <Badge className="border-status-watch/40 text-status-watch">만료</Badge>
+                      <Badge className="border-status-watch/40 text-status-watch">expired</Badge>
                     )}
                   </div>
                   <p className="text-body-md text-muted-strong">{s.summary}</p>
                   <p className={cn("text-body-sm", ignored ? "text-status-watch" : "text-muted")}>
-                    제시 <Num>{s.offered}</Num>회 · 열람 <Num>{s.opened}</Num>회
-                    {ignored && " — 비용만 물리고 있다"}
-                    {s.prerequisites.length > 0 && ` · 선행 ${s.prerequisites.join(", ")}`}
+                    offered <Num>{s.offered}</Num> · opened <Num>{s.opened}</Num>
+                    {ignored && " — paying rent"}
+                    {s.prerequisites.length > 0 && ` · requires ${s.prerequisites.join(", ")}`}
                   </p>
                 </CardContent>
               </Card>
@@ -69,11 +69,11 @@ export function WikiMap({ o }: { o: Overview }) {
 
       <section className="space-y-4">
         <Head>
-          용어집 <Num>{o.terms.length}</Num> / <Num>{o.glossary.cap}</Num>
+          Glossary <Num>{o.terms.length}</Num> / <Num>{o.glossary.cap}</Num>
         </Head>
         {o.terms.length === 0 ? (
           <p className="text-body-md text-muted">
-            아직 없음. 용어는 실작업에서 태어난다 — 위키가 답 못 한 작업 목록이 쓸 거리다.
+            Empty. Terms are born from real work — the uncovered list is what to write from.
           </p>
         ) : (
           <Card>
@@ -81,11 +81,11 @@ export function WikiMap({ o }: { o: Overview }) {
               <table className="w-full text-body-md">
                 <thead>
                   <tr className="text-left text-caption text-muted">
-                    <th className="px-6 py-3">용어</th>
-                    <th className="px-6 py-3">신뢰</th>
-                    <th className="px-6 py-3">상태</th>
-                    <th className="px-6 py-3">인용</th>
-                    <th className="px-6 py-3">별칭</th>
+                    <th className="px-6 py-3">term</th>
+                    <th className="px-6 py-3">trust</th>
+                    <th className="px-6 py-3">status</th>
+                    <th className="px-6 py-3">citations</th>
+                    <th className="px-6 py-3">aliases</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -97,7 +97,7 @@ export function WikiMap({ o }: { o: Overview }) {
                       </td>
                       <td className="px-6 py-3 text-muted">
                         {t.status}
-                        {t.expired && <span className="text-status-watch"> · 만료</span>}
+                        {t.expired && <span className="text-status-watch"> · expired</span>}
                       </td>
                       <td className="num px-6 py-3 text-muted">{t.evidence}</td>
                       <td className="px-6 py-3 text-muted">{(t.aliases ?? []).join(", ")}</td>

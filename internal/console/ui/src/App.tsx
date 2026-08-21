@@ -63,7 +63,7 @@ export default function App() {
       </main>
     )
   }
-  if (!o) return <main className="p-8 text-body-md text-muted">읽는 중…</main>
+  if (!o) return <main className="p-8 text-body-md text-muted">Loading…</main>
 
   if (!o.present) {
     return (
@@ -72,8 +72,8 @@ export default function App() {
           <span className="text-primary">graphin</span> console
         </h1>
         <p className="text-body-md text-muted-strong">
-          이 워크스페이스에는 <span className="num text-body">docs/wiki</span>가 없습니다. 지식
-          계층이 없으면 결정할 것도 없고, 지식 게이트도 무장하지 않습니다.
+          No <span className="num text-body">docs/wiki</span> in this workspace. Without a
+          knowledge layer there is nothing to decide, and the knowledge gate stays disarmed.
         </p>
       </main>
     )
@@ -94,8 +94,8 @@ export default function App() {
         <nav className="flex gap-6">
           {(
             [
-              ["decisions", "결정"],
-              ["map", "위키 지도"],
+              ["decisions", "Decisions"],
+              ["map", "Wiki map"],
             ] as [Tab, string][]
           ).map(([id, label]) => (
             <button
@@ -127,8 +127,7 @@ export default function App() {
           <Card>
             <CardContent className="space-y-2">
               <p className="text-title-sm text-on-dark">
-                <Num>{written.length}</Num>개 파일이 워킹 트리에 쓰였습니다 — 아직 커밋되지
-                않았습니다
+                <Num>{written.length}</Num> file(s) written to the working tree — not committed
               </p>
               {written.map((f) => (
                 <p key={f} className="num text-body-sm text-muted">
@@ -136,7 +135,7 @@ export default function App() {
                 </p>
               ))}
               <p className="text-body-sm text-muted">
-                <span className="num text-body">git diff</span>로 확인하고 직접 커밋하십시오.
+                Review with <span className="num text-body">git diff</span> and commit them yourself.
               </p>
             </CardContent>
           </Card>
@@ -148,7 +147,7 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
               <Chip on={filter === null} onClick={() => setFilter(null)}>
-                전체 <Num>{o.decisions.length}</Num>
+                All <Num>{o.decisions.length}</Num>
               </Chip>
               {[...counts.entries()].map(([k, n]) => (
                 <Chip key={k} on={filter === k} onClick={() => setFilter(filter === k ? null : k)}>
@@ -161,15 +160,15 @@ export default function App() {
               <Card>
                 <CardContent className="space-y-4">
                   <p className="text-body-md text-body">
-                    드리프트 <Num className="text-status-watch">{drifted}</Num>건.{" "}
-                    <span className="text-on-dark">repin은 전부를 한꺼번에 다시 고정합니다</span> —
-                    아래 절들을 먼저 읽고 각 요약이 여전히 맞는지 확인한 뒤에 누르십시오.
+                    <Num className="text-status-watch">{drifted}</Num> drifted.{" "}
+                    <span className="text-on-dark">Repin re-pins everything at once</span> — read the
+                    sections below and confirm each summary still holds before pressing it.
                   </p>
                   {repin && (
                     <p className="text-body-sm text-muted">
-                      <Num>{repin.added}</Num> 추가 · <Num>{repin.updated}</Num> 갱신 ·{" "}
-                      <Num>{repin.dropped}</Num> 삭제 →{" "}
-                      <span className="num text-body">{repin.path}</span> (커밋 안 됨)
+                      <Num>{repin.added}</Num> added · <Num>{repin.updated}</Num> updated ·{" "}
+                      <Num>{repin.dropped}</Num> dropped →{" "}
+                      <span className="num text-body">{repin.path}</span> (not committed)
                     </p>
                   )}
                   <Button
@@ -190,7 +189,7 @@ export default function App() {
                       }
                     }}
                   >
-                    전체 repin
+                    Repin all
                   </Button>
                 </CardContent>
               </Card>
@@ -198,7 +197,7 @@ export default function App() {
 
             {shown.length === 0 ? (
               <p className="text-body-md text-muted">
-                {filter ? "이 종류는 없습니다." : "결정할 것이 없습니다."}
+                {filter ? "None of this kind." : "Nothing to decide."}
               </p>
             ) : (
               <div className="space-y-3">

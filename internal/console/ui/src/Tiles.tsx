@@ -10,38 +10,38 @@ export function Tiles({ o, u }: { o: Overview; u: UsageReport | null }) {
   return (
     <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
       <Tile
-        label="위키 건강"
+        label="Wiki health"
         tone={broken ? "alert" : soft ? "watch" : "brand"}
-        value={broken ? h.dangling : soft ? h.drifted + h.expired : "정상"}
+        value={broken ? h.dangling : soft ? h.drifted + h.expired : "OK"}
         note={
           broken
-            ? `끊어진 링크 · 드리프트 ${h.drifted} · 만료 ${h.expired}`
+            ? `broken links · ${h.drifted} drifted · ${h.expired} expired`
             : soft
-              ? `드리프트 ${h.drifted} · 만료 ${h.expired} · 끊어짐 없음`
-              : `세트 ${h.sets} · 엔트리 ${h.entries}`
+              ? `${h.drifted} drifted · ${h.expired} expired · no broken links`
+              : `${h.sets} sets · ${h.entries} entries`
         }
       />
       <Tile
-        label="결정 대기"
+        label="Decisions"
         tone={broken ? "alert" : h.decisions > 0 ? "brand" : "brand"}
         value={h.decisions}
-        note={h.awaiting > 0 ? `승인 대기 ${h.awaiting}건 포함` : "승인 대기 없음"}
+        note={h.awaiting > 0 ? `includes ${h.awaiting} awaiting approval` : "nothing awaiting approval"}
       />
       <Tile
-        label="용어집"
+        label="Glossary"
         tone={pressure >= 1 ? "alert" : pressure >= 0.8 ? "watch" : "brand"}
         value={`${o.glossary.count}/${o.glossary.cap}`}
         note={
           pressure >= 1
-            ? "찼다 — 밀어낼 것을 정해야 승인이 된다"
-            : `여유 ${o.glossary.cap - o.glossary.count}`
+            ? "full — displace an entry to approve"
+            : `${o.glossary.cap - o.glossary.count} free`
         }
       />
       <Tile
-        label="채택"
+        label="Adoption"
         tone={u ? "brand" : "watch"}
         value={u ? `${u.sessions_with_graphin}/${u.sessions}` : "—"}
-        note={u ? `세션에서 사용 · 이벤트 ${u.events.toLocaleString()}` : "usage 로그 없음"}
+        note={u ? `sessions using graphin · ${u.events.toLocaleString()} events` : "no usage log"}
       />
     </div>
   )

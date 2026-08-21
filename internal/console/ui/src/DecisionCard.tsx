@@ -6,14 +6,14 @@ import { Badge, Input, Label, Num, Textarea } from "@/components/ui/field"
 import { cn } from "@/lib/utils"
 
 export const kindLabel: Record<DecisionKind, string> = {
-  dangling: "끊어진 링크",
-  glossary_full: "용어집 포화",
-  expired: "만료",
-  drift: "드리프트",
-  approve: "승인 대기",
-  stale_skill: "낡은 스킬",
-  unread_set: "안 읽히는 세트",
-  uncovered: "답 없던 작업",
+  dangling: "Broken link",
+  glossary_full: "Glossary full",
+  expired: "Expired",
+  drift: "Drift",
+  approve: "Awaiting approval",
+  stale_skill: "Stale skill",
+  unread_set: "Unread set",
+  uncovered: "Uncovered work",
 }
 
 // The stripe is the only thing scanned when there are thirty of these, and it
@@ -42,7 +42,7 @@ function Shell({ d, children }: { d: Decision; children?: React.ReactNode }) {
           {d.role && <Badge>{d.role}</Badge>}
           {typeof d.count === "number" && d.count > 1 && (
             <Badge>
-              <Num>{d.count}</Num>회
+              <Num>{d.count}</Num>&nbsp;×
             </Badge>
           )}
         </div>
@@ -50,7 +50,7 @@ function Shell({ d, children }: { d: Decision; children?: React.ReactNode }) {
         <p className="text-body-md text-muted-strong">{d.detail}</p>
         {children ?? (
           <p className="text-body-sm text-muted">
-            <span className="text-body">할 일 ·</span> {d.action}
+            <span className="text-body">Next ·</span> {d.action}
           </p>
         )}
       </CardContent>
@@ -99,12 +99,12 @@ function ApproveForm({ d, onDone }: { d: Decision; onDone: (file?: string) => vo
               <Input
                 id={`${canonical}-t`}
                 value={title}
-                placeholder="비우면 제안된 값 그대로"
+                placeholder="leave empty to keep as proposed"
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor={`${canonical}-g`}>tags (쉼표)</Label>
+              <Label htmlFor={`${canonical}-g`}>tags (comma separated)</Label>
               <Input
                 id={`${canonical}-g`}
                 value={tags}
@@ -118,16 +118,16 @@ function ApproveForm({ d, onDone }: { d: Decision; onDone: (file?: string) => vo
             <Input
               id={`${canonical}-d`}
               value={description}
-              placeholder="한 줄 정의"
+              placeholder="one-line definition"
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${canonical}-b`}>본문</Label>
+            <Label htmlFor={`${canonical}-b`}>body</Label>
             <Textarea
               id={`${canonical}-b`}
               value={body}
-              placeholder="비우면 제안된 본문 그대로"
+              placeholder="leave empty to keep the proposed body"
               onChange={(e) => setBody(e.target.value)}
             />
           </div>
@@ -154,10 +154,10 @@ function ApproveForm({ d, onDone }: { d: Decision; onDone: (file?: string) => vo
             })
           }
         >
-          승인
+          Approve
         </Button>
         <Button size="sm" variant="outline" onClick={() => setOpen((v) => !v)}>
-          {open ? "편집 닫기" : "편집"}
+          {open ? "Close" : "Edit"}
         </Button>
         <Button
           size="sm"
@@ -170,7 +170,7 @@ function ApproveForm({ d, onDone }: { d: Decision; onDone: (file?: string) => vo
             })
           }
         >
-          거절
+          Discard
         </Button>
       </div>
     </div>

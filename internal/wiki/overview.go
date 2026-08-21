@@ -172,8 +172,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionDangling, Set: p.Set, NodeID: p.NodeID,
 				Title:  p.NodeID,
-				Detail: "이 엔트리의 대상이 사라졌다 — 헤딩이 바뀌었거나 파일이 옮겨졌다. 세트가 약속한 것보다 적게 준다.",
-				Action: "세트 파일의 링크를 고친다 (" + p.Set + ":" + itoa(p.Line) + ")",
+				Detail: "The target is gone — a heading was renamed or a file moved. The set now delivers less than its catalogue promised.",
+				Action: "Fix the link in the set file (" + p.Set + ":" + itoa(p.Line) + ")",
 			})
 		case ProblemDrift:
 			driftBySet[p.Set]++
@@ -181,8 +181,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 				Kind: DecisionDrift, Set: p.Set, NodeID: p.NodeID,
 				Count:  friction.Drifted[p.NodeID],
 				Title:  p.NodeID,
-				Detail: "본문이 등록 이후 바뀌었다. 텍스트는 계속 나가지만 카탈로그의 한 줄 요약이 더는 안 맞을 수 있다.",
-				Action: "다시 읽고 요약이 여전히 맞는지 확인한 뒤 repin",
+				Detail: "The section changed since it was registered. The text is still served, but the one-line summary offering it may no longer hold.",
+				Action: "Re-read it, confirm the summary still holds, then repin",
 			})
 		}
 	}
@@ -190,9 +190,9 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	if len(store.Terms) >= GlossaryCap {
 		o.Decisions = append(o.Decisions, Decision{
 			Kind: DecisionGlossaryFull, Count: len(store.Terms),
-			Title:  fmt.Sprintf("용어집이 찼다 (%d/%d)", len(store.Terms), GlossaryCap),
-			Detail: "새 용어를 승인할 수 없다. 무엇을 밀어낼지는 어느 지식이 더 중요한가에 대한 판단이라 자동으로 정해지지 않는다.",
-			Action: "기존 항목 하나를 지우거나 강등한다",
+			Title:  fmt.Sprintf("Glossary is full (%d/%d)", len(store.Terms), GlossaryCap),
+			Detail: "No new term can be approved. What to displace is a judgement about which knowledge matters more, so nothing decides it for you.",
+			Action: "Remove or demote an existing entry",
 		})
 	}
 
@@ -202,8 +202,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionExpired, Set: s.Name,
 				Title:  s.Name,
-				Detail: "세트가 자기 stale_after를 지났다. 아무것도 안 바뀌었다는 것이 바로 확인할 이유다.",
-				Action: "내용을 다시 확인하고 stale_after를 갱신한다",
+				Detail: "The set is past its own stale_after. That nothing changed is exactly the reason to check.",
+				Action: "Re-verify the content and move stale_after forward",
 			})
 		}
 		o.Sets = append(o.Sets, SetView{
@@ -220,8 +220,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 		o.Decisions = append(o.Decisions, Decision{
 			Kind: DecisionUnreadSet, Set: name, Count: friction.Matched[name],
 			Title:  name,
-			Detail: fmt.Sprintf("%d번 제시됐고 한 번도 열리지 않았다. 카탈로그 한 줄은 매 위임마다 비용을 물리고 아무것도 돌려주지 않는다.", friction.Matched[name]),
-			Action: "강등하거나 지운다",
+			Detail: fmt.Sprintf("Offered %d times and never opened. A catalogue line costs every delegation and returns nothing.", friction.Matched[name]),
+			Action: "Demote it or delete it",
 		})
 	}
 
@@ -234,8 +234,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 			Kind: DecisionApprove, Canonical: p.Canonical, Count: p.Seen,
 			Evidence: nonNil(p.Evidence),
 			Title:    p.Canonical,
-			Detail:   fmt.Sprintf("%d회 제안됨, %d개 인용.", p.Seen, len(p.Evidence)),
-			Action:   "승인하면 용어집으로 옮긴다 (커밋은 하지 않는다)",
+			Detail:   fmt.Sprintf("Proposed %d times, %d citations.", p.Seen, len(p.Evidence)),
+			Action:   "Approving moves it into the glossary (nothing is committed)",
 		})
 	}
 
@@ -243,8 +243,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 		for _, name := range store.StaleSkills(skillDir) {
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionStaleSkill, Title: name,
-				Detail: "생성된 role 블록이 생성 근거와 더는 일치하지 않는다.",
-				Action: "`graphin wiki skills`를 다시 돌리고 결과를 커밋한다",
+				Detail: "The generated role block no longer matches what it was generated from.",
+				Action: "Run `graphin wiki skills` again and commit the result",
 			})
 		}
 	}
@@ -264,8 +264,8 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 		o.Decisions = append(o.Decisions, Decision{
 			Kind: DecisionUncovered, Count: seen[m.Task], Role: m.Role,
 			Title:  m.Task,
-			Detail: "이 작업에 위키가 답을 갖고 있지 않았다.",
-			Action: "세트나 용어를 쓴다 — 위키가 자라는 유일한 경로다",
+			Detail: "The wiki had no answer for this work.",
+			Action: "Write a set or a term — the only way the wiki grows",
 		})
 	}
 
