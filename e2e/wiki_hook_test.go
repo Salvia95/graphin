@@ -222,3 +222,74 @@ func mintToken(t *testing.T, root string) string {
 	}
 	return store.MintToken(secret)
 }
+
+// TestGateCannotBlockOnItsOwnFailure is the regression for 2026-08-22, when
+// every tool call on a machine stopped for fifteen minutes.
+//
+// The handler had propagated the binary's exit code, and the binary answers 2
+// for a usage error as well as for a block. So a graphin that did not know the
+// `wiki` subcommand — an older one the handler reached for a moment during an
+// upgrade — refused every Bash, Edit and Task with the gate's own message,
+// which names a recovery that runs through the tool that was not working. The
+// instruction was unfollowable by construction.
+//
+// The fix is that a block has a code nothing else can produce. This test does
+// not check that number; it checks the property, by handing the handler a
+// binary that fails the way the real one did.
+func TestGateCannotBlockOnItsOwnFailure(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not on PATH")
+	}
+	handler, err := filepath.Abs(wikiHandlerRel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := gatedWorkspace(t)
+
+	for _, tc := range []struct {
+		name, script string
+	}{
+		{"usage error", "#!/bin/sh\necho 'graphin: --workspace is required' >&2\nexit 2\n"},
+		{"crash", "#!/bin/sh\nexit 1\n"},
+		{"panic-ish", "#!/bin/sh\necho boom >&2\nexit 3\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := filepath.Join(t.TempDir(), "graphin")
+			if err := os.WriteFile(fake, []byte(tc.script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := json.Marshal(map[string]any{
+				"hook_event_name": "PreToolUse",
+				"session_id":      "regression",
+				"cwd":             root,
+				"tool_name":       "Bash",
+				"tool_input":      map[string]any{"command": "ls"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("sh", handler, "gate")
+			cmd.Stdin = bytes.NewReader(raw)
+			cmd.Env = []string{
+				"CLAUDE_PROJECT_DIR=" + root,
+				"GRAPHIN_BIN=" + fake,
+				"PATH=" + os.Getenv("PATH"),
+				"HOME=" + os.Getenv("HOME"),
+			}
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			code := 0
+			if err := cmd.Run(); err != nil {
+				ee, ok := err.(*exec.ExitError)
+				if !ok {
+					t.Fatalf("run handler: %v", err)
+				}
+				code = ee.ExitCode()
+			}
+			if code != 0 {
+				t.Fatalf("exit = %d, want 0 — a graphin that cannot answer must not block:\n%s",
+					code, stderr.String())
+			}
+		})
+	}
+}

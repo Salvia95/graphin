@@ -6,11 +6,25 @@ import (
 	"strings"
 )
 
-// Exit codes the hook runner interprets. Only 2 blocks, and only then does
-// stderr reach the model.
+// Exit codes this verb speaks. The handler script translates them for the hook
+// runner, which blocks on 2 and nothing else.
+//
+// exitBlock is deliberately not 2. This binary returns 2 for a usage error
+// like every other subcommand, so a script that trusted 2 could not tell "the
+// gate decided no" from "this graphin has never heard of the gate" — and the
+// second one happens for real, when an upgrade leaves a handler pointed at an
+// older binary for a moment. The consequence was total: every tool call on the
+// machine blocked, with an instruction the caller could not follow, because
+// the recovery it names is the very thing that was not reachable.
+//
+// A dedicated code cannot be produced by accident. Nothing that does not know
+// about the gate can answer 20, so an unrecognised failure now means "we could
+// not ask" and is allowed through. Both halves of a version mismatch fail open
+// for the same reason, which is the correct direction for a gate: refusing to
+// work is a worse failure than letting one edit past.
 const (
 	exitAllow = 0
-	exitBlock = 2
+	exitBlock = 20
 )
 
 // runGate implements `graphin wiki gate`, the PreToolUse handler for both
