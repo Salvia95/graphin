@@ -96,51 +96,21 @@ func runRepin(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	store, err := Load(*root)
+	res, err := RepinAll(*root, *dry)
 	if err != nil {
 		fmt.Fprintf(stderr, "graphin wiki repin: %v\n", err)
 		return 1
 	}
-	sets := store.SetList()
-	pins, problems := Repin(*root, sets)
-
-	added, changed := 0, 0
-	for set, byNode := range pins.Pins {
-		for id, h := range byNode {
-			switch old, ok := store.Pins.Get(set, id); {
-			case !ok:
-				added++
-			case old != h:
-				changed++
-			}
-		}
-	}
-	// A pin that exists for an entry no longer in any set is dropped, because
-	// Repin rebuilds rather than merges. Saying so matters: an author who
-	// deleted an entry should see that its record went with it.
-	dropped := 0
-	for set, byNode := range store.Pins.Pins {
-		for id := range byNode {
-			if _, ok := pins.Get(set, id); !ok {
-				dropped++
-			}
-		}
-	}
-
-	for _, p := range problems {
+	for _, p := range res.Problems {
 		fmt.Fprintln(stdout, p)
 	}
-	fmt.Fprintf(stdout, "%d added, %d updated, %d dropped\n", added, changed, dropped)
-	if *dry {
+	fmt.Fprintf(stdout, "%d added, %d updated, %d dropped\n", res.Added, res.Updated, res.Dropped)
+	if !res.Wrote {
 		fmt.Fprintln(stdout, "(dry run: nothing written)")
 		return 0
 	}
-	if err := pins.Save(store.PinsPath()); err != nil {
-		fmt.Fprintf(stderr, "graphin wiki repin: %v\n", err)
-		return 1
-	}
-	fmt.Fprintf(stdout, "wrote %s\n", store.PinsPath())
-	if len(problems) > 0 {
+	fmt.Fprintf(stdout, "wrote %s\n", res.Path)
+	if len(res.Problems) > 0 {
 		return 1
 	}
 	return 0
@@ -180,8 +150,8 @@ func runQueue(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// defaultSkillDir is where a project's own skills live.
-const defaultSkillDir = ".claude/skills"
+// DefaultSkillDir is where a project's own skills live, relative to the root.
+const DefaultSkillDir = ".claude/skills"
 
 // runSkills regenerates the per-role convention blocks.
 //
@@ -193,7 +163,7 @@ func runSkills(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("wiki skills", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	root := fs.String("root", ".", "workspace root containing "+DirName)
-	out := fs.String("out", defaultSkillDir, "directory to write the generated skills into")
+	out := fs.String("out", DefaultSkillDir, "directory to write the generated skills into")
 	check := fs.Bool("check", false, "report staleness without writing (exit 1 if stale)")
 	if err := fs.Parse(args); err != nil {
 		return 2

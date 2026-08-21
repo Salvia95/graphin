@@ -1,7 +1,103 @@
 @import "tailwindcss";
 
-/* Dark mode follows the OS. This runs on someone's own machine in a browser
-   tab they opened themselves, so there is nobody to offer a toggle to. */
+/* Tokens. The names are the ones docs/design-system.md uses, so a sentence in
+   that document and a class in this codebase refer to the same thing — the
+   document decides the name, this file decides the value. */
+@theme {
+  /* Surface. Depth is a lightness step between flat color blocks; there are no
+     shadows and no gradients anywhere in this system. */
+  --color-canvas: #0b0e11;
+  --color-surface: #1e2329;
+  --color-elevated: #2b3139;
+  /* Same value as elevated on purpose: a border here reads as a surface step,
+     not as an ink line. */
+  --color-hairline: #2b3139;
+
+  /* The one brand colour. Primary actions, the wordmark, stat numbers — and
+     nothing else. Its scarcity is what makes it work, which is why severity
+     uses the status ramp below instead. */
+  --color-primary: #fcd535;
+  --color-primary-active: #f0b90b;
+  --color-primary-disabled: #3a3a1f;
+  --color-on-primary: #181a20;
+
+  --color-body: #eaecef;
+  --color-on-dark: #ffffff;
+  --color-muted: #707a8a;
+  --color-muted-strong: #929aa5;
+
+  /* Status. graphin has no price direction, so the reference's trading green
+     and red are re-scoped here — the single documented deviation
+     (design-system.md §0.4). */
+  --color-status-good: #0ecb81;
+  --color-status-alert: #f6465d;
+  --color-status-watch: #f0b90b;
+  --color-info: #3b82f6;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Inter if the reader has it, system otherwise. No webfont request: this is
+     a local tool and has no business reaching an external host. */
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Numbers. The reference asks for a separate numeric face; what it is
+     actually asking for is column alignment, which tabular-nums gives us
+     without shipping a font binary. */
+  --font-num: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-display-sm: 32px;
+  --text-display-sm--line-height: 1.2;
+  --text-display-sm--font-weight: 600;
+  --text-title-lg: 24px;
+  --text-title-lg--line-height: 1.3;
+  --text-title-lg--font-weight: 600;
+  --text-title-md: 20px;
+  --text-title-md--line-height: 1.35;
+  --text-title-md--font-weight: 600;
+  --text-title-sm: 16px;
+  --text-title-sm--line-height: 1.4;
+  --text-title-sm--font-weight: 600;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 1.5;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 1.5;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 500;
+  --text-number-display: 40px;
+  --text-number-display--line-height: 1.1;
+  --text-number-display--font-weight: 700;
+  --text-number-md: 16px;
+  --text-number-md--line-height: 1.4;
+  --text-number-md--font-weight: 500;
+  --text-number-sm: 14px;
+  --text-number-sm--line-height: 1.4;
+  --text-number-sm--font-weight: 500;
+  --text-button: 14px;
+  --text-button--line-height: 1;
+  --text-button--font-weight: 600;
+}
+
+/* Dark only. The reference splits marketing dark from transactional light; this
+   is a dashboard, which it assigns to dark, and supporting both would leave
+   both half-finished (design-system.md §0.3). */
 html {
-  color-scheme: light dark;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-md);
+  line-height: 1.5;
+}
+
+/* Every number in this interface goes through here. */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
 }

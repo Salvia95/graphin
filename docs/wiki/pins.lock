@@ -105,8 +105,8 @@
         "r": "b3:f0fab32efa67f3f042c7759d0a1d60bf815e13bc9a27f862b17adc0055579242"
       },
       "docs/console-spec.md#4-스택-설계-확정분-뒤집으려면-근거가-필요": {
-        "h": "b3:dde4bd11e417ac1a61b678e6721e7589182bb44ca817c2eaf2523ec37a1ad433",
-        "r": "b3:45147468307da7de15780051273465438a9bbd9113e486d29232eb555209caa0"
+        "h": "b3:5861d81794f84036646d45c06e09fe8506cf07b75aa2db1234fed8210b7dc3c2",
+        "r": "b3:5e778bdf84580f1d72a793a9d93efdd445d961ebe9f985d40228bb0ad66a820d"
       },
       "docs/console-spec.md#5-규율--api는-커맨드와-같은-함수의-얇은-껍질": {
         "h": "b3:6eb61b574dd44fbd91d9ad4078bf8cd663f1f01386705e78ee67da40bc34209c",
@@ -127,6 +127,52 @@
       "docs/console-spec.md#9-짓기로-했다면--첫-조각": {
         "h": "b3:9d48ae227ebb2270e6459d2d6d1a5a0af7d02bbcd7f1b738ccb63f177c4945c8",
         "r": "b3:3a2c9b46df57d861f16faab9724fae86041c152e3e7ac10c9353cfc36846ece7"
+      }
+    },
+    "design": {
+      "docs/design-system.md#01-토큰이-실제로-사는-곳": {
+        "h": "b3:41fbb3bce85a0a0e04ecff3be390439b9312e999880a316a4dbbf6ba94a9b5e0",
+        "r": "b3:bee1ccc36fed2637d2b1678809015395b869489bb808dd49c30198dfd600fdc8"
+      },
+      "docs/design-system.md#02-폰트--대체를-쓴다": {
+        "h": "b3:41f5a26cd313638e493041b6d3c003fbb3406c137d35312d339628fb20d83cd8",
+        "r": "b3:83e42b1d0ead85c8037e742459748206d838f4bb1ed419e4f938392bc071b142"
+      },
+      "docs/design-system.md#03-다크-단일-모드": {
+        "h": "b3:92fa6058c1cd05a6c611935f42a741961dca85b81b11311dabce793b76a6064d",
+        "r": "b3:5e354fd757d1e28ecfa31e2b79ead3cddcf98058f46fe80ea87c2aaaa26c49e8"
+      },
+      "docs/design-system.md#04-거래-토큰의-재범위--이-문서의-유일한-의도적-이탈": {
+        "h": "b3:408764c244c773148d3a2bf89e96ce3f9fa13a6a251ba02a550bb6b5f1f1deea",
+        "r": "b3:a05490f61bd0b43a3b397360f5d09e896992624263e59b31bcdf0b30089b8c32"
+      },
+      "docs/design-system.md#05-노랑의-희소성--심각도에-쓰지-않는다": {
+        "h": "b3:dab11aebcc257d4e5e9e6ed9add593cf2be30d1de775f608900ba04a3f342db2",
+        "r": "b3:033a538a42cbbe6e098d6e4604363429fca77db21c54b4a31ea03ee2de074ed0"
+      },
+      "docs/design-system.md#colors": {
+        "h": "b3:02df8578a13023d9f7733228f2b5f8311e2722939980f435953ea3c41cbafaa2",
+        "r": "b3:295192ea1ec8566d563b1a7587e5f0198580cdbd043842f5090a4c197c20c67a"
+      },
+      "docs/design-system.md#dos-and-donts": {
+        "h": "b3:a00a7f7dbb4ec7231a382763708337055d820c1f3b2612d4477892cc5482b0e6",
+        "r": "b3:295192ea1ec8566d563b1a7587e5f0198580cdbd043842f5090a4c197c20c67a"
+      },
+      "docs/design-system.md#elevation--depth": {
+        "h": "b3:73ce8e95236ad4b24c76add50e61f493c5f0de8d632162e0f7e3ce8e0fd95adc",
+        "r": "b3:96beb00fe5faf1d64fbd79236129e6e08a8d26d768d207cfe6a291dd2add42e6"
+      },
+      "docs/design-system.md#layout": {
+        "h": "b3:ddf962c3589509caaeb19c7baedaf20f83dcf0453712db7a586789d46edea477",
+        "r": "b3:295192ea1ec8566d563b1a7587e5f0198580cdbd043842f5090a4c197c20c67a"
+      },
+      "docs/design-system.md#shapes": {
+        "h": "b3:8203e1678c46a0165d713d210f6d44df0af17c9ae794592a18ee341c6b1da579",
+        "r": "b3:295192ea1ec8566d563b1a7587e5f0198580cdbd043842f5090a4c197c20c67a"
+      },
+      "docs/design-system.md#typography": {
+        "h": "b3:d04e04c3f7e58266da6a55bb96d184634c52557b7b3d10e5b88331f156c8f128",
+        "r": "b3:295192ea1ec8566d563b1a7587e5f0198580cdbd043842f5090a4c197c20c67a"
       }
     },
     "release": {

@@ -177,11 +177,11 @@ const (
 
 // Problem is one thing wrong with one entry.
 type Problem struct {
-	Kind   ProblemKind
-	Set    string
-	NodeID string
-	Line   int
-	Detail string
+	Kind   ProblemKind `json:"kind"`
+	Set    string      `json:"set"`
+	NodeID string      `json:"node_id"`
+	Line   int         `json:"line"`
+	Detail string      `json:"detail"`
 }
 
 func (p Problem) String() string {

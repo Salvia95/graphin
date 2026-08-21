@@ -1,26 +1,12 @@
 import type { ComponentProps } from "react"
 import { cn } from "@/lib/utils"
 
+// No shadow, no border. Depth is the lightness step from canvas to surface —
+// the reference is explicit that adding drop shadows or glass muddies it.
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(
-        "rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-export function CardHeader({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("flex flex-col gap-1 p-4 pb-2", className)} {...props} />
-}
-
-export function CardTitle({ className, ...props }: ComponentProps<"h3">) {
-  return <h3 className={cn("font-semibold leading-none tracking-tight", className)} {...props} />
+  return <div className={cn("rounded-xl bg-surface", className)} {...props} />
 }
 
 export function CardContent({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("p-4 pt-2", className)} {...props} />
+  return <div className={cn("p-6", className)} {...props} />
 }

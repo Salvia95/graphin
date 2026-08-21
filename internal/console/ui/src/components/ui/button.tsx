@@ -2,22 +2,30 @@ import { cva, type VariantProps } from "class-variance-authority"
 import type { ComponentProps } from "react"
 import { cn } from "@/lib/utils"
 
+// Black on yellow is the system's signature and is never inverted. `danger`
+// deliberately is not a red fill: the alert colour is a signal, carried as text,
+// and a filled red button would read as the primary action of the card.
 const button = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600",
+  "inline-flex items-center justify-center gap-2 text-button transition-colors disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info",
   {
     variants: {
       variant: {
-        default:
-          "bg-slate-900 text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white",
+        primary:
+          "bg-primary text-on-primary rounded-md active:bg-primary-active disabled:bg-primary-disabled disabled:text-muted",
+        secondary: "bg-surface text-on-dark rounded-md active:bg-elevated",
         outline:
-          "border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800",
-        ghost: "hover:bg-slate-100 dark:hover:bg-slate-800",
+          "border border-hairline text-body rounded-md active:bg-surface",
         danger:
-          "border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950",
+          "border border-hairline text-status-alert rounded-md active:bg-surface",
+        ghost: "text-muted rounded-md active:bg-surface",
       },
-      size: { default: "h-9 px-4 py-2", sm: "h-8 px-3 text-xs" },
+      size: {
+        md: "h-10 px-6",
+        sm: "h-8 px-4",
+        xs: "h-7 px-3 text-caption",
+      },
     },
-    defaultVariants: { variant: "default", size: "default" },
+    defaultVariants: { variant: "primary", size: "md" },
   },
 )
 

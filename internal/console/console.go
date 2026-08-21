@@ -147,6 +147,26 @@ func NewMux(root, ui string) *http.ServeMux {
 		}
 		writeJSON(w, rep)
 	})
+	mux.HandleFunc("GET /api/wiki", func(w http.ResponseWriter, _ *http.Request) {
+		o, err := wiki.BuildOverview(root, filepath.Join(root, wiki.DefaultSkillDir))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, o)
+	})
+	// Repin is a write, and it is here rather than left to the command for the
+	// reason the whole surface exists: deciding a summary still holds after
+	// re-reading a section is a judgement, and judgements are what this console
+	// is for. It writes pins.lock and stops — the commit stays the reviewer's.
+	mux.HandleFunc("POST /api/wiki/repin", func(w http.ResponseWriter, _ *http.Request) {
+		res, err := wiki.RepinAll(root, false)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, res)
+	})
 	mux.HandleFunc("POST /api/queue/{canonical}/approve", approveHandler(root))
 	mux.HandleFunc("POST /api/queue/{canonical}/discard", discardHandler(root))
 	switch sub, ok := embeddedUI(); {
