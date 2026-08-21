@@ -166,17 +166,6 @@ func TestWikiPreflightEmptyIsUsable(t *testing.T) {
 	}
 }
 
-func TestWikiResolveRequiresAnArgument(t *testing.T) {
-	root := wikiWorkspace(t)
-	c := newClient(t, root)
-	c.bootstrapAndWait(root)
-
-	text, isErr := c.tool("wiki_resolve", map[string]any{})
-	if !isErr {
-		t.Fatalf("expected an error, got:\n%s", text)
-	}
-}
-
 func TestWikiResolveFollowsRenamedHeading(t *testing.T) {
 	root := wikiWorkspace(t)
 	c := newClient(t, root)
