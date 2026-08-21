@@ -204,14 +204,37 @@ func TestGateBlocksMainContextOncePerSession(t *testing.T) {
 	}
 }
 
-func TestMarkSpawnClearsOnValidToken(t *testing.T) {
-	root := gateWorkspace(t, true)
-	tok := validToken(t, root)
+// delegate runs the real two-step: the delegation gate verifies the token and
+// leaves a note, then the spawn hook consumes it.
+//
+// SubagentStart carries agent_id and agent_type and NO prompt, so the spawn
+// hook can never see a manifest itself. Any test that hands it one is testing
+// a payload the product does not send.
+func delegate(t *testing.T, root, session, agentType, prompt string) int {
+	t.Helper()
+	code, _ := runVerb(t, "gate", hookJSON(t, map[string]any{
+		"tool_name": "Task", "cwd": root, "session_id": session,
+		"tool_input": map[string]any{"subagent_type": agentType, "prompt": prompt},
+	}))
+	return code
+}
+
+func spawn(t *testing.T, root, session, agentID, agentType string) {
+	t.Helper()
 	runVerb(t, "mark", hookJSON(t, map[string]any{
 		"hook_event_name": "SubagentStart", "cwd": root,
-		"session_id": "s1", "agent_id": "a1", "agent_type": "backend-dev",
-		"agent_prompt": "work to do. token: " + tok,
+		"session_id": session, "agent_id": agentID, "agent_type": agentType,
 	}))
+}
+
+func TestVerifiedDelegationClearsTheSpawn(t *testing.T) {
+	root := gateWorkspace(t, true)
+	tok := validToken(t, root)
+
+	if code := delegate(t, root, "s1", "backend-dev", "work. token: "+tok); code != exitAllow {
+		t.Fatalf("delegation blocked (%d)", code)
+	}
+	spawn(t, root, "s1", "a1", "backend-dev")
 
 	f, ok := ReadFlag(root, "s1", "a1")
 	if !ok || f.Status != StatusCleared {
@@ -226,13 +249,27 @@ func TestMarkSpawnClearsOnValidToken(t *testing.T) {
 	}
 }
 
-func TestMarkSpawnLeavesBreadcrumbOnBadToken(t *testing.T) {
+func TestClearanceIsConsumedOnce(t *testing.T) {
 	root := gateWorkspace(t, true)
-	runVerb(t, "mark", hookJSON(t, map[string]any{
-		"hook_event_name": "SubagentStart", "cwd": root,
-		"session_id": "s1", "agent_id": "a1", "agent_type": "backend-dev",
-		"agent_prompt": "no manifest here",
-	}))
+	tok := validToken(t, root)
+	delegate(t, root, "s1", "backend-dev", "work. token: "+tok)
+
+	spawn(t, root, "s1", "a1", "backend-dev")
+	// A second agent of the same type that arrived with no manifest must not
+	// walk through on the first one's credential.
+	spawn(t, root, "s1", "a2", "backend-dev")
+
+	if f, _ := ReadFlag(root, "s1", "a1"); f.Status != StatusCleared {
+		t.Fatalf("first spawn = %+v, want cleared", f)
+	}
+	if f, _ := ReadFlag(root, "s1", "a2"); f.Status != StatusSeen {
+		t.Fatalf("second spawn = %+v, want seen", f)
+	}
+}
+
+func TestSpawnWithoutADelegationLeavesBreadcrumb(t *testing.T) {
+	root := gateWorkspace(t, true)
+	spawn(t, root, "s1", "a1", "backend-dev")
 
 	f, ok := ReadFlag(root, "s1", "a1")
 	if !ok {
@@ -246,11 +283,7 @@ func TestMarkSpawnLeavesBreadcrumbOnBadToken(t *testing.T) {
 
 func TestMarkSpawnClearsExemptAgent(t *testing.T) {
 	root := gateWorkspace(t, true)
-	runVerb(t, "mark", hookJSON(t, map[string]any{
-		"hook_event_name": "SubagentStart", "cwd": root,
-		"session_id": "s1", "agent_id": "a1", "agent_type": "graphin-explorer",
-		"agent_prompt": "where is X",
-	}))
+	spawn(t, root, "s1", "a1", "graphin-explorer")
 	f, _ := ReadFlag(root, "s1", "a1")
 	if f.Status != StatusCleared || f.Producer != "exempt" {
 		t.Fatalf("flag = %+v, want cleared by exemption", f)

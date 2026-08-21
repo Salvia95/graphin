@@ -24,12 +24,15 @@ const (
 // duplication to consolidate: the payload is a product contract neither
 // package owns, and each reading only the fields it acts on keeps a new field
 // in one from silently becoming a dependency of the other.
+//
+// There is deliberately no delegation-prompt field. SubagentStart does not
+// carry one, and declaring it would invite code that reads an always-empty
+// string and concludes the manifest was missing. See PendingPath.
 type hookInput struct {
 	HookEventName string         `json:"hook_event_name"`
 	SessionID     string         `json:"session_id"`
 	AgentID       string         `json:"agent_id"`
 	AgentType     string         `json:"agent_type"`
-	AgentPrompt   string         `json:"agent_prompt"`
 	CWD           string         `json:"cwd"`
 	ToolName      string         `json:"tool_name"`
 	ToolInput     map[string]any `json:"tool_input"`
@@ -128,6 +131,58 @@ func safeName(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// PendingPath is where a verified delegation waits for the agent it spawned.
+//
+// This exists because of a product fact that is easy to assume away: the
+// SubagentStart payload is {common fields, agent_id, agent_type} and carries
+// NO delegation prompt (verified against Claude Code 2.1.238). The spawn hook
+// therefore cannot see the manifest token, and clearing an agent at spawn —
+// the thing that keeps the normal path free of a blocked call — has to be
+// arranged by whoever did see it.
+//
+// So the delegation gate, which verifies the token and knows the session and
+// the target agent type, leaves a note here. The spawn hook consumes it.
+func PendingPath(root, sessionID, agentType string) string {
+	return filepath.Join(root, filepath.FromSlash(RuntimeSubdir), "flags",
+		safeName(sessionID), "pending", safeName(agentType)+".json")
+}
+
+// WritePending records that a delegation to agentType passed the gate.
+func WritePending(root, sessionID, agentType string, f Flag) error {
+	if f.TS == "" {
+		f.TS = time.Now().UTC().Format(time.RFC3339)
+	}
+	path := PendingPath(root, sessionID, agentType)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	raw, err := json.Marshal(f)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, raw, 0o644)
+}
+
+// ConsumePending takes the note left for agentType, if there is one.
+//
+// Consuming rather than reading is what keeps it honest: one verified
+// delegation clears one spawn. Leaving the note in place would let a later
+// spawn of the same agent type — one that arrived with no manifest at all —
+// walk through on someone else's credential.
+func ConsumePending(root, sessionID, agentType string) (Flag, bool) {
+	path := PendingPath(root, sessionID, agentType)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Flag{}, false
+	}
+	_ = os.Remove(path)
+	var f Flag
+	if err := json.Unmarshal(raw, &f); err != nil {
+		return Flag{}, false
+	}
+	return f, true
 }
 
 // ReadFlag loads one agent's gate state.

@@ -59,7 +59,14 @@ func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) i
 		fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
 		return exitAllow
 	}
-	if store.VerifyToken(secret, FindToken(in.str("prompt"))) {
+	if tok := FindToken(in.str("prompt")); store.VerifyToken(secret, tok) {
+		// Leave the note the spawn hook will consume. This is the only
+		// moment anyone sees both the token and the agent it is for.
+		if err := WritePending(root, in.SessionID, in.str("subagent_type"), Flag{
+			Status: StatusCleared, Producer: "manifest", Token: tok,
+		}); err != nil {
+			fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
+		}
 		return exitAllow
 	}
 	// Name the next action, not the fault. A block that only says "no" turns
@@ -160,25 +167,26 @@ func markSpawn(store *Store, root string, in hookInput, stderr io.Writer) int {
 		return exitAllow
 	}
 
-	secret, err := LoadOrCreateSecret(root)
-	if err != nil {
-		fmt.Fprintf(stderr, "graphin wiki mark: %v\n", err)
+	// The delegation gate left a note if it verified a token for this agent
+	// type. Consuming it clears the spawn, so the normal path costs no
+	// blocked call at all.
+	//
+	// The token cannot be checked here: SubagentStart carries agent_id and
+	// agent_type and no prompt, so this hook never sees a manifest.
+	if pending, ok := ConsumePending(root, in.SessionID, in.AgentType); ok {
+		_ = WriteFlag(root, in.SessionID, in.AgentID, Flag{
+			Status: StatusCleared, Producer: "manifest", Token: pending.Token,
+		})
 		return exitAllow
 	}
-	tok := FindToken(in.AgentPrompt)
-	if !store.VerifyToken(secret, tok) {
-		// Leave it at "seen". Gate ② will block the first change and say what
-		// to run; this hook cannot block, so declining to clear is the only
-		// signal it has.
-		return exitAllow
-	}
-	// Cleared at spawn, so the normal path costs no blocked call at all.
-	// The bet is that a delegate handed a catalogue will read what it needs;
-	// a delegate that never resolves shows up as a set with no reads, which
-	// is the same statistic that demotes an unused set.
-	_ = WriteFlag(root, in.SessionID, in.AgentID, Flag{
-		Status: StatusCleared, Producer: "manifest", Token: tok,
-	})
+	// Leave it at "seen". Gate ② will block the first change and say what to
+	// run; this hook cannot block, so declining to clear is the only signal
+	// it has.
+	//
+	// The bet the clearing path makes is that a delegate handed a catalogue
+	// will read what it needs. A delegate that never resolves shows up as a
+	// set with no reads, which is the same statistic that demotes an unused
+	// set — so the leak feeds a metric instead of hiding.
 	return exitAllow
 }
 

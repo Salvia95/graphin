@@ -90,10 +90,11 @@ func TestWikiGateSmoke(t *testing.T) {
 		}); code != 0 {
 			t.Fatalf("delegation blocked (%d): %s", code, msg)
 		}
+		// No prompt here: SubagentStart carries agent_id and agent_type only.
+		// The clearance comes from the note the delegation gate just left.
 		hook(t, "mark", map[string]any{
 			"hook_event_name": "SubagentStart",
 			"session_id":      "smoke", "agent_id": "agent-1", "agent_type": "backend-dev",
-			"agent_prompt": "do it. token: " + token,
 		})
 		if code, msg := hook(t, "gate", map[string]any{
 			"tool_name": "Edit", "session_id": "smoke", "agent_id": "agent-1",
@@ -125,7 +126,6 @@ func TestWikiGateSmoke(t *testing.T) {
 		hook(t, "mark", map[string]any{
 			"hook_event_name": "SubagentStart",
 			"session_id":      "smoke", "agent_id": "agent-ro", "agent_type": "graphin-explorer",
-			"agent_prompt": "where is X",
 		})
 		if code, msg := hook(t, "gate", map[string]any{
 			"tool_name": "Bash", "session_id": "smoke", "agent_id": "agent-ro",
