@@ -184,13 +184,22 @@ type ReverseStats struct {
 	Edges         int
 	LogRecords    int
 	LogTombstones int
+	// Redirects is how many node IDs have been superseded and are still
+	// being carried. It is the trigger metric for the deferred GC (§4.3):
+	// redirects are never dropped at compaction, so this only grows, and
+	// the ratio against live nodes is what says when collecting them is
+	// worth implementing.
+	Redirects int
 }
 
 func (e *Engine) ReverseStats() ReverseStats {
 	r := e.rev
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	st := ReverseStats{Targets: len(r.m), LogRecords: r.records, LogTombstones: r.tombstones}
+	st := ReverseStats{
+		Targets: len(r.m), LogRecords: r.records,
+		LogTombstones: r.tombstones, Redirects: len(r.redirects),
+	}
 	for _, edges := range r.m {
 		st.Edges += len(edges)
 	}

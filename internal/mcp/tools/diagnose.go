@@ -48,8 +48,8 @@ func diagnoseHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		partial := writePartial(&sb, ws)
 
 		rs := ws.GraphReverseStats()
-		fmt.Fprintf(&sb, "  <reverse targets=\"%d\" edges=\"%d\" log_records=\"%d\" log_tombstones=\"%d\" />\n",
-			rs.Targets, rs.Edges, rs.LogRecords, rs.LogTombstones)
+		fmt.Fprintf(&sb, "  <reverse targets=\"%d\" edges=\"%d\" log_records=\"%d\" log_tombstones=\"%d\" redirects=\"%d\" />\n",
+			rs.Targets, rs.Edges, rs.LogRecords, rs.LogTombstones, rs.Redirects)
 
 		// An empty model type is not "unspecified": bootstrap falls back to the
 		// built-in default, so report the value that actually takes effect or
@@ -64,6 +64,9 @@ func diagnoseHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		writeConfig(&sb, cfg)
 		writeStorage(&sb, ws.Dir)
 
+		for _, h := range redirectHint(rs, stats.Nodes) {
+			fmt.Fprintf(&sb, "  <hint>%s</hint>\n", mcp.EscapeText(h))
+		}
 		for _, h := range diagHints(hdr, expected, mismatch, totals, partial) {
 			fmt.Fprintf(&sb, "  <hint>%s</hint>\n", mcp.EscapeText(h))
 		}
@@ -239,4 +242,27 @@ func diagHints(hdr *semantic.Header, expected string, mismatch bool,
 				"the watcher re-indexes the file.", partial))
 	}
 	return out
+}
+
+// redirectCarryFrac is where carrying superseded IDs stops being free.
+//
+// Redirects are upsert-class, so compaction preserves them and the table only
+// grows. The GC that would collect them is deferred by design (§4.3), and this
+// is the number that says when deferring it stops being the right call.
+const redirectCarryFrac = 0.20
+
+// redirectHint reports the carry ratio once it is worth acting on.
+func redirectHint(rs graph.ReverseStats, nodes int) []string {
+	if rs.Redirects == 0 || nodes == 0 {
+		return nil
+	}
+	frac := float64(rs.Redirects) / float64(nodes)
+	if frac < redirectCarryFrac {
+		return nil
+	}
+	return []string{fmt.Sprintf(
+		"the reverse log carries %d redirects against %d live nodes (%.0f%%). "+
+			"They are never dropped at compaction, so this only grows: at this ratio "+
+			"the deferred redirect GC is worth implementing.",
+		rs.Redirects, nodes, frac*100)}
 }

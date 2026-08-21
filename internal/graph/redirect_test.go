@@ -307,3 +307,21 @@ func TestRenameKeySurvivesRestart(t *testing.T) {
 		t.Fatalf("ResolveID after restart = %q, want the new heading", got)
 	}
 }
+
+func TestReverseStatsCountsRedirects(t *testing.T) {
+	e := newEngine(t)
+	e.rev.Upsert("docs/a.md#new", "caller", EdgeReference, 1.0)
+	e.rev.Redirect("docs/a.md#old", "docs/a.md#new", 1)
+	e.rev.Redirect("docs/a.md#older", "docs/a.md#new", 2)
+
+	st := e.ReverseStats()
+	if st.Redirects != 2 {
+		t.Fatalf("Redirects = %d, want 2", st.Redirects)
+	}
+	// Redirects survive compaction by design, so they must not be counted as
+	// edges — the gauge that decides when to collect them would read the
+	// wrong number.
+	if st.Edges != 1 {
+		t.Fatalf("Edges = %d, want 1", st.Edges)
+	}
+}
