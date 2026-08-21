@@ -1,13 +1,17 @@
 ---
 name: knowledge
 description: >-
-  Build and use knowledge sets — curated lists of documentation sections that an
-  agent can scan by one-line summaries and then load exactly, instead of reading
-  whole documents. Use when an agent needs background it should not carry in its
-  prompt (a release process, an instrumentation design, a subsystem's rules),
-  when asked to make such a set for a topic, or when a task says to consult one.
-  Requires the graphin MCP server, which turns every markdown heading into a
-  section node.
+  The project's knowledge layer under docs/wiki — knowledge sets (curated lists
+  of documentation sections, scanned by one-line summaries and loaded exactly)
+  and a glossary, the project's own vocabulary of words it uses precisely. Use
+  when an agent needs background it should not carry in its prompt (a release
+  process, a subsystem's rules); when asked what this project calls something,
+  to define a term, or to add one to the glossary; when building or consulting
+  a set; and when a tool call was BLOCKED for missing knowledge — this says
+  what to run to clear it. Covers wiki_preflight / wiki_resolve / wiki_propose,
+  the `graphin wiki` commands, and the file formats under docs/wiki. Requires
+  the graphin MCP server, which turns every markdown heading into a section
+  node.
 ---
 
 # Knowledge sets
@@ -140,6 +144,51 @@ the review an ordinary diff. Three rules reject before a human ever looks:
 The test for a set, not a term: **would this knowledge have made the session
 shorter?** If the answer needs a paragraph of hedging, it is not a set yet.
 
+## Writing a glossary entry
+
+Approving a candidate means moving its file from `docs/wiki/propose/` to
+`docs/wiki/glossary/`. This is what you are moving, and what to write by hand:
+
+```markdown
+---
+type: glossary
+canonical: posting              # the one word the project should use
+title: Posting                  # optional; defaults to the filename
+description: A unit of published writing.
+tags: [editorial]
+aliases: [post, 포스트]          # see the substitution test below
+# derives_from: post           # a compound inherits its root's definition
+not_to_be_confused_with:
+  - blog — a posting is a unit, a blog is a medium
+scope: [all]                    # roles this reaches; see Push versus pull
+evidence:                       # node ids, from at least two different files
+  - docs/handbook.md#publishing
+  - docs/api.md#post-endpoints
+status: stable
+reviewed:
+  - human:ahormati — 2026-08-21
+---
+
+One paragraph. What it means, and why the project needed its own word for it.
+```
+
+**The filename is the term's identity.** `canonical` defaults to it, and other
+pages link by it.
+
+Three rules decide the hard parts:
+
+- **The substitution test decides `aliases`.** A word is an alias only if it is
+  interchangeable in *every* context in this project. Partial overlap is a
+  separate entry with the relation stated — merging the two hides the exact
+  difference that made someone look the word up.
+- **Compounds are not defined twice.** Point `derives_from` at the root and let
+  the definition be inherited. Two definitions of overlapping things drift, and
+  the one nobody reads is the one that goes wrong.
+- **`not_to_be_confused_with` earns its place.** Only write one where two words
+  in this project are close enough that somebody already got them wrong. It is
+  the field that does the most work per line, and the field that is worthless
+  when filled in speculatively.
+
 ## Push versus pull
 
 A set can be tagged `roles:`, and `graphin wiki skills` turns those tags into a
@@ -151,9 +200,52 @@ needs stays in the catalogue, where it costs nothing until asked for.
 The block is capped, because it is paid for on every session whether or not it
 is read. Overflow is reported in the block itself rather than trimmed quietly.
 
+### Which agents get which block
+
+Roles reach agents through one file, `docs/wiki/agents.md`:
+
+```markdown
+---
+type: agents
+agents:
+  - backend-dev — backend      # this agent's role
+  - docs-writer — docs
+  - lint-bot — exempt          # or leave the role blank
+---
+```
+
+The left-hand name is the **subagent type** — what you pass as
+`subagent_type` when delegating, which is the `name:` in the agent's own
+definition. If those two disagree the row never matches anything.
+
+One table answers two questions on purpose — which role to preflight for, and
+whether this agent is subject to the gate at all. Split them into two files and
+they start disagreeing about the same agent.
+
+**An agent the table has never heard of is gated, with no role.** The reverse
+default would silently exempt every new agent, which is the state the gate
+exists to prevent. graphin's own read-only agents (`graphin-explorer`,
+`release`) are exempt in the binary, because they run in repositories where no
+file of yours describes them.
+
+### Wiring the generated block
+
+`graphin wiki skills` writes `.claude/skills/<role>-conventions/SKILL.md`, one
+per role. Declaring it is **reported, not applied** — agent definitions are
+yours, and a generator that rewrites them makes "regenerate" unsafe to run
+without reading the diff first. The command prints the mapping; add the line
+yourself:
+
+```yaml
+# .claude/agents/backend-dev.md
+skills:
+  - backend-conventions
+```
+
 Generated files are owned by the generator: edit `docs/wiki/` and regenerate.
-Which agents should declare which block is **reported, not applied** — agent
-definitions are yours.
+`graphin wiki skills --check` fails when they have drifted, which is worth a CI
+step — a generated block that no longer matches its source still reads as
+authoritative.
 
 ## Lifecycle and trust are separate fields
 
