@@ -232,14 +232,30 @@ func wikiResolveHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		NodeIDs []string `json:"node_ids"`
 	}
 	return func(_ context.Context, raw json.RawMessage) (string, bool) {
-		if !ws.Bootstrapped() {
-			return notBootstrapped(ws), true
-		}
 		var a args
 		_ = json.Unmarshal(raw, &a)
 		st := ws.FSM.Status()
+
+		// Naming nothing is a valid call, not a mistake. A caller whose
+		// preflight returned an empty catalogue has nothing to name, and the
+		// gate tells them to run this anyway — refusing would make the escape
+		// the gate promises impossible to take, which is how a blocked agent
+		// ends up with no legal next move.
+		//
+		// It is answered before the bootstrap check for the same reason:
+		// reading no sections needs no index, and failing here would deadlock
+		// every workspace whose server has not indexed yet.
 		if len(a.Sets) == 0 && len(a.NodeIDs) == 0 {
-			return mcp.ErrorXML(mcp.ErrInternal, "sets or node_ids is required", &st), true
+			var sb strings.Builder
+			writeStatusPrefix(&sb, ws)
+			sb.WriteString("<knowledge requested=\"0\" returned=\"0\">\n" +
+				"  <none>Nothing to load. Proceed.</none>\n" +
+				"</knowledge>")
+			return sb.String(), false
+		}
+
+		if !ws.Bootstrapped() {
+			return notBootstrapped(ws), true
 		}
 
 		store, _, err := loadWiki(ws)

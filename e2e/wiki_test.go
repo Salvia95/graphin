@@ -301,3 +301,33 @@ func TestWikiPreflightRecordsACoverageMiss(t *testing.T) {
 		t.Fatalf("the task was not recorded: %+v", report.Misses[0])
 	}
 }
+
+func TestWikiResolveWithNothingNamedClearsTheCaller(t *testing.T) {
+	// The gate tells a blocked caller to run wiki_resolve even when preflight
+	// matched nothing. Refusing that call would leave them with no legal next
+	// move — a block whose own instructions cannot be followed.
+	root := wikiWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("wiki_resolve", map[string]any{})
+	if isErr {
+		t.Fatalf("naming nothing must be a valid call: %s", text)
+	}
+	if !strings.Contains(text, "<none>") {
+		t.Fatalf("no acknowledgement to act on:\n%s", text)
+	}
+}
+
+func TestWikiResolveWithNothingNamedWorksBeforeBootstrap(t *testing.T) {
+	// Reading no sections needs no index. Requiring bootstrap here deadlocked
+	// every workspace whose server had not indexed yet: the gate blocks, and
+	// the tool it names refuses.
+	root := wikiWorkspace(t)
+	c := newClient(t, root)
+
+	text, isErr := c.tool("wiki_resolve", map[string]any{})
+	if isErr {
+		t.Fatalf("must not require bootstrap when nothing is named: %s", text)
+	}
+}
