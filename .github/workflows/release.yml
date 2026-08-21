@@ -34,7 +34,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The console interface is built here and NOT in the build job.
+  #
+  # That job runs inside debian:bullseye for one reason — a glibc 2.31 floor —
+  # and putting a node toolchain in there would put the only constraint that
+  # container exists to hold at the mercy of an unrelated dependency. The
+  # frontend produces static files; nothing about them cares which libc built
+  # them, so they cross as an artifact instead.
+  ui:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: internal/console/ui/package-lock.json
+      - name: Build the console interface
+        working-directory: internal/console/ui
+        run: |
+          set -eu
+          npm ci
+          npm run build
+          test -f dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: console-ui
+          path: internal/console/ui/dist
+          retention-days: 1
+          if-no-files-found: error
+
   build:
+    needs: ui
     strategy:
       fail-fast: true
       matrix:
@@ -84,6 +116,13 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # After checkout, which would otherwise wipe the directory. //go:embed
+      # reads this at compile time, so it has to be in place before `make build`.
+      - uses: actions/download-artifact@v4
+        with:
+          name: console-ui
+          path: internal/console/ui/dist
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -95,6 +134,10 @@ jobs:
           VER: ${{ inputs.version }}
         run: |
           set -eu
+          # A missing interface is not a build error — the binary would ship
+          # with the "not built yet" page and nothing would say so until a user
+          # opened it. Fail here instead.
+          test -f internal/console/ui/dist/index.html
           # Command-line variables override the Makefile's git-describe
           # defaults, so the release stamp is exactly the dispatched version.
           # Build flags themselves stay defined in one place: the Makefile.

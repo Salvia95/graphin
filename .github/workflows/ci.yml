@@ -46,6 +46,27 @@ jobs:
   # Both linters live in one job on purpose: actionlint shells out to
   # shellcheck for the `run:` blocks it finds, and the runner image already
   # has shellcheck on PATH. Splitting them would silently lose that half.
+  # The console interface. `npm run build` runs tsc first, so this is the
+  # typecheck as well as the build — a broken component fails here rather than
+  # at release time, which is the only moment anyone would otherwise notice.
+  ui:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: internal/console/ui/package-lock.json
+      - name: Build the console interface
+        working-directory: internal/console/ui
+        run: |
+          set -eu
+          npm ci
+          npm run build
+          test -f dist/index.html
+
   lint:
     runs-on: ubuntu-22.04
     timeout-minutes: 10

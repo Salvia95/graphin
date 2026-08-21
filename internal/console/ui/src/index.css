@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Dark mode follows the OS. This runs on someone's own machine in a browser
+   tab they opened themselves, so there is nobody to offer a toggle to. */
+html {
+  color-scheme: light dark;
+}

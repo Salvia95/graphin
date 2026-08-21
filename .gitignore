@@ -19,3 +19,11 @@ libonnxruntime*
 .vscode/
 *.swp
 .DS_Store
+
+# console interface: sources are committed, the build output is not. The
+# .gitkeep is, because //go:embed fails on a pattern that matches nothing and
+# `go build` has to keep working without a node toolchain.
+internal/console/ui/node_modules/
+internal/console/ui/tsconfig.tsbuildinfo
+internal/console/ui/dist/*
+!internal/console/ui/dist/.gitkeep

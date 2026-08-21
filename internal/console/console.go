@@ -149,9 +149,15 @@ func NewMux(root, ui string) *http.ServeMux {
 	})
 	mux.HandleFunc("POST /api/queue/{canonical}/approve", approveHandler(root))
 	mux.HandleFunc("POST /api/queue/{canonical}/discard", discardHandler(root))
-	if ui != "" {
+	switch sub, ok := embeddedUI(); {
+	case ui != "":
+		// An explicit directory wins over the embedded copy: this is how the
+		// interface is developed against a real workspace without rebuilding
+		// the binary between edits.
 		mux.Handle("GET /", http.FileServer(http.Dir(ui)))
-	} else {
+	case ok:
+		mux.Handle("GET /", http.FileServerFS(sub))
+	default:
 		mux.HandleFunc("GET /", placeholder)
 	}
 	return mux

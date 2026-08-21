@@ -93,8 +93,8 @@
     },
     "console": {
       "docs/console-spec.md#1-왜-안-지었나": {
-        "h": "b3:67d554fa80d7111ba22f4f6430b4882075d153f68b64253cc3d805e3b011d0a9",
-        "r": "b3:7950ca8fce0cc9ff79e651eaa89cf0f99787bc39f8997a2da808a2af972612d6"
+        "h": "b3:1f59ba2713dd7b94f8e37ebc1dbfc0f260e7588ce1185882bf10b74e7c264690",
+        "r": "b3:8d19c06ba6f99fbf1f80fde85e1f997c1d1017310031a685b2916f6368a281fe"
       },
       "docs/console-spec.md#2-다시-볼-조건": {
         "h": "b3:847256a0092bd774a70816eb0314f6113b3adcf549b21f25ec7e8a52a9eb8395",
@@ -113,8 +113,8 @@
         "r": "b3:a2f5f65ff6a13898a2a761c63e38631ce3734de49f236127a708958d8a71786c"
       },
       "docs/console-spec.md#6-빌드릴리스에-붙는-것": {
-        "h": "b3:0279faa40ff6173287c7b187b80e66d2bfa7ad1ea5088bc428a848a141306f24",
-        "r": "b3:10482ab256ac504b710cb7249a8665999bb9ffa7f251cbb5b772e0baeda4a6e3"
+        "h": "b3:851c5e28591c284635f17e0180e4c7c5d714bd5bf0a03fcdab93ff95fc213181",
+        "r": "b3:80f00e5e40eb4ce4e27aca8e9d6f7e29aaf889c27d4edd690b4ef9d0f73136f6"
       },
       "docs/console-spec.md#7-버저닝": {
         "h": "b3:52a33a37c026a32e50ed82a30f7ca095d9c4e27ed86dfdd1005c07d68799bc4d",
@@ -125,8 +125,8 @@
         "r": "b3:def88449ba1095ae37ad2ed376df3aa2e63554aa883d6f66c1ac53676936af8d"
       },
       "docs/console-spec.md#9-짓기로-했다면--첫-조각": {
-        "h": "b3:3bd622505371a844f768b54b7961ae2dbfe73ab976f15ac20e5e3a3baa02eae1",
-        "r": "b3:fca1d7d64a59829dfeeb1e02057d008f046abcba812c96ff5add64b7df8fb9a4"
+        "h": "b3:9d48ae227ebb2270e6459d2d6d1a5a0af7d02bbcd7f1b738ccb63f177c4945c8",
+        "r": "b3:3a2c9b46df57d861f16faab9724fae86041c152e3e7ac10c9353cfc36846ece7"
       }
     },
     "release": {

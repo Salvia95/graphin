@@ -13,10 +13,20 @@ LDFLAGS    = -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDa
 # NEVER add -extldflags -static: yalue/onnxruntime_go opens libonnxruntime
 # with dlopen, which a static binary cannot do. The break would show up only
 # at semantic warmup, long after the build looked fine.
-.PHONY: build vet test test-race fbs
+.PHONY: build ui vet test test-race fbs
 
 build:
 	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/graphin ./cmd/graphin
+
+# The console interface, compiled into the binary by //go:embed.
+#
+# Deliberately NOT a prerequisite of `build`. A Go toolchain is the only thing
+# this repo asks of a contributor, and making every build need node would trade
+# that away for one subcommand most people never open. A binary built without
+# this carries no interface and says so at runtime; CI and the release run it
+# and hand the result to the Go build.
+ui:
+	cd internal/console/ui && npm ci && npm run build
 
 vet:
 	$(GO) vet ./...

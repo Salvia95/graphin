@@ -235,3 +235,35 @@ func TestDiscardEndpoint(t *testing.T) {
 		t.Errorf("second discard = %d, want 404", rec.Code)
 	}
 }
+
+// TestRootServesSomethingEitherWay covers both legitimate binaries: one built
+// after `make ui` and one built by `go build` alone. Which of the two a test
+// run sees depends on whether dist/ happens to be built on this machine, so
+// the assertion is what must hold in both — a page, not a 404.
+func TestRootServesSomethingEitherWay(t *testing.T) {
+	rec := httptest.NewRecorder()
+	NewMux(t.TempDir(), "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET / = %d, want 200", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want HTML", ct)
+	}
+}
+
+// TestExplicitUIDirectoryWins pins the precedence development depends on:
+// --ui serves from disk without rebuilding the binary between edits, which is
+// only useful if it beats whatever was compiled in.
+func TestExplicitUIDirectoryWins(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<h1>from disk</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	NewMux(t.TempDir(), dir).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if !strings.Contains(rec.Body.String(), "from disk") {
+		t.Errorf("--ui did not win:\n%s", rec.Body)
+	}
+}
