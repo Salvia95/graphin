@@ -91,6 +91,44 @@
         "r": "b3:2d1df7cf096e3971952c9c03c1b3fd82adaaa0d989f323be71aa6f2e894744ee"
       }
     },
+    "console": {
+      "docs/console-spec.md#1-왜-안-지었나": {
+        "h": "b3:cde9b7520f0781d72733f3a24251a3c06a51edc5470744655ea3d4542a739d2a",
+        "r": "b3:f28b682941a88cde299f35a208091c972e4a1ffaa20775d39fa88436360775e1"
+      },
+      "docs/console-spec.md#2-다시-볼-조건": {
+        "h": "b3:008a712db89cf8f4a9c977e6e373d2c70bf1e7b1282982283714efc0dd545480",
+        "r": "b3:530d64491e72799b0d9b7cdc1c15997b95b9aa948c7c4b86a4795592842b61ae"
+      },
+      "docs/console-spec.md#3-먼저-알아야-할-제약--콘솔은-인덱스를-열-수-없다": {
+        "h": "b3:e298ea37823345f9ef59d4f8b2bbbc3153e77232da532017080fd5341235468e",
+        "r": "b3:f0fab32efa67f3f042c7759d0a1d60bf815e13bc9a27f862b17adc0055579242"
+      },
+      "docs/console-spec.md#4-스택-설계-확정분-뒤집으려면-근거가-필요": {
+        "h": "b3:4d961ced398b77c856f2a07fb61773608dee8aadff4f64a5cf4feb9e39bbb964",
+        "r": "b3:4ad960eb8a66346b4cd8d29f6850f82766c81431923507fc5dc8e1d637f319b6"
+      },
+      "docs/console-spec.md#5-규율--api는-커맨드와-같은-함수의-얇은-껍질": {
+        "h": "b3:0e388710bdf2133ab193cc89c0d063804349be9b52f71823116610cd436dd533",
+        "r": "b3:a563f8e5368d4c1ccde6ed8c3461bfc7352d381fe02fa850a154db7e56f97a86"
+      },
+      "docs/console-spec.md#6-빌드릴리스에-붙는-것": {
+        "h": "b3:0279faa40ff6173287c7b187b80e66d2bfa7ad1ea5088bc428a848a141306f24",
+        "r": "b3:10482ab256ac504b710cb7249a8665999bb9ffa7f251cbb5b772e0baeda4a6e3"
+      },
+      "docs/console-spec.md#7-버저닝": {
+        "h": "b3:52a33a37c026a32e50ed82a30f7ca095d9c4e27ed86dfdd1005c07d68799bc4d",
+        "r": "b3:e7b75a84facfc561036c6e6fb9c011225b972583f475a38662923e49586bd04a"
+      },
+      "docs/console-spec.md#8-열린-질문": {
+        "h": "b3:7754f508aece323c63e91b23071d6ec24761c479335b11cb194fd7bb90c0773a",
+        "r": "b3:b57271cf65b2aa7b90cea60166e0b8c0167bd7db9e06d7e47c7613d7300e3948"
+      },
+      "docs/console-spec.md#9-짓기로-했다면--첫-조각": {
+        "h": "b3:a435b20d6f4231140cb099838070148ec34fc6ed8fbb0d932b651439da88cfb2",
+        "r": "b3:02c6f94b274bed9c9d65847ca4a437e8bbc1cf70acb808666b483988db30a1f3"
+      }
+    },
     "release": {
       "docs/plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07": {
         "h": "b3:b4c500e61df2588ca8ebae28941ee70d4767f81a2388b7e19733b08681bcaa33",
