@@ -112,7 +112,18 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 }
 
+// objSchema builds a tool's input schema.
+//
+// A nil props may not reach the wire unchanged: a nil Go map marshals to JSON
+// null, and a client that validates properties as an object rejects the whole
+// tools/list response over it — every tool vanishes from the session, not just
+// the one with the bad schema, and the server has no idea because by its own
+// lights it answered correctly. That is what an argument-less tool did to this
+// server for two releases; see TestInputSchemasMarshalValid.
 func objSchema(props map[string]any, required []string) map[string]any {
+	if props == nil {
+		props = map[string]any{}
+	}
 	s := map[string]any{"type": "object", "properties": props}
 	if len(required) > 0 {
 		s["required"] = required
