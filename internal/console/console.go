@@ -139,6 +139,20 @@ func NewMux(root, ui string) *http.ServeMux {
 		}
 		writeJSON(w, q)
 	})
+	// One candidate in full. The list endpoint deliberately does not carry a
+	// proposal's body and aliases: a queue of thirty would ship thirty drafts
+	// to render four lines each, and the form that needs them opens one at a
+	// time.
+	mux.HandleFunc("GET /api/queue/{canonical}", candidateHandler(root))
+	// Which repository this is. The console binds one port and a developer
+	// with two of them open has no other way to tell which window is which.
+	mux.HandleFunc("GET /api/workspace", func(w http.ResponseWriter, _ *http.Request) {
+		abs, err := filepath.Abs(root)
+		if err != nil {
+			abs = root
+		}
+		writeJSON(w, workspace{Root: abs, Name: filepath.Base(abs)})
+	})
 	mux.HandleFunc("GET /api/usage", func(w http.ResponseWriter, _ *http.Request) {
 		rep, err := usageReport(root)
 		if err != nil {
@@ -181,6 +195,47 @@ func NewMux(root, ui string) *http.ServeMux {
 		mux.HandleFunc("GET /", placeholder)
 	}
 	return mux
+}
+
+// workspace names the repository being served.
+type workspace struct {
+	Root string `json:"root"`
+	Name string `json:"name"`
+}
+
+// candidate is one queued proposal as the approval form needs it: the term's
+// own fields, prefilled, plus where the file is.
+//
+// Term is embedded rather than nested because the form's field names are the
+// frontmatter's field names, and putting them one level down would invite a
+// client to invent a wrapper name for something that already has one.
+type candidate struct {
+	*wiki.Term
+	File string `json:"file"`
+	Seen int    `json:"seen"`
+}
+
+func candidateHandler(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		st, err := wiki.Load(root)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		queue, err := st.Queue()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		name := r.PathValue("canonical")
+		for _, p := range queue {
+			if p.Canonical == name {
+				writeJSON(w, candidate{Term: &p.Term, File: p.File, Seen: p.Seen})
+				return
+			}
+		}
+		writeError(w, http.StatusNotFound, wiki.ErrNoProposal)
+	}
 }
 
 // maxBody caps a reviewer's form. A glossary entry is a paragraph; anything

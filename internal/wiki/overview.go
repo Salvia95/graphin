@@ -84,6 +84,31 @@ type Decision struct {
 	Role string `json:"role,omitempty"`
 }
 
+// EntryStatus is what a set entry's pin says about that entry right now. It is
+// per-entry on purpose: a set with one broken link out of twelve is not a
+// broken set, and a reader deciding whether to open it needs to see which line
+// is the bad one rather than a count that could mean anything.
+type EntryStatus string
+
+const (
+	EntryOK       EntryStatus = "ok"
+	EntryDrift    EntryStatus = "drift"
+	EntryDangling EntryStatus = "dangling"
+)
+
+// EntryView is one line of a set, with the pin state that line is in.
+//
+// Line travels with it for the same reason it travels with a Problem: fixing a
+// dangling entry means editing that line of the set file, and a consumer that
+// can only name the entry cannot say where to go.
+type EntryView struct {
+	Title   string      `json:"title"`
+	NodeID  string      `json:"node_id"`
+	Summary string      `json:"summary"`
+	Line    int         `json:"line"`
+	Status  EntryStatus `json:"status"`
+}
+
 // SetView is a set as the map shows it.
 type SetView struct {
 	Name          string   `json:"name"`
@@ -102,6 +127,10 @@ type SetView struct {
 	Expired  bool `json:"expired"`
 	Dangling int  `json:"dangling"`
 	Drifted  int  `json:"drifted"`
+	// Items is the set opened up. Entries is kept alongside it because a list
+	// header wants the number before it wants the rows, and because a caller
+	// that only counts should not have to know the list is there.
+	Items []EntryView `json:"items"`
 }
 
 // TermView is a glossary entry as the map shows it. Trust is derived, never
@@ -165,9 +194,19 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 
 	danglingBySet := map[string]int{}
 	driftBySet := map[string]int{}
+	// Keyed by set then node so an entry can be told its own state below
+	// without walking the problem list again per set.
+	statusBySet := map[string]map[string]EntryStatus{}
+	mark := func(set, node string, st EntryStatus) {
+		if statusBySet[set] == nil {
+			statusBySet[set] = map[string]EntryStatus{}
+		}
+		statusBySet[set][node] = st
+	}
 	for _, p := range problems {
 		switch p.Kind {
 		case ProblemDangling:
+			mark(p.Set, p.NodeID, EntryDangling)
 			danglingBySet[p.Set]++
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionDangling, Set: p.Set, NodeID: p.NodeID,
@@ -176,6 +215,7 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 				Action: "Fix the link in the set file (" + p.Set + ":" + itoa(p.Line) + ")",
 			})
 		case ProblemDrift:
+			mark(p.Set, p.NodeID, EntryDrift)
 			driftBySet[p.Set]++
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionDrift, Set: p.Set, NodeID: p.NodeID,
@@ -206,11 +246,22 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 				Action: "Re-verify the content and move stale_after forward",
 			})
 		}
+		items := []EntryView{}
+		for _, e := range s.Entries() {
+			st := EntryOK
+			if k, ok := statusBySet[s.Name][e.NodeID]; ok {
+				st = k
+			}
+			items = append(items, EntryView{
+				Title: e.Title, NodeID: e.NodeID, Summary: firstLine(e.Summary),
+				Line: e.Line, Status: st,
+			})
+		}
 		o.Sets = append(o.Sets, SetView{
 			Name: s.Name, Title: s.Title, Summary: firstLine(s.Summary()),
 			RelPath: s.RelPath, Roles: nonNil(s.Roles), Tags: nonNil(s.Tags),
 			Prerequisites: nonNil(s.Prerequisites), Mode: s.Mode,
-			Entries: len(s.Entries()),
+			Entries: len(items), Items: items,
 			Offered: friction.Matched[s.Name], Opened: friction.Resolved[s.Name],
 			Expired: expired, Dangling: danglingBySet[s.Name], Drifted: driftBySet[s.Name],
 		})
