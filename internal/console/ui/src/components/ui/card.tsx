@@ -8,5 +8,5 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
 }
 
 export function CardContent({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("p-6", className)} {...props} />
+  return <div className={cn("p-5", className)} {...props} />
 }

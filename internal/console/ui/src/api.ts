@@ -27,6 +27,16 @@ export type Decision = {
   role?: string
 }
 
+export type EntryStatus = "ok" | "drift" | "dangling"
+
+export type EntryView = {
+  title: string
+  node_id: string
+  summary: string
+  line: number
+  status: EntryStatus
+}
+
 export type SetView = {
   name: string
   title: string
@@ -42,7 +52,10 @@ export type SetView = {
   expired: boolean
   dangling: number
   drifted: number
+  items: EntryView[]
 }
+
+export type Trust = "unverified" | "machine-confirmed" | "human-reviewed"
 
 export type TermView = {
   canonical: string
@@ -50,7 +63,7 @@ export type TermView = {
   description?: string
   rel_path: string
   status: string
-  trust: "unverified" | "machine-confirmed" | "human-reviewed"
+  trust: Trust
   aliases?: string[]
   evidence: number
   expired: boolean
@@ -80,10 +93,28 @@ export type UsageReport = {
   groups?: Record<string, { adoptions?: number; fallbacks?: number }>
 }
 
+export type Workspace = { root: string; name: string }
+
+/** One queued proposal in full. The queue list carries none of this on purpose;
+ *  the form that needs it opens one candidate at a time. */
+export type Candidate = {
+  canonical: string
+  title?: string
+  description?: string
+  body?: string
+  tags?: string[]
+  aliases?: string[]
+  evidence?: string[]
+  status?: string
+  file: string
+  seen: number
+}
+
 export type Edits = {
   title?: string
   description?: string
   tags?: string[]
+  aliases?: string[]
   body?: string
 }
 
@@ -122,6 +153,9 @@ const post = (path: string, body?: unknown) =>
 export const api = {
   wiki: () => fetch("/api/wiki").then(json<Overview>),
   usage: () => fetch("/api/usage").then(json<UsageReport>),
+  workspace: () => fetch("/api/workspace").then(json<Workspace>),
+  candidate: (canonical: string) =>
+    fetch(`/api/queue/${encodeURIComponent(canonical)}`).then(json<Candidate>),
   approve: (canonical: string, edits: Edits) =>
     post(`/api/queue/${encodeURIComponent(canonical)}/approve`, edits).then(json<Approved>),
   discard: async (canonical: string) => {

@@ -12,9 +12,12 @@
   /* Same value as elevated on purpose: a border here reads as a surface step,
      not as an ink line. */
   --color-hairline: #2b3139;
+  /* The one step above it, and the only thing hover changes. Nothing moves,
+     nothing glows: a border lightens and that is the whole affordance. */
+  --color-hairline-strong: #3a424c;
 
-  /* The one brand colour. Primary actions, the wordmark, stat numbers — and
-     nothing else. Its scarcity is what makes it work, which is why severity
+  /* The one brand colour. Primary actions, the wordmark, stat numbers, links —
+     and nothing else. Its scarcity is what makes it work, which is why severity
      uses the status ramp below instead. */
   --color-primary: #fcd535;
   --color-primary-active: #f0b90b;
@@ -41,44 +44,73 @@
   --radius-xl: 12px;
 
   /* Inter if the reader has it, system otherwise. No webfont request: this is
-     a local tool and has no business reaching an external host. */
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  /* Numbers. The reference asks for a separate numeric face; what it is
-     actually asking for is column alignment, which tabular-nums gives us
-     without shipping a font binary. */
-  --font-num: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+     a local tool and has no business reaching an external host. The Korean face
+     is named rather than shipped — data on this screen is whatever the user
+     wrote, so CJK renders from the machine's own fonts either way
+     (design-system.md §0.2). */
+  --font-sans:
+    Inter, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  /* Numbers and identifiers. The reference asks for a separate numeric face;
+     what it is actually asking for is column alignment, which tabular-nums
+     gives us without shipping a font binary. */
+  --font-num:
+    "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "Noto Sans KR",
+    monospace;
 
-  --text-display-sm: 32px;
-  --text-display-sm--line-height: 1.2;
-  --text-display-sm--font-weight: 600;
-  --text-title-lg: 24px;
-  --text-title-lg--line-height: 1.3;
-  --text-title-lg--font-weight: 600;
-  --text-title-md: 20px;
-  --text-title-md--line-height: 1.35;
-  --text-title-md--font-weight: 600;
+  /* Type. The small end of this scale does most of the work: the queue is a
+     dense list, and everything that is not a decision's own words is a label
+     around it. */
+  --text-tag: 10px;
+  --text-tag--line-height: 1;
+  --text-tag--font-weight: 600;
+  --text-label: 11px;
+  --text-label--line-height: 1.4;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.4;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 1.5;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 1.5;
+  --text-title-xs: 15px;
+  --text-title-xs--line-height: 1.4;
+  --text-title-xs--font-weight: 600;
   --text-title-sm: 16px;
   --text-title-sm--line-height: 1.4;
   --text-title-sm--font-weight: 600;
-  --text-body-md: 14px;
-  --text-body-md--line-height: 1.5;
-  --text-body-sm: 13px;
-  --text-body-sm--line-height: 1.5;
-  --text-caption: 12px;
-  --text-caption--line-height: 1.4;
-  --text-caption--font-weight: 500;
-  --text-number-display: 40px;
-  --text-number-display--line-height: 1.1;
-  --text-number-display--font-weight: 700;
+  --text-title-md: 18px;
+  --text-title-md--line-height: 1.35;
+  --text-title-md--font-weight: 600;
+  --text-title-lg: 20px;
+  --text-title-lg--line-height: 1.3;
+  --text-title-lg--font-weight: 600;
+
+  /* Numbers get their own steps because they are read as a group — the four
+     tiles across the top are one row of values, not four headings. */
+  --text-number-sm: 12px;
+  --text-number-sm--line-height: 1.4;
   --text-number-md: 16px;
   --text-number-md--line-height: 1.4;
-  --text-number-md--font-weight: 500;
-  --text-number-sm: 14px;
-  --text-number-sm--line-height: 1.4;
-  --text-number-sm--font-weight: 500;
-  --text-button: 14px;
+  --text-number-md--font-weight: 600;
+  --text-number-lg: 18px;
+  --text-number-lg--line-height: 1.2;
+  --text-number-lg--font-weight: 600;
+  --text-number-xl: 28px;
+  --text-number-xl--line-height: 1;
+  --text-number-xl--font-weight: 600;
+  --text-number-display: 32px;
+  --text-number-display--line-height: 1;
+  --text-number-display--font-weight: 700;
+
+  --text-button: 13px;
   --text-button--line-height: 1;
   --text-button--font-weight: 600;
+
+  /* Three tracking steps, each tied to a size: the smaller the label, the more
+     it needs opening up to stay legible in caps. */
+  --tracking-tag: 0.06em;
+  --tracking-eyebrow: 0.08em;
+  --tracking-group: 0.12em;
 }
 
 /* Dark only. The reference splits marketing dark from transactional light; this
@@ -94,9 +126,16 @@ body {
   font-family: var(--font-sans);
   font-size: var(--text-body-md);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Every number in this interface goes through here. */
+::selection {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* Every number in this interface goes through here, and so does every
+   identifier — a node ID is read the way a number is, character by character. */
 .num {
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
