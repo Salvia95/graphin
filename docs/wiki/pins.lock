@@ -134,9 +134,9 @@
         "h": "b3:41fbb3bce85a0a0e04ecff3be390439b9312e999880a316a4dbbf6ba94a9b5e0",
         "r": "b3:bee1ccc36fed2637d2b1678809015395b869489bb808dd49c30198dfd600fdc8"
       },
-      "docs/design-system.md#02-폰트--대체를-쓴다": {
-        "h": "b3:41f5a26cd313638e493041b6d3c003fbb3406c137d35312d339628fb20d83cd8",
-        "r": "b3:83e42b1d0ead85c8037e742459748206d838f4bb1ed419e4f938392bc071b142"
+      "docs/design-system.md#02-폰트--외부-요청은-금지-자체-호스팅은-가능-cjk가-진짜-제약": {
+        "h": "b3:2b0d2bf98b9d039b66b43c54a7ce8461edf04e62b7cce342ea6c10aae9c9ac30",
+        "r": "b3:d182ef90f071ea52a8401435ef4fb7acaf8907d7f314621f4b5f954bcf3666b4"
       },
       "docs/design-system.md#03-다크-단일-모드": {
         "h": "b3:92fa6058c1cd05a6c611935f42a741961dca85b81b11311dabce793b76a6064d",
