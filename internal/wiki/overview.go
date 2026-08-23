@@ -2,6 +2,7 @@ package wiki
 
 import (
 	"fmt"
+	pathpkg "path"
 	"sort"
 	"time"
 )
@@ -74,6 +75,15 @@ type Decision struct {
 	Set       string `json:"set,omitempty"`
 	NodeID    string `json:"node_id,omitempty"`
 	Canonical string `json:"canonical,omitempty"`
+	// File and Line are where the fix is typed, workspace-relative.
+	//
+	// Always inside the wiki, never in the document a set points at, and that
+	// is not an omission. Every action here changes what the wiki claims — fix
+	// this link, confirm this summary, move this date, demote this set — so the
+	// file to open is the set or the candidate. The document itself is one
+	// ctrl-click away from the entry line this lands on.
+	File string `json:"file,omitempty"`
+	Line int    `json:"line,omitempty"`
 	// Count is how many times the same thing has been seen: proposals
 	// resubmitted, sections served stale, tasks that found nothing. One
 	// occurrence is an anecdote.
@@ -201,6 +211,10 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	problems := Check(root, sets, store.Pins)
 	today := time.Now().UTC().Format("2006-01-02")
 
+	relBySet := map[string]string{}
+	for _, s := range sets {
+		relBySet[s.Name] = s.RelPath
+	}
 	danglingBySet := map[string]int{}
 	driftBySet := map[string]int{}
 	// Keyed by set then node so an entry can be told its own state below
@@ -219,6 +233,7 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 			danglingBySet[p.Set]++
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionDangling, Set: p.Set, NodeID: p.NodeID,
+				File: relBySet[p.Set], Line: p.Line,
 				Title:  p.NodeID,
 				Detail: "The target is gone — a heading was renamed or a file moved. The set now delivers less than its catalogue promised.",
 				Action: "Fix the link in the set file (" + p.Set + ":" + itoa(p.Line) + ")",
@@ -228,6 +243,7 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 			driftBySet[p.Set]++
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionDrift, Set: p.Set, NodeID: p.NodeID,
+				File: relBySet[p.Set], Line: p.Line,
 				Count:  friction.Drifted[p.NodeID],
 				Title:  p.NodeID,
 				Detail: "The section changed since it was registered. The text is still served, but the one-line summary offering it may no longer hold.",
@@ -250,6 +266,7 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 		if expired {
 			o.Decisions = append(o.Decisions, Decision{
 				Kind: DecisionExpired, Set: s.Name,
+				File: s.RelPath, Line: 1,
 				Title:  s.Name,
 				Detail: "The set is past its own stale_after. That nothing changed is exactly the reason to check.",
 				Action: "Re-verify the content and move stale_after forward",
@@ -279,6 +296,7 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	for _, name := range friction.Unread() {
 		o.Decisions = append(o.Decisions, Decision{
 			Kind: DecisionUnreadSet, Set: name, Count: friction.Matched[name],
+			File: relBySet[name], Line: 1,
 			Title:  name,
 			Detail: fmt.Sprintf("Offered %d times and never opened. A catalogue line costs every delegation and returns nothing.", friction.Matched[name]),
 			Action: "Demote it or delete it",
@@ -292,6 +310,7 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	for _, p := range proposals {
 		o.Decisions = append(o.Decisions, Decision{
 			Kind: DecisionApprove, Canonical: p.Canonical, Count: p.Seen,
+			File: pathpkg.Join(DirName, proposeSubdir, safeName(p.Canonical)+".md"), Line: 1,
 			Evidence: nonNil(p.Evidence),
 			Title:    p.Canonical,
 			Detail:   fmt.Sprintf("Proposed %d times, %d citations.", p.Seen, len(p.Evidence)),
