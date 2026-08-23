@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   api,
+  type DecisionKind,
   type Overview,
   type RepinResult,
   type UsageReport,
@@ -12,20 +13,30 @@ import { HealthyPanel } from "@/HealthyPanel"
 import { SetDrawer } from "@/SetDrawer"
 import { SetsGrid, SetsRail } from "@/Sets"
 import { Tiles } from "@/Tiles"
+import { Usage } from "@/Usage"
 import { WikiMap } from "@/WikiMap"
 import { Wordmark } from "@/components/Wordmark"
 import { Button } from "@/components/ui/button"
 import { Eyebrow, Num } from "@/components/ui/field"
-import { BACKLOG_GROUPS, TIER, TIER_ORDER, type Tier, isQueue, tierOf } from "@/lib/tiers"
+import {
+  BACKLOG_GROUPS,
+  TIER,
+  TIER_OF,
+  TIER_ORDER,
+  isQueue,
+  kindCounts,
+  kindLabel,
+  tierOf,
+} from "@/lib/tiers"
 import { cn } from "@/lib/utils"
 
-type View = "queue" | "backlog" | "map"
-type Filter = Tier | "all"
+type View = "queue" | "backlog" | "map" | "usage"
+type Filter = DecisionKind | "all"
 
-/** Backlog groups fold. `uncovered` grows one row per unanswered question and
- *  can reach the hundreds — a list that long stops being a list. Ten is enough
- *  to see what kind of thing is in there. */
-const BACKLOG_CAP = 10
+/** Groups fold past this. `uncovered` grows one row per unanswered question,
+ *  and `dangling` grows one row per entry pointing into a file somebody moved —
+ *  either can reach the hundreds, and a list that long stops being a list. */
+const GROUP_CAP = 10
 
 function Tab({
   active,
@@ -65,6 +76,7 @@ function FilterChip({
   label,
   count,
   tone,
+  mono,
   onClick,
 }: {
   active: boolean
@@ -72,6 +84,7 @@ function FilterChip({
   label: string
   count: number
   tone: string
+  mono?: boolean
   onClick: () => void
 }) {
   return (
@@ -89,7 +102,7 @@ function FilterChip({
           {glyph}
         </span>
       )}
-      <span>{label}</span>
+      <span className={mono ? "num" : undefined}>{label}</span>
       <span className="num opacity-70">{count}</span>
     </button>
   )
@@ -118,10 +131,55 @@ export default function App() {
   }, [])
   useEffect(reload, [reload])
 
+  // Every action a card names happens somewhere else — in an editor, or in an
+  // agent session appending to the friction log. Without this the console shows
+  // the problem the reader just fixed, which is the fastest way to teach
+  // somebody that a screen is not worth trusting.
+  //
+  // Two mechanisms because they fail differently: the stream catches a change
+  // on a second monitor where the window never loses focus, and the focus
+  // handler catches everything if the stream is unavailable at all.
+  useEffect(() => {
+    const es = new EventSource("/api/events")
+    es.addEventListener("change", () => reload())
+    return () => es.close()
+  }, [reload])
+
+  useEffect(() => {
+    const onWake = () => {
+      if (document.visibilityState === "visible") reload()
+    }
+    window.addEventListener("focus", onWake)
+    document.addEventListener("visibilitychange", onWake)
+    return () => {
+      window.removeEventListener("focus", onWake)
+      document.removeEventListener("visibilitychange", onWake)
+    }
+  }, [reload])
+
   const { queue, backlog } = useMemo(() => {
     const all = o?.decisions ?? []
     return { queue: all.filter(isQueue), backlog: all.filter((d) => !isQueue(d)) }
   }, [o])
+
+  const doRepin = useCallback(
+    async (scope?: { set: string; node_id: string }) => {
+      setBusy(true)
+      try {
+        const r = await api.repin(scope)
+        setRepin(r)
+        setWritten((w) => [...new Set([...w, r.path])])
+        reload()
+        return true
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [reload],
+  )
 
   if (error) {
     return (
@@ -150,30 +208,14 @@ export default function App() {
   // nothing to make room for, and the catalogue takes the width instead.
   const problem = queue.length > 0
   const isBacklog = view === "backlog"
-  const isMap = view === "map"
+  const full = view === "map" || view === "usage"
   const source = isBacklog ? backlog : queue
-  const shown = filter === "all" ? source : source.filter((d) => tierOf(d) === filter)
+  const shown = filter === "all" ? source : source.filter((d) => d.kind === filter)
 
-  const counts = { all: source.length, alert: 0, watch: 0, info: 0, neutral: 0 }
-  for (const d of source) counts[tierOf(d)]++
-  const tiers = TIER_ORDER.filter((t) => counts[t] > 0)
-  const showFilters = !isBacklog && tiers.length > 1
+  const kinds = kindCounts(source)
+  const showFilters = !full && kinds.length > 1
 
   const toggle = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }))
-
-  async function doRepin() {
-    setBusy(true)
-    try {
-      const r = await api.repin()
-      setRepin(r)
-      setWritten((w) => [...new Set([...w, r.path])])
-      reload()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const groups = isBacklog
     ? BACKLOG_GROUPS.map(({ kind, label, note }) => {
@@ -187,10 +229,11 @@ export default function App() {
             note={note}
             items={items}
             sets={o.sets}
-            cap={BACKLOG_CAP}
+            cap={GROUP_CAP}
             expanded={!!expanded[kind]}
             onToggle={() => toggle(kind)}
             onReview={setApproving}
+            onRepin={doRepin}
           />
         )
       })
@@ -205,12 +248,16 @@ export default function App() {
             note={TIER[tier].note}
             items={items}
             sets={o.sets}
-            expanded
+            cap={GROUP_CAP}
+            expanded={!!expanded[tier]}
             onToggle={() => toggle(tier)}
             onReview={setApproving}
+            onRepin={doRepin}
             action={
-              tier === "watch" && o.health.drifted > 0 ? (
-                <Button variant="ghost" size="xs" disabled={busy} onClick={doRepin}>
+              // Repin-all belongs to the group and not to a card: it is the
+              // control for someone who has read everything below it.
+              tier === "watch" && o.health.drifted > 1 ? (
+                <Button variant="ghost" size="xs" disabled={busy} onClick={() => doRepin()}>
                   Repin all
                 </Button>
               ) : undefined
@@ -220,7 +267,7 @@ export default function App() {
       })
 
   return (
-    <div className="min-w-[1280px]">
+    <div className="min-w-[1120px]">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-hairline bg-canvas px-8">
         <Wordmark className="text-body" />
         <div className="flex items-center gap-3">
@@ -231,14 +278,24 @@ export default function App() {
         </div>
       </header>
 
-      <Tiles o={o} u={u} queue={queue.length} backlog={backlog.length} />
+      <Tiles
+        o={o}
+        u={u}
+        queue={queue.length}
+        backlog={backlog.length}
+        onOpenUsage={() => setView("usage")}
+      />
 
       {written.length > 0 && (
         // The console's whole safety story is that it stops at the working tree.
         // Saying so once in a doc is not the same as saying it at the moment a
         // file changes, so this appears the instant one does.
         <div className="px-8 pt-2">
-          <div className="rounded-lg border-l-2 border-l-info bg-surface px-5 py-4">
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-lg border-l-2 border-l-info bg-surface px-5 py-4"
+          >
             <p className="text-body-sm text-body">
               <Num>{written.length}</Num> file{written.length === 1 ? "" : "s"} written to the
               working tree — <span className="text-on-dark">not committed</span>. Review with{" "}
@@ -264,12 +321,14 @@ export default function App() {
       <div
         className={cn(
           "grid items-start gap-6 px-8 pt-4 pb-16",
-          problem && !isMap ? "grid-cols-[minmax(0,1fr)_340px]" : "grid-cols-[minmax(0,1fr)]",
+          problem && !full ? "grid-cols-[minmax(0,1fr)_340px]" : "grid-cols-[minmax(0,1fr)]",
         )}
       >
         <div>
-          {isMap ? (
+          {view === "map" ? (
             <WikiMap o={o} onOpenSet={setOpenSet} onBack={() => setView("queue")} />
+          ) : view === "usage" ? (
+            <Usage u={u} onBack={() => setView("queue")} />
           ) : (
             <>
               <div className="mb-5 flex items-center gap-5 border-b border-hairline">
@@ -294,7 +353,9 @@ export default function App() {
                 <span className="flex-1" />
                 <span className="pb-3 text-caption whitespace-nowrap text-muted">
                   {isBacklog
-                    ? "Unread sets and unanswered questions — nothing here blocks you today."
+                    ? o.health.answered > 0
+                      ? `Nothing here blocks you today. ${o.health.answered} already left — the wiki answers them now.`
+                      : "Unread sets and unanswered questions — nothing here blocks you today."
                     : "Sorted by what it costs the reader right now."}
                 </span>
               </div>
@@ -304,19 +365,20 @@ export default function App() {
                   <FilterChip
                     active={filter === "all"}
                     label="All"
-                    count={counts.all}
+                    count={source.length}
                     tone="text-muted-strong"
                     onClick={() => setFilter("all")}
                   />
-                  {tiers.map((t) => (
+                  {kinds.map(([k, n]) => (
                     <FilterChip
-                      key={t}
-                      active={filter === t}
-                      glyph={TIER[t].glyph}
-                      label={TIER[t].label}
-                      count={counts[t]}
-                      tone={TIER[t].text}
-                      onClick={() => setFilter(filter === t ? "all" : t)}
+                      key={k}
+                      active={filter === k}
+                      glyph={TIER[TIER_OF[k]].glyph}
+                      label={kindLabel(k)}
+                      mono
+                      count={n}
+                      tone={TIER[TIER_OF[k]].text}
+                      onClick={() => setFilter(filter === k ? "all" : k)}
                     />
                   ))}
                 </div>
@@ -344,7 +406,7 @@ export default function App() {
           )}
         </div>
 
-        {problem && !isMap && (
+        {problem && !full && (
           <SetsRail
             sets={o.sets}
             terms={o.terms}

@@ -23,6 +23,10 @@ export type Decision = {
   node_id?: string
   canonical?: string
   count?: number
+  /** Dates bounding the occurrences `count` sums. Three misses last week and
+   *  three in March are not the same decision. */
+  first_seen?: string
+  last_seen?: string
   evidence?: string[]
   role?: string
 }
@@ -79,6 +83,9 @@ export type Overview = {
     awaiting: number
     sets: number
     entries: number
+    /** Misses a set now matches. They left the backlog, and a number that
+     *  shrinks with no trace is a number nobody trusts twice. */
+    answered: number
   }
   glossary: { count: number; cap: number }
   decisions: Decision[]
@@ -86,11 +93,55 @@ export type Overview = {
   terms: TermView[]
 }
 
+/** The headline counters for one population. Every rate the screen shows is
+ *  derived from these at render time and printed next to its own denominator —
+ *  docs/usage-spec.md §4.2.1 is the record of what happens when it is not. */
+export type GroupMetrics = {
+  windows: number
+  windows_with_search: number
+  windows_with_symbol_search: number
+  windows_with_graphin: number
+  adoptions: number
+  fallbacks: number
+  same_intent_fallbacks: number
+  inconclusive: number
+  late_switches: number
+  discovery_failures: number
+  funnel_searches: number
+  funnel_adherent: number
+}
+
+/** Run outcomes split by what the run touched. The three are NOT a partition:
+ *  a run that surfaced more than one kind counts in each. */
+export type TargetMetrics = {
+  runs: number
+  adoptions: number
+  fallbacks: number
+  same_intent_fallbacks: number
+  inconclusive: number
+}
+
+export type FallbackPair = {
+  ts: string
+  query: string
+  pattern: string
+  same_intent: boolean
+}
+
+export type DayTrend = { date: string; adoptions: number; fallbacks: number }
+
 export type UsageReport = {
   events: number
   sessions: number
   sessions_with_graphin: number
-  groups?: Record<string, { adoptions?: number; fallbacks?: number }>
+  /** -1 means no session used graphin at all — not zero calls. */
+  median_calls_to_first_nav: number
+  groups: Record<string, GroupMetrics>
+  targets: Record<string, TargetMetrics>
+  fallback_pairs: FallbackPair[]
+  search_shapes: Record<string, number>
+  daily: DayTrend[]
+  problems?: string[]
 }
 
 export type Workspace = { root: string; name: string }
@@ -165,5 +216,8 @@ export const api = {
       throw new Error(body?.error ?? `${res.status} ${res.statusText}`)
     }
   },
-  repin: () => post("/api/wiki/repin").then(json<RepinResult>),
+  /** No scope repins everything; a (set, node) pair repins the one entry a
+   *  person just re-read. */
+  repin: (scope?: { set: string; node_id: string }) =>
+    post("/api/wiki/repin", scope).then(json<RepinResult>),
 }

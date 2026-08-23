@@ -2,12 +2,32 @@ import type { Overview, UsageReport } from "@/api"
 import { Eyebrow } from "@/components/ui/field"
 import { cn } from "@/lib/utils"
 
-function Tile({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl bg-surface p-5">
-      <Eyebrow className="mb-3.5 block">{label}</Eyebrow>
+function Tile({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick?: () => void
+  children: React.ReactNode
+}) {
+  const body = (
+    <>
+      <div className="mb-3.5 flex items-baseline justify-between">
+        <Eyebrow>{label}</Eyebrow>
+        {onClick && <span className="text-label text-muted">›</span>}
+      </div>
       {children}
-    </div>
+    </>
+  )
+  if (!onClick) return <div className="rounded-xl bg-surface p-5">{body}</div>
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-xl bg-surface p-5 text-left transition-colors hover:bg-elevated"
+    >
+      {body}
+    </button>
   )
 }
 
@@ -39,11 +59,13 @@ export function Tiles({
   u,
   queue,
   backlog,
+  onOpenUsage,
 }: {
   o: Overview
   u: UsageReport | null
   queue: number
   backlog: number
+  onOpenUsage: () => void
 }) {
   const h = o.health
   const kinds = new Set(o.decisions.map((d) => d.kind)).size
@@ -62,10 +84,15 @@ export function Tiles({
         </div>
       </Tile>
 
+      {/* The number here is the queue, not every decision. It sat beside a tab
+          reading "Decisions 6" while itself reading 12, which is one word
+          meaning two things on one screen. The backlog is real and stays
+          visible — one line down, where it cannot be mistaken for work that is
+          waiting today. */}
       <Tile label="Decisions">
-        <Stat>{h.decisions}</Stat>
+        <Stat>{queue}</Stat>
         <Sub>
-          {kinds} of 8 kinds · {queue} in the queue, {backlog} in backlog
+          {backlog} in backlog · {kinds}/8 kinds across both
         </Sub>
       </Tile>
 
@@ -78,7 +105,11 @@ export function Tiles({
         </Sub>
       </Tile>
 
-      <Tile label="Adoption">
+      {/* Session-level adoption, and the denominator is on the line below it
+          because a rate without one is the defect usage-spec §4.2.1 was written
+          to fix. The headline rate — adopted over adopted-plus-fell-back — is a
+          different number and lives in the usage view this opens. */}
+      <Tile label="Adoption" onClick={onOpenUsage}>
         <Stat tone={adoption === null ? "text-muted" : undefined}>
           {adoption === null ? "—" : `${adoption}%`}
         </Stat>

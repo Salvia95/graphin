@@ -34,14 +34,45 @@ function CopyLocator({ text }: { text: string }) {
   )
 }
 
+/** The action the drift card's own instruction describes.
+ *
+ *  "Re-read it, confirm the summary still holds, then repin" is about one
+ *  section. Repin-all is still there for the person who read everything, but it
+ *  belongs to the group, not to a card — pressing it from here would clear the
+ *  warnings on entries nobody opened. */
+function RepinEntry({ d, onRepin }: { d: Decision; onRepin: RepinFn }) {
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="px-3.5"
+      disabled={busy || done}
+      onClick={async () => {
+        setBusy(true)
+        const ok = await onRepin({ set: d.set!, node_id: d.node_id! })
+        setBusy(false)
+        setDone(ok)
+      }}
+    >
+      {done ? "Repinned" : "Repin this"}
+    </Button>
+  )
+}
+
+export type RepinFn = (scope: { set: string; node_id: string }) => Promise<boolean>
+
 export function DecisionCard({
   d,
   sets,
   onReview,
+  onRepin,
 }: {
   d: Decision
   sets: SetView[]
   onReview: (canonical: string) => void
+  onRepin: RepinFn
 }) {
   const t = TIER[tierOf(d)]
   const meta = metaOf(d)
@@ -93,7 +124,12 @@ export function DecisionCard({
               Review candidate
             </Button>
           ) : (
-            <CopyLocator text={locator(d, sets)} />
+            <>
+              <CopyLocator text={locator(d, sets)} />
+              {d.kind === "drift" && d.set && d.node_id && (
+                <RepinEntry d={d} onRepin={onRepin} />
+              )}
+            </>
           )}
         </div>
       </div>

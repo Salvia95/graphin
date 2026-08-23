@@ -129,5 +129,22 @@ export function metaOf(d: Decision): string[] {
     default:
       if (d.count && d.count > 1) out.push(`×${d.count}`)
   }
+  // The dates come last because they qualify the count rather than replace it,
+  // and only when they say something the count does not: one occurrence has no
+  // span, and a span of one day is the date already in the detail line.
+  if (d.first_seen && d.last_seen && d.first_seen !== d.last_seen) {
+    out.push(`${d.first_seen} → ${d.last_seen}`)
+  }
   return out
+}
+
+/** Filter chips run on kinds, not tiers. Tier is already the grouping, so tier
+ *  chips would repeat the numbers in the headings directly above them — and it
+ *  is the eight kinds the brief worried about telling apart (§6.1). */
+export function kindCounts(ds: Decision[]): [DecisionKind, number][] {
+  const c = new Map<DecisionKind, number>()
+  for (const d of ds) c.set(d.kind, (c.get(d.kind) ?? 0) + 1)
+  return [...c.entries()].sort(
+    (a, b) => TIER_ORDER.indexOf(TIER_OF[a[0]]) - TIER_ORDER.indexOf(TIER_OF[b[0]]) || a[1] - b[1],
+  )
 }

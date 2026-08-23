@@ -96,9 +96,21 @@
         "h": "b3:1f59ba2713dd7b94f8e37ebc1dbfc0f260e7588ce1185882bf10b74e7c264690",
         "r": "b3:8d19c06ba6f99fbf1f80fde85e1f997c1d1017310031a685b2916f6368a281fe"
       },
+      "docs/console-spec.md#10-갱신--화면이-자기가-시킨-일의-결과를-본다": {
+        "h": "b3:25326c9b7896271204e93f5097d1c42c9258ab95d72b065bdc5d9ad23a124253",
+        "r": "b3:df986c67c21f883840196358db343244364ecabe5e3efa838a08e16c04524881"
+      },
+      "docs/console-spec.md#11-결정이-끝날-수-있어야-한다-2026-08-23": {
+        "h": "b3:7d053b46999d034e5c3e6ce29c588fc0a053ae1c8f6e3448eca443cce5b8bef8",
+        "r": "b3:5ae6b4d23a3b727d76cb4507bba4587f79959c4a08a5cfe72be3db15855e5a06"
+      },
+      "docs/console-spec.md#12-repin의-범위-2026-08-23": {
+        "h": "b3:27d3832fef61420dae9c55771693cbc6334c09667fb860adc17a7f656ffa1638",
+        "r": "b3:fe2dc81d65346ff86bcbc3032749d51bcb76ed2ecdfcc49d1bbbfc8c9fd8bbe9"
+      },
       "docs/console-spec.md#2-다시-볼-조건": {
-        "h": "b3:847256a0092bd774a70816eb0314f6113b3adcf549b21f25ec7e8a52a9eb8395",
-        "r": "b3:8e3791fc38c9a75725870f4b44e653549d9bcc0b1908380d3a383ee943484c58"
+        "h": "b3:abcc36cb064481ae79585692c0ab347d6e83a854b2dec211b74818a4106ec178",
+        "r": "b3:e4667fd7e33db3d38795647cad74789d685e100ef4b6e145e923f365a0961c48"
       },
       "docs/console-spec.md#3-먼저-알아야-할-제약--콘솔은-인덱스를-열-수-없다": {
         "h": "b3:e298ea37823345f9ef59d4f8b2bbbc3153e77232da532017080fd5341235468e",
@@ -125,8 +137,8 @@
         "r": "b3:def88449ba1095ae37ad2ed376df3aa2e63554aa883d6f66c1ac53676936af8d"
       },
       "docs/console-spec.md#9-짓기로-했다면--첫-조각": {
-        "h": "b3:9d48ae227ebb2270e6459d2d6d1a5a0af7d02bbcd7f1b738ccb63f177c4945c8",
-        "r": "b3:3a2c9b46df57d861f16faab9724fae86041c152e3e7ac10c9353cfc36846ece7"
+        "h": "b3:696992fecae07be26c3bc76c1b3a073d6aa36eb773294a29ab5a31990c1e008d",
+        "r": "b3:eebc45ac276057ccc2cf49c087864fdedc1eea36e0b2c032d64c49028cab6814"
       }
     },
     "design": {

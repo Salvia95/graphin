@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import type { Decision, SetView } from "@/api"
-import { DecisionCard } from "@/DecisionCard"
+import { DecisionCard, type RepinFn } from "@/DecisionCard"
 import { TIER, type Tier } from "@/lib/tiers"
 import { cn } from "@/lib/utils"
 
@@ -17,6 +17,7 @@ export function DecisionGroup({
   expanded,
   onToggle,
   onReview,
+  onRepin,
   action,
 }: {
   tier: Tier
@@ -29,6 +30,7 @@ export function DecisionGroup({
   expanded: boolean
   onToggle: () => void
   onReview: (canonical: string) => void
+  onRepin: RepinFn
   action?: ReactNode
 }) {
   const t = TIER[tier]
@@ -50,7 +52,13 @@ export function DecisionGroup({
 
       <div className="flex flex-col gap-2">
         {shown.map((d, i) => (
-          <DecisionCard key={`${d.kind}-${d.title}-${i}`} d={d} sets={sets} onReview={onReview} />
+          <DecisionCard
+            key={`${d.kind}-${d.title}-${i}`}
+            d={d}
+            sets={sets}
+            onReview={onReview}
+            onRepin={onRepin}
+          />
         ))}
         {folds && (
           <button

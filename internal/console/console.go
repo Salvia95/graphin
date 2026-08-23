@@ -173,14 +173,11 @@ func NewMux(root, ui string) *http.ServeMux {
 	// reason the whole surface exists: deciding a summary still holds after
 	// re-reading a section is a judgement, and judgements are what this console
 	// is for. It writes pins.lock and stops — the commit stays the reviewer's.
-	mux.HandleFunc("POST /api/wiki/repin", func(w http.ResponseWriter, _ *http.Request) {
-		res, err := wiki.RepinAll(root, false)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		writeJSON(w, res)
-	})
+	mux.HandleFunc("POST /api/wiki/repin", repinHandler(root))
+	// Changes arrive from outside this process by construction: every action a
+	// card names is performed in an editor. Without this the page would keep
+	// showing the problem the reader just fixed.
+	mux.HandleFunc("GET /api/events", eventsHandler(root))
 	mux.HandleFunc("POST /api/queue/{canonical}/approve", approveHandler(root))
 	mux.HandleFunc("POST /api/queue/{canonical}/discard", discardHandler(root))
 	switch sub, ok := embeddedUI(); {
@@ -235,6 +232,46 @@ func candidateHandler(root string) http.HandlerFunc {
 			}
 		}
 		writeError(w, http.StatusNotFound, wiki.ErrNoProposal)
+	}
+}
+
+// repinRequest scopes a repin. An empty body means every pin — what the group
+// control sends — and a (set, node_id) pair means the one entry a person just
+// re-read.
+type repinRequest struct {
+	Set    string `json:"set,omitempty"`
+	NodeID string `json:"node_id,omitempty"`
+}
+
+func repinHandler(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req repinRequest
+		if err := decodeBody(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		var (
+			res wiki.RepinResult
+			err error
+		)
+		switch {
+		case req.Set != "" && req.NodeID != "":
+			res, err = wiki.RepinEntry(root, req.Set, req.NodeID)
+		case req.Set != "" || req.NodeID != "":
+			// Half a pair is never a repin-everything request. Guessing which
+			// one they meant would either vouch for entries nobody read or
+			// silently do nothing.
+			writeError(w, http.StatusBadRequest,
+				errors.New("repinning one entry needs both set and node_id"))
+			return
+		default:
+			res, err = wiki.RepinAll(root, false)
+		}
+		if err != nil {
+			writeError(w, statusFor(err), err)
+			return
+		}
+		writeJSON(w, res)
 	}
 }
 
@@ -305,6 +342,8 @@ func statusFor(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, wiki.ErrNotHuman):
 		return http.StatusBadRequest
+	case errors.Is(err, wiki.ErrNoEntry):
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}

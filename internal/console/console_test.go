@@ -1,15 +1,19 @@
 package console
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Salvia95/graphin/internal/wiki"
 )
@@ -266,4 +270,175 @@ func TestExplicitUIDirectoryWins(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "from disk") {
 		t.Errorf("--ui did not win:\n%s", rec.Body)
 	}
+}
+
+// writeFile is the fixture helper for the endpoints that read a real wiki.
+func writeFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// wikiRoot is a workspace with one document, one set citing two of its
+// sections, and one queued candidate.
+func wikiRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "docs", "target.md"),
+		"# Target\n\n## Section one\n\nFirst body.\n\n## Section two\n\nSecond body.\n")
+	writeFile(t, filepath.Join(root, "docs", "wiki", "sets", "s.md"),
+		"---\ntype: knowledge_set\ndescription: two sections\nroles: []\nmode: live\n---\n\n"+
+			"# S\n\n## G\n\n"+
+			"- [one](../../target.md#section-one) — first summary\n"+
+			"- [two](../../target.md#section-two) — second summary\n")
+	writeFile(t, filepath.Join(root, "docs", "wiki", "propose", "만료_기한.md"),
+		"---\ntype: glossary\ncanonical: 만료 기한\ndescription: 스스로 만료를 선언하는 기간\n"+
+			"tags: []\naliases:\n  - stale_after\nscope: []\nevidence:\n  - a.go:1\n  - b.go:2\n"+
+			"status: draft\nseen: 2\nlast_verified: 2026-08-01\n---\n\n본문이다.\n")
+	return root
+}
+
+// TestCandidateEndpointCarriesWhatTheFormFills. The queue list does not carry a
+// proposal's body or aliases, so a form built from it would arrive blank and a
+// reviewer would retype what the proposer already wrote.
+func TestCandidateEndpointCarriesWhatTheFormFills(t *testing.T) {
+	root := wikiRoot(t)
+	rec := httptest.NewRecorder()
+	NewMux(root, "").ServeHTTP(rec,
+		httptest.NewRequest(http.MethodGet, "/api/queue/"+url.PathEscape("만료 기한"), nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET candidate = %d: %s", rec.Code, rec.Body)
+	}
+	var got struct {
+		Canonical string   `json:"canonical"`
+		Body      string   `json:"body"`
+		Aliases   []string `json:"aliases"`
+		Evidence  []string `json:"evidence"`
+		Seen      int      `json:"seen"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Canonical != "만료 기한" || got.Body == "" || len(got.Aliases) != 1 || len(got.Evidence) != 2 {
+		t.Errorf("candidate = %+v, want the proposal's own fields", got)
+	}
+	if got.Seen != 2 {
+		t.Errorf("seen = %d, want 2", got.Seen)
+	}
+}
+
+func TestCandidateEndpointIs404ForAnUnqueuedName(t *testing.T) {
+	rec := httptest.NewRecorder()
+	NewMux(wikiRoot(t), "").ServeHTTP(rec,
+		httptest.NewRequest(http.MethodGet, "/api/queue/nothing", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+}
+
+// TestRepinScopesToOneEntry guards the difference the drift card promises:
+// re-read this section, confirm this summary, record that. Repinning
+// everything would clear warnings nobody looked at.
+func TestRepinScopesToOneEntry(t *testing.T) {
+	root := wikiRoot(t)
+	mux := NewMux(root, "")
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/wiki/repin", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repin all = %d: %s", rec.Code, rec.Body)
+	}
+	// Both sections move; only one is verified.
+	writeFile(t, filepath.Join(root, "docs", "target.md"),
+		"# Target\n\n## Section one\n\nRewritten one.\n\n## Section two\n\nRewritten two.\n")
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/wiki/repin",
+		strings.NewReader(`{"set":"s","node_id":"docs/target.md#section-one"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("repin one = %d: %s", rec.Code, rec.Body)
+	}
+
+	o, err := wiki.BuildOverview(root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.Health.Drifted != 1 {
+		t.Fatalf("drifted = %d, want 1 — the unverified entry must keep its warning", o.Health.Drifted)
+	}
+}
+
+func TestRepinRefusesHalfAPair(t *testing.T) {
+	rec := httptest.NewRecorder()
+	NewMux(wikiRoot(t), "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/wiki/repin",
+		strings.NewReader(`{"set":"s"}`)))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 — a set with no node is not a repin-everything request", rec.Code)
+	}
+}
+
+func TestWorkspaceEndpointNamesTheRepository(t *testing.T) {
+	root := wikiRoot(t)
+	rec := httptest.NewRecorder()
+	NewMux(root, "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/workspace", nil))
+
+	var got workspace
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != filepath.Base(root) || !filepath.IsAbs(got.Root) {
+		t.Errorf("workspace = %+v, want the absolute root and its base name", got)
+	}
+}
+
+// TestEventsAnnouncesAChange is the whole point of the stream: every action a
+// card names happens in an editor, so the page has to hear about it.
+func TestEventsAnnouncesAChange(t *testing.T) {
+	root := wikiRoot(t)
+	srv := httptest.NewServer(NewMux(root, ""))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/events", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("Content-Type = %q, want an event stream", ct)
+	}
+
+	sc := bufio.NewScanner(res.Body)
+	// The greeting proves the first digest was taken before anything moved, so
+	// the change below cannot be the stream noticing its own start-up.
+	for sc.Scan() {
+		if strings.HasPrefix(sc.Text(), "event: hello") {
+			break
+		}
+	}
+
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		writeFile(t, filepath.Join(root, "docs", "target.md"),
+			"# Target\n\n## Section one\n\nEdited in an editor.\n\n## Section two\n\nSecond body.\n")
+	}()
+
+	for sc.Scan() {
+		if strings.HasPrefix(sc.Text(), "event: change") {
+			return
+		}
+	}
+	t.Fatalf("no change announced: %v", sc.Err())
 }
