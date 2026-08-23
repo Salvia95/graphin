@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { api, type Candidate, type Edits } from "@/api"
 import { Drawer, DrawerClose } from "@/components/Drawer"
 import { Button } from "@/components/ui/button"
+import { ChipEditor } from "@/components/ui/chips"
 import { Input, Label, Textarea } from "@/components/ui/field"
 import { TIER } from "@/lib/tiers"
 import { cn } from "@/lib/utils"
@@ -11,60 +12,6 @@ function Section({ label, children }: { label: string; children: React.ReactNode
     <div>
       <Label className="mb-2">{label}</Label>
       {children}
-    </div>
-  )
-}
-
-/** Aliases are the one list a reviewer really does edit: the proposer sees the
- *  word in code, the reviewer knows the two other things the team calls it. */
-function Aliases({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  const [draft, setDraft] = useState("")
-  const [adding, setAdding] = useState(false)
-
-  const add = () => {
-    const v = draft.trim()
-    if (v && !value.includes(v)) onChange([...value, v])
-    setDraft("")
-    setAdding(false)
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {value.map((a) => (
-        <span
-          key={a}
-          className="num flex items-center gap-2 rounded-sm bg-elevated px-2.5 py-1.5 text-caption text-body"
-        >
-          {a}
-          <button
-            aria-label={`Remove ${a}`}
-            className="text-muted transition-colors hover:text-status-alert"
-            onClick={() => onChange(value.filter((x) => x !== a))}
-          >
-            ✕
-          </button>
-        </span>
-      ))}
-      {adding ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={add}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") add()
-            if (e.key === "Escape") {
-              setDraft("")
-              setAdding(false)
-            }
-          }}
-          className="num h-8 rounded-sm border border-info bg-canvas px-2.5 text-caption text-body outline-none"
-        />
-      ) : (
-        <Button variant="dashed" size="xs" onClick={() => setAdding(true)}>
-          + add
-        </Button>
-      )}
     </div>
   )
 }
@@ -174,7 +121,7 @@ export function ApproveDrawer({
             </Section>
 
             <Section label="Aliases">
-              <Aliases value={aliases} onChange={setAliases} />
+              <ChipEditor value={aliases} onChange={setAliases} placeholder="another word for it" />
             </Section>
 
             <Section label="Trust">

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
-import type { Decision, SetView } from "@/api"
-import { DecisionCard, type RepinFn } from "@/DecisionCard"
+import type { Decision, SetView, Workspace } from "@/api"
+import { DecisionCard, type CardActions } from "@/DecisionCard"
 import { TIER, type Tier } from "@/lib/tiers"
 import { cn } from "@/lib/utils"
 
@@ -16,8 +16,8 @@ export function DecisionGroup({
   cap,
   expanded,
   onToggle,
-  onReview,
-  onRepin,
+  ws,
+  actions,
   action,
 }: {
   tier: Tier
@@ -29,8 +29,8 @@ export function DecisionGroup({
   cap?: number
   expanded: boolean
   onToggle: () => void
-  onReview: (canonical: string) => void
-  onRepin: RepinFn
+  ws: Workspace | null
+  actions: CardActions
   action?: ReactNode
 }) {
   const t = TIER[tier]
@@ -56,8 +56,8 @@ export function DecisionGroup({
             key={`${d.kind}-${d.title}-${i}`}
             d={d}
             sets={sets}
-            onReview={onReview}
-            onRepin={onRepin}
+            ws={ws}
+            actions={actions}
           />
         ))}
         {folds && (

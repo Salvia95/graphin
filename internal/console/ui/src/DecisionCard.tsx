@@ -1,18 +1,27 @@
 import { useState } from "react"
-import type { Decision, SetView } from "@/api"
+import type { Decision, SetView, Workspace } from "@/api"
 import { Button } from "@/components/ui/button"
 import { Chip, Eyebrow } from "@/components/ui/field"
 import { copy } from "@/lib/clipboard"
+import { editorHref } from "@/lib/editor"
 import { TIER, kindLabel, locator, metaOf, tierOf, titleIsMono } from "@/lib/tiers"
 import { cn } from "@/lib/utils"
 
-/** The only thing the console can do for a decision it cannot resolve itself.
+/** Everything a card can set in motion. Bundled because the list grew past the
+ *  point where threading each one through the group was readable. */
+export type CardActions = {
+  onReview: (canonical: string) => void
+  onRepin: RepinFn
+  onRetire: () => void
+  onEditSet: (name: string) => void
+}
+
+/** The fallback, and still the only thing that always works.
  *
- *  Seven of the eight kinds end in an editor: fixing a link, rewriting a
- *  summary, retiring a term. The console does not open editors and will not
- *  pretend to — so the button hands over the one thing that is tedious to
- *  retype, the node ID or the set file's path, and the "Next" line above says
- *  what to do with it.
+ *  Copy hands over the one thing that is tedious to retype — the node ID or the
+ *  set file's path — for the cases where the fix is typed somewhere this
+ *  console cannot reach. Open sits beside it when the reader's editor is known,
+ *  and is absent rather than dead when it is not.
  */
 function CopyLocator({ text }: { text: string }) {
   const [done, setDone] = useState(false)
@@ -66,14 +75,15 @@ export type RepinFn = (scope: { set: string; node_id: string }) => Promise<boole
 export function DecisionCard({
   d,
   sets,
-  onReview,
-  onRepin,
+  ws,
+  actions,
 }: {
   d: Decision
   sets: SetView[]
-  onReview: (canonical: string) => void
-  onRepin: RepinFn
+  ws: Workspace | null
+  actions: CardActions
 }) {
+  const href = editorHref(ws, d)
   const t = TIER[tierOf(d)]
   const meta = metaOf(d)
 
@@ -120,14 +130,38 @@ export function DecisionCard({
 
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
           {d.kind === "approve" ? (
-            <Button size="sm" onClick={() => onReview(d.canonical ?? d.title)}>
+            <Button size="sm" onClick={() => actions.onReview(d.canonical ?? d.title)}>
               Review candidate
             </Button>
           ) : (
             <>
               <CopyLocator text={locator(d, sets)} />
+              {href && (
+                <a
+                  href={href}
+                  title={`${d.file}${d.line ? `:${d.line}` : ""}`}
+                  className="inline-flex h-8 items-center rounded-md border border-hairline px-3.5 text-button whitespace-nowrap text-muted-strong transition-colors hover:border-hairline-strong hover:text-body"
+                >
+                  Open
+                </a>
+              )}
               {d.kind === "drift" && d.set && d.node_id && (
-                <RepinEntry d={d} onRepin={onRepin} />
+                <RepinEntry d={d} onRepin={actions.onRepin} />
+              )}
+              {d.kind === "glossary_full" && (
+                <Button variant="outline" size="sm" className="px-3.5" onClick={actions.onRetire}>
+                  Retire a term
+                </Button>
+              )}
+              {d.kind === "unread_set" && d.set && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="px-3.5"
+                  onClick={() => actions.onEditSet(d.set!)}
+                >
+                  Edit summary
+                </Button>
               )}
             </>
           )}

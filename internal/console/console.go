@@ -31,6 +31,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Salvia95/graphin/internal/usage"
@@ -53,6 +54,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	root := fs.String("root", ".", "workspace root")
 	addr := fs.String("addr", DefaultAddr, "loopback address to serve on")
 	ui := fs.String("ui", "", "directory of static files to serve at / (default: built-in placeholder)")
+	editor := fs.String("editor", "",
+		"editor for Open links: "+strings.Join(EditorNames(), ", ")+
+			", or a URL template containing {path} and {line} (default: detected from $EDITOR)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -66,9 +70,16 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	name, tmpl := resolveEditor(*editor)
+	if *editor != "" && tmpl == "" {
+		fmt.Fprintf(stderr, "graphin console: unknown --editor %q; expected one of %s, or a template containing {path}\n",
+			*editor, strings.Join(EditorNames(), ", "))
+		return 2
+	}
+
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           NewMux(*root, *ui),
+		Handler:           NewMux(*root, *ui, *editor),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	ln, err := net.Listen("tcp", *addr)
@@ -77,6 +88,13 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintf(stdout, "graphin console → http://%s  (ctrl-c to stop)\n", ln.Addr())
+	if name == "" {
+		// Said once, at the only moment anyone is looking at this stream. A
+		// missing Open button is otherwise indistinguishable from a feature
+		// that does not exist.
+		fmt.Fprintf(stdout, "  no editor detected — pass --editor %s to turn on Open links\n",
+			strings.Join(EditorNames(), "|"))
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -129,7 +147,7 @@ func checkLoopback(addr string) error {
 // write routes and the read routes sit on the same path prefix, and a hand-
 // rolled method check is exactly where one of them would eventually be let
 // through by accident.
-func NewMux(root, ui string) *http.ServeMux {
+func NewMux(root, ui, editor string) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/queue", func(w http.ResponseWriter, _ *http.Request) {
 		q, err := wiki.BuildQueueReport(root)
@@ -151,7 +169,10 @@ func NewMux(root, ui string) *http.ServeMux {
 		if err != nil {
 			abs = root
 		}
-		writeJSON(w, workspace{Root: abs, Name: filepath.Base(abs)})
+		name, tmpl := resolveEditor(editor)
+		writeJSON(w, workspace{
+			Root: abs, Name: filepath.Base(abs), Editor: name, EditorURL: tmpl,
+		})
 	})
 	mux.HandleFunc("GET /api/usage", func(w http.ResponseWriter, _ *http.Request) {
 		rep, err := usageReport(root)
@@ -180,6 +201,12 @@ func NewMux(root, ui string) *http.ServeMux {
 	mux.HandleFunc("GET /api/events", eventsHandler(root))
 	mux.HandleFunc("POST /api/queue/{canonical}/approve", approveHandler(root))
 	mux.HandleFunc("POST /api/queue/{canonical}/discard", discardHandler(root))
+	// The two displacements the queue asks for and could not perform. Both are
+	// the same write as approving — a file in the working tree, no commit — and
+	// both are judgements the console only carries out, never makes: which term
+	// matters less, and what a set's catalogue line should say.
+	mux.HandleFunc("POST /api/glossary/{canonical}/retire", retireHandler(root))
+	mux.HandleFunc("POST /api/sets/{name}/edit", editSetHandler(root))
 	switch sub, ok := embeddedUI(); {
 	case ui != "":
 		// An explicit directory wins over the embedded copy: this is how the
@@ -194,10 +221,62 @@ func NewMux(root, ui string) *http.ServeMux {
 	return mux
 }
 
-// workspace names the repository being served.
+// workspace names the repository being served, and says how to open a file in
+// it.
+//
+// EditorURL is a template rather than a scheme name so the interface does not
+// carry a table of editors it would have to grow. The browser is what hands the
+// URL off, and it asks the person first — which is the whole reason this is a
+// link and not an endpoint that spawns a process. An unauthenticated loopback
+// route that runs a program is a different thing entirely, and the bind-address
+// argument that lets this server skip authentication does not stretch that far.
 type workspace struct {
 	Root string `json:"root"`
 	Name string `json:"name"`
+	// Editor is the resolved name, or "" when nothing was detected.
+	Editor string `json:"editor"`
+	// EditorURL has {path} and {line} placeholders. Empty when unknown.
+	EditorURL string `json:"editor_url"`
+}
+
+// retired is what a successful retirement answers with, in the same shape
+// approving uses: where it landed, and the fact that it stopped there.
+type retired struct {
+	File string `json:"file"`
+	Note string `json:"note"`
+}
+
+func retireHandler(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rel, err := wiki.RetireTerm(root, r.PathValue("canonical"))
+		if err != nil {
+			writeError(w, statusFor(err), err)
+			return
+		}
+		writeJSON(w, retired{
+			File: rel,
+			Note: "removed from the working tree and not committed — `git checkout` brings it back",
+		})
+	}
+}
+
+func editSetHandler(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var edits wiki.SetFrontEdits
+		if err := decodeBody(r, &edits); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		rel, err := wiki.EditSetFront(root, r.PathValue("name"), edits)
+		if err != nil {
+			writeError(w, statusFor(err), err)
+			return
+		}
+		writeJSON(w, approved{
+			File: rel,
+			Note: "written to the working tree and not committed — review it with git diff",
+		})
+	}
 }
 
 // candidate is one queued proposal as the approval form needs it: the term's
@@ -286,7 +365,7 @@ const maxBody = 256 << 10
 // and states that it stopped there — a UI that renders this cannot leave
 // someone believing the term is published.
 type approved struct {
-	Term *wiki.Term `json:"term"`
+	Term *wiki.Term `json:"term,omitempty"`
 	File string     `json:"file"`
 	Note string     `json:"note"`
 }
@@ -342,7 +421,9 @@ func statusFor(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, wiki.ErrNotHuman):
 		return http.StatusBadRequest
-	case errors.Is(err, wiki.ErrNoEntry):
+	case errors.Is(err, wiki.ErrNoEntry),
+		errors.Is(err, wiki.ErrNoTerm),
+		errors.Is(err, wiki.ErrNoSet):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError

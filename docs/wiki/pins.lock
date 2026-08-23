@@ -105,8 +105,16 @@
         "r": "b3:5ae6b4d23a3b727d76cb4507bba4587f79959c4a08a5cfe72be3db15855e5a06"
       },
       "docs/console-spec.md#12-repin의-범위-2026-08-23": {
-        "h": "b3:27d3832fef61420dae9c55771693cbc6334c09667fb860adc17a7f656ffa1638",
-        "r": "b3:fe2dc81d65346ff86bcbc3032749d51bcb76ed2ecdfcc49d1bbbfc8c9fd8bbe9"
+        "h": "b3:66da41dd1c39cc9d4723acaef59f7ea2e01ae101b6f53dcc5b320e5fdbe84ba8",
+        "r": "b3:46e0c7666f1c73b43a86f6bf2a172b69cccf046a01d17cd9dcf31010bf68ce62"
+      },
+      "docs/console-spec.md#13-밀어내기-두-개--지시만-있고-버튼이-없던-것-2026-08-23": {
+        "h": "b3:a726627ab62aed130a24bfdfdba5e05b86ec0380d9e516d58aa68f9bf6a999e8",
+        "r": "b3:ee935917193377bc476e152989344f647adf2ab5c4665ef58465a06fac94b18a"
+      },
+      "docs/console-spec.md#14-open-링크--왜-엔드포인트가-아니라-링크인가-2026-08-23": {
+        "h": "b3:02f07a03c7360ea0f567de67c2617290f25cf3841ac5fa2b5c5db61821cb5fab",
+        "r": "b3:eb8eaba4fb646040c889622d166fdea57a13f0c5254537326670b573a53a3a4f"
       },
       "docs/console-spec.md#2-다시-볼-조건": {
         "h": "b3:abcc36cb064481ae79585692c0ab347d6e83a854b2dec211b74818a4106ec178",

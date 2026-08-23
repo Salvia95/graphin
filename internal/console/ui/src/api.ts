@@ -23,6 +23,10 @@ export type Decision = {
   node_id?: string
   canonical?: string
   count?: number
+  /** Where the fix is typed, workspace-relative. Always inside the wiki: every
+   *  action changes what the wiki claims, not what the document says. */
+  file?: string
+  line?: number
   /** Dates bounding the occurrences `count` sums. Three misses last week and
    *  three in March are not the same decision. */
   first_seen?: string
@@ -144,7 +148,18 @@ export type UsageReport = {
   problems?: string[]
 }
 
-export type Workspace = { root: string; name: string }
+export type Workspace = {
+  root: string
+  name: string
+  /** Resolved editor name, or "" when nothing was detected. */
+  editor: string
+  /** URL template with {path} and {line}. Empty when unknown. */
+  editor_url: string
+}
+
+export type SetFrontEdits = { description?: string; roles?: string[] }
+
+export type Written = { file: string; note: string }
 
 /** One queued proposal in full. The queue list carries none of this on purpose;
  *  the form that needs it opens one candidate at a time. */
@@ -220,4 +235,8 @@ export const api = {
    *  person just re-read. */
   repin: (scope?: { set: string; node_id: string }) =>
     post("/api/wiki/repin", scope).then(json<RepinResult>),
+  retire: (canonical: string) =>
+    post(`/api/glossary/${encodeURIComponent(canonical)}/retire`).then(json<Written>),
+  editSet: (name: string, edits: SetFrontEdits) =>
+    post(`/api/sets/${encodeURIComponent(name)}/edit`, edits).then(json<Written>),
 }

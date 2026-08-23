@@ -74,7 +74,7 @@ func TestLoopbackOnly(t *testing.T) {
 func TestQueueEndpointIsTheCommandsAnswer(t *testing.T) {
 	root := t.TempDir()
 	rec := httptest.NewRecorder()
-	NewMux(root, "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/queue", nil))
+	NewMux(root, "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/queue", nil))
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
@@ -100,7 +100,7 @@ func TestQueueEndpointIsTheCommandsAnswer(t *testing.T) {
 // design by accident.
 func TestConsoleIsReadOnly(t *testing.T) {
 	rec := httptest.NewRecorder()
-	NewMux(t.TempDir(), "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue", nil))
+	NewMux(t.TempDir(), "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue", nil))
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Errorf("POST status = %d, want 405", rec.Code)
@@ -116,7 +116,7 @@ func TestConsoleIsReadOnly(t *testing.T) {
 // a parse error in the browser console.
 func TestFailuresStayJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
-	NewMux(t.TempDir(), "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/usage", nil))
+	NewMux(t.TempDir(), "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/usage", nil))
 
 	if rec.Code == http.StatusOK {
 		t.Skip("a usage log resolved unexpectedly; nothing to assert")
@@ -159,7 +159,7 @@ func TestApproveEndpointStopsAtTheWorkingTree(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/queue/posting/approve",
 		strings.NewReader(`{"title":"Posting","description":"A unit of published writing."}`))
-	NewMux(root, "").ServeHTTP(rec, req)
+	NewMux(root, "", "").ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
@@ -195,7 +195,7 @@ func TestApproveEndpointStopsAtTheWorkingTree(t *testing.T) {
 // friction this surface exists to remove.
 func TestApproveEndpointMapsRefusals(t *testing.T) {
 	root := t.TempDir()
-	mux := NewMux(root, "")
+	mux := NewMux(root, "", "")
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue/nothing/approve", nil))
@@ -222,7 +222,7 @@ func TestApproveEndpointMapsRefusals(t *testing.T) {
 func TestDiscardEndpoint(t *testing.T) {
 	root := t.TempDir()
 	queueCandidate(t, root)
-	mux := NewMux(root, "")
+	mux := NewMux(root, "", "")
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/queue/posting/discard", nil))
@@ -246,7 +246,7 @@ func TestDiscardEndpoint(t *testing.T) {
 // the assertion is what must hold in both — a page, not a 404.
 func TestRootServesSomethingEitherWay(t *testing.T) {
 	rec := httptest.NewRecorder()
-	NewMux(t.TempDir(), "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	NewMux(t.TempDir(), "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET / = %d, want 200", rec.Code)
@@ -265,7 +265,7 @@ func TestExplicitUIDirectoryWins(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := httptest.NewRecorder()
-	NewMux(t.TempDir(), dir).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	NewMux(t.TempDir(), dir, "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 
 	if !strings.Contains(rec.Body.String(), "from disk") {
 		t.Errorf("--ui did not win:\n%s", rec.Body)
@@ -308,7 +308,7 @@ func wikiRoot(t *testing.T) string {
 func TestCandidateEndpointCarriesWhatTheFormFills(t *testing.T) {
 	root := wikiRoot(t)
 	rec := httptest.NewRecorder()
-	NewMux(root, "").ServeHTTP(rec,
+	NewMux(root, "", "").ServeHTTP(rec,
 		httptest.NewRequest(http.MethodGet, "/api/queue/"+url.PathEscape("만료 기한"), nil))
 
 	if rec.Code != http.StatusOK {
@@ -334,7 +334,7 @@ func TestCandidateEndpointCarriesWhatTheFormFills(t *testing.T) {
 
 func TestCandidateEndpointIs404ForAnUnqueuedName(t *testing.T) {
 	rec := httptest.NewRecorder()
-	NewMux(wikiRoot(t), "").ServeHTTP(rec,
+	NewMux(wikiRoot(t), "", "").ServeHTTP(rec,
 		httptest.NewRequest(http.MethodGet, "/api/queue/nothing", nil))
 
 	if rec.Code != http.StatusNotFound {
@@ -347,7 +347,7 @@ func TestCandidateEndpointIs404ForAnUnqueuedName(t *testing.T) {
 // everything would clear warnings nobody looked at.
 func TestRepinScopesToOneEntry(t *testing.T) {
 	root := wikiRoot(t)
-	mux := NewMux(root, "")
+	mux := NewMux(root, "", "")
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/wiki/repin", nil))
@@ -376,7 +376,7 @@ func TestRepinScopesToOneEntry(t *testing.T) {
 
 func TestRepinRefusesHalfAPair(t *testing.T) {
 	rec := httptest.NewRecorder()
-	NewMux(wikiRoot(t), "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/wiki/repin",
+	NewMux(wikiRoot(t), "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/wiki/repin",
 		strings.NewReader(`{"set":"s"}`)))
 
 	if rec.Code != http.StatusBadRequest {
@@ -387,7 +387,7 @@ func TestRepinRefusesHalfAPair(t *testing.T) {
 func TestWorkspaceEndpointNamesTheRepository(t *testing.T) {
 	root := wikiRoot(t)
 	rec := httptest.NewRecorder()
-	NewMux(root, "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/workspace", nil))
+	NewMux(root, "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/workspace", nil))
 
 	var got workspace
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
@@ -402,7 +402,7 @@ func TestWorkspaceEndpointNamesTheRepository(t *testing.T) {
 // card names happens in an editor, so the page has to hear about it.
 func TestEventsAnnouncesAChange(t *testing.T) {
 	root := wikiRoot(t)
-	srv := httptest.NewServer(NewMux(root, ""))
+	srv := httptest.NewServer(NewMux(root, "", ""))
 	defer srv.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -441,4 +441,110 @@ func TestEventsAnnouncesAChange(t *testing.T) {
 		}
 	}
 	t.Fatalf("no change announced: %v", sc.Err())
+}
+
+// TestRetireEndpointStopsAtTheWorkingTree. Same boundary as approving: the file
+// goes, the commit does not happen, and the response says so out loud.
+func TestRetireEndpointStopsAtTheWorkingTree(t *testing.T) {
+	root := wikiRoot(t)
+	writeFile(t, filepath.Join(root, "docs", "wiki", "glossary", "drift.md"),
+		"---\ntype: glossary\ncanonical: drift\nstatus: stable\n---\n\n본문.\n")
+
+	rec := httptest.NewRecorder()
+	NewMux(root, "", "").ServeHTTP(rec,
+		httptest.NewRequest(http.MethodPost, "/api/glossary/drift/retire", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("retire = %d: %s", rec.Code, rec.Body)
+	}
+	var got retired
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Note == "" || !strings.Contains(got.File, "drift.md") {
+		t.Errorf("response = %+v, want the path and the boundary stated", got)
+	}
+	if _, err := os.Stat(filepath.Join(root, "docs", "wiki", "glossary", "drift.md")); !os.IsNotExist(err) {
+		t.Errorf("file still there: %v", err)
+	}
+
+	rec = httptest.NewRecorder()
+	NewMux(root, "", "").ServeHTTP(rec,
+		httptest.NewRequest(http.MethodPost, "/api/glossary/drift/retire", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("second retire = %d, want 404", rec.Code)
+	}
+}
+
+func TestEditSetEndpointRewritesOneLine(t *testing.T) {
+	root := wikiRoot(t)
+	rec := httptest.NewRecorder()
+	NewMux(root, "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/sets/s/edit",
+		strings.NewReader(`{"description":"짧게 다시 쓴 줄","roles":[]}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("edit = %d: %s", rec.Code, rec.Body)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "docs", "wiki", "sets", "s.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	if !strings.Contains(got, "description: 짧게 다시 쓴 줄") {
+		t.Errorf("description not rewritten:\n%s", got)
+	}
+	if !strings.Contains(got, "- [one](../../target.md#section-one) — first summary") {
+		t.Errorf("body was disturbed:\n%s", got)
+	}
+}
+
+func TestEditSetEndpointIs404ForAnUnknownSet(t *testing.T) {
+	rec := httptest.NewRecorder()
+	NewMux(wikiRoot(t), "", "").ServeHTTP(rec, httptest.NewRequest(http.MethodPost,
+		"/api/sets/nope/edit", strings.NewReader(`{"description":"x"}`)))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+}
+
+// A link that silently does nothing teaches the reader the button is a lie, so
+// an editor nothing identified has to come back empty rather than guessed.
+func TestEditorResolution(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		flag string
+		env  map[string]string
+		want string
+	}{
+		{"flag wins", "zed", map[string]string{"EDITOR": "code"}, "zed"},
+		{"raw template", "myed://{path}#{line}", nil, "custom"},
+		{"editor beats term_program", "", map[string]string{"EDITOR": "cursor --wait", "TERM_PROGRAM": "vscode"}, "cursor"},
+		{"path and flags", "", map[string]string{"EDITOR": "/usr/bin/code-insiders -w"}, "vscode"},
+		{"term_program alone", "", map[string]string{"TERM_PROGRAM": "vscode"}, "vscode"},
+		{"nothing known", "", map[string]string{"EDITOR": "vim"}, ""},
+		{"empty environment", "", nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			env := func(k string) string { return tc.env[k] }
+			var name, tmpl string
+			if tc.flag != "" {
+				name, tmpl = resolveEditor(tc.flag)
+			} else {
+				name, tmpl = detectEditor(env)
+			}
+			if name != tc.want {
+				t.Fatalf("editor = %q, want %q", name, tc.want)
+			}
+			if tc.want != "" && !strings.Contains(tmpl, "{path}") {
+				t.Errorf("template %q carries no {path}", tmpl)
+			}
+			if tc.want == "" && tmpl != "" {
+				t.Errorf("template = %q, want none", tmpl)
+			}
+		})
+	}
+}
+
+func TestUnknownEditorNameYieldsNoTemplate(t *testing.T) {
+	if _, tmpl := resolveEditor("emacs"); tmpl != "" {
+		t.Errorf("template = %q, want none for an editor with no shipped scheme", tmpl)
+	}
 }

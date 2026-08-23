@@ -8,9 +8,12 @@ import {
   type Workspace,
 } from "@/api"
 import { ApproveDrawer } from "@/ApproveDrawer"
+import type { CardActions } from "@/DecisionCard"
 import { DecisionGroup } from "@/DecisionGroup"
 import { HealthyPanel } from "@/HealthyPanel"
+import { RetireDrawer } from "@/RetireDrawer"
 import { SetDrawer } from "@/SetDrawer"
+import { SetEditDrawer } from "@/SetEditDrawer"
 import { SetsGrid, SetsRail } from "@/Sets"
 import { Tiles } from "@/Tiles"
 import { Usage } from "@/Usage"
@@ -118,9 +121,19 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [approving, setApproving] = useState<string | null>(null)
   const [openSet, setOpenSet] = useState<string | null>(null)
-  const [written, setWritten] = useState<string[]>([])
+  const [changes, setChanges] = useState<{ file: string; verb: string }[]>([])
   const [repin, setRepin] = useState<RepinResult | null>(null)
   const [busy, setBusy] = useState(false)
+  const [retiring, setRetiring] = useState(false)
+  const [editingSet, setEditingSet] = useState<string | null>(null)
+
+  // One list, because the reader is owed one answer to "what did this change".
+  // The verb travels with the path: a deleted glossary entry and a written one
+  // are both working-tree changes, and a banner that called the deletion a
+  // write would be the console's only untrue sentence.
+  const note = useCallback((file: string, verb = "written") => {
+    setChanges((c) => [...c.filter((x) => x.file !== file), { file, verb }])
+  }, [])
 
   const reload = useCallback(() => {
     api.wiki().then(setO).catch((e: Error) => setError(e.message))
@@ -168,7 +181,7 @@ export default function App() {
       try {
         const r = await api.repin(scope)
         setRepin(r)
-        setWritten((w) => [...new Set([...w, r.path])])
+        note(r.path)
         reload()
         return true
       } catch (e) {
@@ -178,7 +191,7 @@ export default function App() {
         setBusy(false)
       }
     },
-    [reload],
+    [reload, note],
   )
 
   if (error) {
@@ -217,6 +230,13 @@ export default function App() {
 
   const toggle = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }))
 
+  const actions: CardActions = {
+    onReview: setApproving,
+    onRepin: doRepin,
+    onRetire: () => setRetiring(true),
+    onEditSet: setEditingSet,
+  }
+
   const groups = isBacklog
     ? BACKLOG_GROUPS.map(({ kind, label, note }) => {
         const items = shown.filter((d) => d.kind === kind)
@@ -232,8 +252,8 @@ export default function App() {
             cap={GROUP_CAP}
             expanded={!!expanded[kind]}
             onToggle={() => toggle(kind)}
-            onReview={setApproving}
-            onRepin={doRepin}
+            ws={ws}
+            actions={actions}
           />
         )
       })
@@ -251,8 +271,8 @@ export default function App() {
             cap={GROUP_CAP}
             expanded={!!expanded[tier]}
             onToggle={() => toggle(tier)}
-            onReview={setApproving}
-            onRepin={doRepin}
+            ws={ws}
+            actions={actions}
             action={
               // Repin-all belongs to the group and not to a card: it is the
               // control for someone who has read everything below it.
@@ -286,7 +306,7 @@ export default function App() {
         onOpenUsage={() => setView("usage")}
       />
 
-      {written.length > 0 && (
+      {changes.length > 0 && (
         // The console's whole safety story is that it stops at the working tree.
         // Saying so once in a doc is not the same as saying it at the moment a
         // file changes, so this appears the instant one does.
@@ -297,14 +317,14 @@ export default function App() {
             className="rounded-lg border-l-2 border-l-info bg-surface px-5 py-4"
           >
             <p className="text-body-sm text-body">
-              <Num>{written.length}</Num> file{written.length === 1 ? "" : "s"} written to the
+              <Num>{changes.length}</Num> file{changes.length === 1 ? "" : "s"} changed in the
               working tree — <span className="text-on-dark">not committed</span>. Review with{" "}
               <span className="num">git diff</span> and commit them yourself.
             </p>
             <div className="mt-2 flex flex-col gap-1">
-              {written.map((f) => (
-                <span key={f} className="num text-label text-muted">
-                  {f}
+              {changes.map((c) => (
+                <span key={c.file} className="num text-label text-muted">
+                  {c.verb} · {c.file}
                 </span>
               ))}
             </div>
@@ -425,7 +445,28 @@ export default function App() {
         glossaryFull={o.glossary.count >= o.glossary.cap}
         onClose={() => setApproving(null)}
         onDone={(file) => {
-          if (file) setWritten((w) => [...new Set([...w, file])])
+          if (file) note(file)
+          reload()
+        }}
+      />
+
+      <RetireDrawer
+        open={retiring}
+        terms={o.terms}
+        count={o.glossary.count}
+        cap={o.glossary.cap}
+        onClose={() => setRetiring(false)}
+        onDone={(file) => {
+          note(file, "removed")
+          reload()
+        }}
+      />
+
+      <SetEditDrawer
+        set={o.sets.find((s) => s.name === editingSet) ?? null}
+        onClose={() => setEditingSet(null)}
+        onDone={(file) => {
+          note(file)
           reload()
         }}
       />
