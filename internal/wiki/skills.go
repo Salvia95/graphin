@@ -177,17 +177,47 @@ func (st *Store) WriteSkills(dir string) ([]GeneratedSkill, error) {
 	return out, nil
 }
 
+// SkillState is one generated role skill that is not what it should be, and
+// which of the two ways it is not.
+//
+// The split exists because the copy differs in a way that sends a person to a
+// different place. A skill that was never generated has not "stopped matching
+// its evidence" — telling someone it drifted makes them look for a change
+// nobody made, when what happened is that they have not run the generator.
+type SkillState struct {
+	Name string
+	Role string
+	// Missing is true when no file exists at all, false when one exists and
+	// its content no longer matches what the wiki would generate today.
+	Missing bool
+}
+
+// SkillStates reports every generated role skill that needs regenerating, with
+// the reason. dir is the skills directory; an empty one makes every role
+// missing, which is the honest answer for a workspace that has never run the
+// generator.
+func (st *Store) SkillStates(dir string) []SkillState {
+	var out []SkillState
+	for _, r := range st.Roles() {
+		g := st.GenerateSkill(r)
+		raw, err := os.ReadFile(filepath.Join(dir, g.Name, "SKILL.md"))
+		switch {
+		case err != nil:
+			out = append(out, SkillState{Name: g.Name, Role: r, Missing: true})
+		case string(raw) != g.Body:
+			out = append(out, SkillState{Name: g.Name, Role: r})
+		}
+	}
+	return out
+}
+
 // StaleSkills lists roles whose generated file is missing or out of date.
 // A generated artifact that drifts from its source is worse than none: it
 // still looks authoritative.
 func (st *Store) StaleSkills(dir string) []string {
 	var stale []string
-	for _, r := range st.Roles() {
-		g := st.GenerateSkill(r)
-		raw, err := os.ReadFile(filepath.Join(dir, g.Name, "SKILL.md"))
-		if err != nil || string(raw) != g.Body {
-			stale = append(stale, g.Name)
-		}
+	for _, s := range st.SkillStates(dir) {
+		stale = append(stale, s.Name)
 	}
 	return stale
 }

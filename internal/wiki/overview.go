@@ -78,6 +78,11 @@ type Decision struct {
 	// resubmitted, sections served stale, tasks that found nothing. One
 	// occurrence is an anecdote.
 	Count int `json:"count,omitempty"`
+	// FirstSeen and LastSeen are dates (YYYY-MM-DD) bounding the occurrences
+	// Count sums. Three misses last week and three misses in March are not the
+	// same decision, and a count on its own cannot tell them apart.
+	FirstSeen string `json:"first_seen,omitempty"`
+	LastSeen  string `json:"last_seen,omitempty"`
 	// Evidence carries the citations for a candidate.
 	Evidence []string `json:"evidence,omitempty"`
 	// Role is the delegate's role for an uncovered task.
@@ -157,6 +162,10 @@ type Health struct {
 	Awaiting  int `json:"awaiting"`
 	Sets      int `json:"sets"`
 	Entries   int `json:"entries"`
+	// Answered counts misses that a set now matches. They are gone from the
+	// backlog, and a number that quietly shrinks with no trace is a number
+	// nobody trusts twice.
+	Answered int `json:"answered"`
 }
 
 // Overview is the whole wiki as one value: what exists, what is wrong with it,
@@ -291,32 +300,58 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	}
 
 	if skillDir != "" {
-		for _, name := range store.StaleSkills(skillDir) {
-			o.Decisions = append(o.Decisions, Decision{
-				Kind: DecisionStaleSkill, Title: name,
-				Detail: "The generated role block no longer matches what it was generated from.",
-				Action: "Run `graphin wiki skills` again and commit the result",
-			})
+		for _, sk := range store.SkillStates(skillDir) {
+			d := Decision{Kind: DecisionStaleSkill, Title: sk.Name, Role: sk.Role}
+			if sk.Missing {
+				d.Detail = "The role skill has never been generated, so agents in this role are delegated without the conventions the wiki says always apply to them."
+				d.Action = "Run `graphin wiki skills` and commit the result"
+			} else {
+				d.Detail = "The generated role block no longer matches what it was generated from."
+				d.Action = "Run `graphin wiki skills` again and commit the result"
+			}
+			o.Decisions = append(o.Decisions, d)
 		}
 	}
 
 	// Uncovered work, folded by task. One miss is an anecdote; the same
 	// sentence three times is the strongest signal this system produces about
 	// what to write next.
+	//
+	// # Why the answered ones are re-checked
+	//
+	// Every other kind here is derived from the current state and ends when
+	// that state ends: fix the link and the dangling decision is gone. This one
+	// was derived from an append-only log, so it was the only kind a person
+	// could not finish — you wrote the set the card asked for and the card
+	// stayed. Asking Select the same question the miss was recorded from is
+	// what makes it behave like the other seven. It is not a retroactive sweep
+	// over old work: nothing new is discovered here, a decision whose condition
+	// stopped holding is simply retired.
 	seen := map[string]int{}
+	last := map[string]string{}
+	first := map[string]string{}
 	order := []FrictionEvent{}
-	for _, m := range friction.Misses {
+	for _, m := range friction.Misses { // newest first
 		if seen[m.Task] == 0 {
 			order = append(order, m)
+			last[m.Task] = m.TS
 		}
+		first[m.Task] = m.TS
 		seen[m.Task]++
 	}
 	for _, m := range order {
+		if !store.Select(m.Role, m.Task).Empty() {
+			o.Health.Answered++
+			continue
+		}
+		n := seen[m.Task]
 		o.Decisions = append(o.Decisions, Decision{
-			Kind: DecisionUncovered, Count: seen[m.Task], Role: m.Role,
-			Title:  m.Task,
-			Detail: "The wiki had no answer for this work.",
-			Action: "Write a set or a term — the only way the wiki grows",
+			Kind: DecisionUncovered, Count: n, Role: m.Role,
+			Title:     m.Task,
+			FirstSeen: day(first[m.Task]), LastSeen: day(last[m.Task]),
+			Detail: fmt.Sprintf("Asked %s, most recently %s. Nothing in the wiki answered it.",
+				times(n), day(last[m.Task])),
+			Action: "Write a set entry or a term — the only way the wiki grows",
 		})
 	}
 
@@ -343,7 +378,9 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	for _, s := range o.Sets {
 		entries += s.Entries
 	}
+	answered := o.Health.Answered
 	o.Health = Health{
+		Answered:  answered,
 		Decisions: len(o.Decisions),
 		Dangling:  countKind(o.Decisions, DecisionDangling),
 		Drifted:   countKind(o.Decisions, DecisionDrift),
@@ -373,6 +410,29 @@ func nonNil(s []string) []string {
 
 func itoa(n int) string { return fmt.Sprintf("%d", n) }
 
+// day trims an RFC3339 timestamp to its date. Timestamps are written by the
+// hook and are not guaranteed to be well formed, so anything shorter comes
+// back as it arrived rather than being cut into nonsense.
+func day(ts string) string {
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
+}
+
+// times renders a recurrence count as English, because "Asked 1 times" is the
+// kind of seam that makes a reader stop trusting the rest of the sentence.
+func times(n int) string {
+	switch n {
+	case 1:
+		return "once"
+	case 2:
+		return "twice"
+	default:
+		return fmt.Sprintf("%d times", n)
+	}
+}
+
 // firstLine keeps a card readable: a set's summary falls back to its whole
 // intro paragraph, which is prose meant for a different context.
 func firstLine(s string) string {
@@ -393,6 +453,62 @@ type RepinResult struct {
 	Path     string    `json:"path"`
 	// Wrote is false for a dry run.
 	Wrote bool `json:"wrote"`
+}
+
+// RepinEntry re-pins one entry and leaves every other pin exactly as it was.
+//
+// RepinAll is for the moment a person has read everything. This is for the
+// moment the drift card actually describes: re-read *this* section, confirm
+// *this* summary still holds, then record that you did. Repinning everything
+// after verifying one entry vouches for the ones nobody opened, which is the
+// opposite of what a pin is for — and it does it silently, by making their
+// warnings disappear.
+//
+// The entry has to exist in that set. A pin written for a pair no set names
+// would survive until the next RepinAll dropped it, and in between the
+// lockfile would assert something no document backs.
+func RepinEntry(root, set, nodeID string) (RepinResult, error) {
+	store, err := Load(root)
+	if err != nil {
+		return RepinResult{}, err
+	}
+	res := RepinResult{Problems: []Problem{}, Path: store.PinsPath()}
+
+	found := false
+	for _, s := range store.SetList() {
+		if s.Name != set {
+			continue
+		}
+		for _, id := range s.NodeIDs() {
+			if id == nodeID {
+				found = true
+			}
+		}
+	}
+	if !found {
+		return res, fmt.Errorf("%w: %s does not list %s", ErrNoEntry, set, nodeID)
+	}
+
+	cur, ok := NewHasher(root).Pin(nodeID)
+	if !ok {
+		// Pinning a dangling ID would record a hash for nothing and hide the
+		// break behind a green check — same rule Repin follows.
+		res.Problems = append(res.Problems, Problem{ProblemDangling, set, nodeID, 0,
+			"no such node — not pinned"})
+		return res, nil
+	}
+	switch old, pinned := store.Pins.Get(set, nodeID); {
+	case !pinned:
+		res.Added++
+	case old != cur:
+		res.Updated++
+	}
+	store.Pins.Set(set, nodeID, cur)
+	if err := store.Pins.Save(store.PinsPath()); err != nil {
+		return res, err
+	}
+	res.Wrote = true
+	return res, nil
 }
 
 // RepinAll rebuilds every pin from the documents themselves.

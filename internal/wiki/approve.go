@@ -23,6 +23,10 @@ var (
 	ErrGlossaryFull = errors.New("the glossary is full")
 	// ErrNotHuman means the review was not attributed to a person.
 	ErrNotHuman = errors.New(`approval must be attributed as "human:<id>"`)
+	// ErrNoEntry means the set does not list that node. Repinning one entry is
+	// the only operation that takes a (set, node) pair from outside, so it is
+	// the only one that can be handed a pair nothing backs.
+	ErrNoEntry = errors.New("no such entry in that set")
 )
 
 // GlossaryPath is where an approved term lives.
