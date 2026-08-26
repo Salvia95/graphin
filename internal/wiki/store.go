@@ -158,6 +158,25 @@ func (s *Store) SetList() []*Set {
 	return out
 }
 
+// TermList returns every glossary entry in canonical order.
+//
+// The ordering is not tidiness. Fingerprint walks this list, and a map's
+// iteration order would make the same unchanged wiki sign differently on two
+// consecutive calls — which reads at the gate as "the wiki changed" and
+// blocks a delegation that did nothing wrong.
+func (s *Store) TermList() []*Term {
+	names := make([]string, 0, len(s.Terms))
+	for n := range s.Terms {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	out := make([]*Term, 0, len(names))
+	for _, n := range names {
+		out = append(out, s.Terms[n])
+	}
+	return out
+}
+
 // PinsPath is where the lockfile lives.
 func (s *Store) PinsPath() string {
 	return filepath.Join(s.Root, filepath.FromSlash(pathpkg.Join(s.Dir, PinsFile)))

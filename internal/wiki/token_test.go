@@ -108,3 +108,62 @@ func TestFindTokenInPrompt(t *testing.T) {
 		t.Errorf("FindToken(truncated) = %q, want empty", got)
 	}
 }
+
+func TestFingerprintCoversTheGlossary(t *testing.T) {
+	root := t.TempDir()
+	term := filepath.Join(root, DirName, glossarySubdir, "gate.md")
+	mustWrite(t, term, "---\ncanonical: gate\n---\n\n# gate\n\nA checkpoint. It blocks.\n")
+
+	before := fingerprintOf(t, root)
+
+	// A definition is delivered inline in the catalogue, so rewriting one
+	// changes what a delegate is told while every set stays put. A token
+	// minted before the edit must stop verifying.
+	mustWrite(t, term, "---\ncanonical: gate\n---\n\n# gate\n\nA turnstile. It counts.\n")
+	if after := fingerprintOf(t, root); after == before {
+		t.Fatal("a rewritten definition left the fingerprint unchanged")
+	}
+}
+
+func TestFingerprintIgnoresProseNobodyReceives(t *testing.T) {
+	root := t.TempDir()
+	term := filepath.Join(root, DirName, glossarySubdir, "gate.md")
+	mustWrite(t, term, "---\ncanonical: gate\n---\n\n# gate\n\nA checkpoint. It blocks.\n")
+
+	before := fingerprintOf(t, root)
+
+	// Only the first sentence reaches a catalogue. Churning tokens over a
+	// paragraph no delegate was ever handed would be cost with no reader.
+	mustWrite(t, term, "---\ncanonical: gate\n---\n\n# gate\n\nA checkpoint. It blocks.\n\nA later paragraph.\n")
+	if after := fingerprintOf(t, root); after != before {
+		t.Error("prose outside the delivered definition invalidated outstanding tokens")
+	}
+}
+
+func TestFingerprintIsStableAcrossCalls(t *testing.T) {
+	root := t.TempDir()
+	for _, n := range []string{"alpha", "beta", "gamma", "delta"} {
+		mustWrite(t, filepath.Join(root, DirName, glossarySubdir, n+".md"),
+			"---\ncanonical: "+n+"\n---\n\n# "+n+"\n\nA thing.\n")
+	}
+	// Terms live in a map. Walking it unordered would make an unchanged wiki
+	// sign differently each call, which reads at the gate as "the wiki
+	// changed" and blocks a delegation that did nothing wrong.
+	first := fingerprintOf(t, root)
+	for i := 0; i < 20; i++ {
+		if got := fingerprintOf(t, root); got != first {
+			t.Fatalf("fingerprint is not stable: call %d gave %s, want %s", i, got, first)
+		}
+	}
+}
+
+// fingerprintOf loads the wiki fresh each time, so a caller can compare two
+// states of the same directory.
+func fingerprintOf(t *testing.T, root string) string {
+	t.Helper()
+	st, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st.Fingerprint()
+}

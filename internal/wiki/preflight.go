@@ -170,6 +170,21 @@ type ManifestTerm struct {
 	Confusions []Confusion
 }
 
+// manifestTerm reduces a glossary entry to what a delegate is actually handed.
+//
+// Manifest renders this and Fingerprint signs it, from here and nowhere else.
+// Two copies of the field list would let the signature come to cover something
+// other than what was delivered, which is the one way a verifying token can
+// still be a lie.
+func manifestTerm(t *Term) ManifestTerm {
+	return ManifestTerm{
+		Canonical:  t.Canonical,
+		Aliases:    t.Aliases,
+		Definition: firstSentence(t.Body),
+		Confusions: t.Confusions,
+	}
+}
+
 // ManifestSet is one set as it appears in a catalogue.
 type ManifestSet struct {
 	Name string
@@ -196,12 +211,7 @@ type ManifestGroup struct {
 func (st *Store) Manifest(sel Selection, secret []byte) Manifest {
 	m := Manifest{Missing: sel.Missing, Token: st.MintToken(secret)}
 	for _, t := range sel.Terms {
-		m.Terms = append(m.Terms, ManifestTerm{
-			Canonical:  t.Canonical,
-			Aliases:    t.Aliases,
-			Definition: firstSentence(t.Body),
-			Confusions: t.Confusions,
-		})
+		m.Terms = append(m.Terms, manifestTerm(t))
 	}
 	for _, s := range sel.Sets {
 		ms := ManifestSet{

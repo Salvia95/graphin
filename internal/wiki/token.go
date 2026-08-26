@@ -61,8 +61,8 @@ func LoadOrCreateSecret(root string) ([]byte, error) {
 	return secret, nil
 }
 
-// Fingerprint identifies the state of the whole wiki: every set and the
-// entries it holds right now.
+// Fingerprint identifies the state of the whole wiki: every set, the entries
+// it holds right now, and every glossary entry.
 //
 // The whole wiki, and not the selected subset, for a reason that only shows
 // up at the other end. A gate reading a delegation prompt can recover the
@@ -106,6 +106,26 @@ func (st *Store) Fingerprint() string {
 				// citing a section already listed — pass as unchanged.
 				field(e.NodeID, e.Title, e.Summary)
 			}
+		}
+	}
+	// A marker between the halves. Without it a set could in principle be
+	// renamed into the encoding of a glossary entry and leave the digest
+	// unchanged.
+	field("glossary")
+	for _, t := range st.TermList() {
+		// Definitions arrive inline in the catalogue — unlike a set, whose
+		// sections are fetched fresh at resolve time — so an edited
+		// definition changes what a delegate was told while every set stays
+		// put. Signing only the sets called that unchanged.
+		//
+		// What is signed is what is delivered, and only that: manifestTerm
+		// is the same reduction Manifest uses, so a paragraph nobody ever
+		// receives cannot invalidate a token.
+		mt := manifestTerm(t)
+		field(mt.Canonical, mt.Definition)
+		field(mt.Aliases...)
+		for _, c := range mt.Confusions {
+			field(c.Term, c.Why)
 		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
