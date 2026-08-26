@@ -6,13 +6,37 @@ import "strings"
 // untouched.
 const RoleExempt = "exempt"
 
-// AgentTable maps a subagent type to the role whose knowledge it needs, or to
-// exemption.
+// RoleInherit marks an agent that starts holding its caller's context instead
+// of an empty one. Such an agent is NOT exempt: what it needs is whatever the
+// caller had, so it is cleared only when the caller was.
+const RoleInherit = "inherit"
+
+// AgentVerdict is what the table says about one agent.
 //
-// One table answers two questions on purpose. The delegation side needs a role
-// to preflight for, and the gate needs to know whether this agent is subject
-// at all; keeping those in separate files is how they drift into disagreeing
-// about the same agent.
+// Three answers, because "does this agent need knowledge of its own" has
+// three honest ones. Collapsing the third into exempt is how a gate grows a
+// hole: an agent that inherits a cleared caller's knowledge and one that
+// inherits an empty context are the same agent, and only the caller's state
+// tells them apart.
+type AgentVerdict int
+
+const (
+	// AgentGated: this agent needs a manifest of its own.
+	AgentGated AgentVerdict = iota
+	// AgentExempt: this agent never needs project knowledge, whoever
+	// spawned it and whatever they had loaded.
+	AgentExempt
+	// AgentInherits: decided by looking at the caller, not at this table.
+	AgentInherits
+)
+
+// AgentTable maps a subagent type to the role whose knowledge it needs, or to
+// exemption, or to its caller.
+//
+// One table answers both questions on purpose. The delegation side needs a
+// role to preflight for, and the gate needs a verdict on whether this agent is
+// subject at all; keeping those in separate files is how they drift into
+// disagreeing about the same agent.
 //
 // The gate reads the resulting decision from a flag file, never from here —
 // this table is consulted once per agent at spawn, not on every edit.
@@ -20,22 +44,23 @@ type AgentTable struct {
 	roles map[string]string
 }
 
-// builtinAgents are the agents graphin ships and the stock ones it knows
-// cannot want knowledge. They are compiled in rather than configured because
-// they run in other people's repositories, where no project file of ours
-// exists to describe them: they hold Bash while never editing for their own
-// reasons, so a gate keyed on tools alone would stop them for knowledge they
-// will never use.
+// builtinAgents are the agents graphin ships and the stock ones whose need
+// for knowledge is already settled. They are compiled in rather than
+// configured because they run in other people's repositories, where no
+// project file of ours exists to describe them: they hold Bash while never
+// editing for their own reasons, so a gate keyed on tools alone would stop
+// them for knowledge they will never use.
 var builtinAgents = map[string]string{
 	"graphin-explorer": RoleExempt,
 	"release":          RoleExempt,
 	"Explore":          RoleExempt,
 	"Plan":             RoleExempt,
-	// Stock Claude Code agents that cannot want project knowledge: one only
-	// edits a settings file, the other inherits the caller's context whole —
-	// including whatever the caller already resolved.
+	// Only ever edits a settings file of the user's own.
 	"statusline-setup": RoleExempt,
-	"fork":             RoleExempt,
+	// Deliberately not exempt. A fork begins with its caller's context, so
+	// what it needs is whatever the caller had — which is a fact about the
+	// caller, not about this agent. See AgentInherits.
+	"fork": RoleInherit,
 }
 
 // NewAgentTable returns the built-in table.
@@ -80,18 +105,25 @@ func ParseAgents(src []byte) *AgentTable {
 //
 // Exact match wins, so a project that spells a namespaced agent out in full
 // still overrides the built-in entry for the bare one.
-func (t *AgentTable) Role(subagentType string) (role string, gated bool) {
+//
+// Exempt and inherit both return an empty role. Neither names knowledge to
+// preflight for, and a caller that printed one of those words as a role would
+// be repeating a verdict back as an answer.
+func (t *AgentTable) Role(subagentType string) (role string, verdict AgentVerdict) {
 	r, ok := t.roles[subagentType]
 	if !ok {
 		r, ok = t.roles[stripNamespace(subagentType)]
 	}
 	if !ok {
-		return "", true
+		return "", AgentGated
 	}
-	if strings.EqualFold(r, RoleExempt) {
-		return "", false
+	switch {
+	case strings.EqualFold(r, RoleExempt):
+		return "", AgentExempt
+	case strings.EqualFold(r, RoleInherit):
+		return "", AgentInherits
 	}
-	return r, true
+	return r, AgentGated
 }
 
 // stripNamespace drops a leading "plugin:" qualifier. It returns the input

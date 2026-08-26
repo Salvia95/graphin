@@ -65,7 +65,8 @@ func runGate(stdin io.Reader, stderr io.Writer) int {
 
 // gateDelegation is gate ①: no subagent starts without a manifest.
 func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) int {
-	if _, gated := store.Agents.Role(in.str("subagent_type")); !gated {
+	role, verdict := store.Agents.Role(in.str("subagent_type"))
+	if verdict == AgentExempt {
 		return exitAllow
 	}
 	secret, err := LoadOrCreateSecret(root)
@@ -74,14 +75,29 @@ func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) i
 		return exitAllow
 	}
 	if tok := FindToken(in.str("prompt")); store.VerifyToken(secret, tok) {
-		// Leave the note the spawn hook will consume. This is the only
-		// moment anyone sees both the token and the agent it is for.
-		if err := WritePending(root, in.SessionID, in.str("subagent_type"), Flag{
+		clearSpawn(root, in, Flag{
 			Status: StatusCleared, Producer: "manifest", Token: tok,
-		}); err != nil {
-			fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
-		}
+		}, stderr)
 		return exitAllow
+	}
+	// An agent that begins with its caller's context needs what the caller
+	// had and nothing else, so the caller's flag is the whole check. A
+	// cleared caller hands its clearance down; an uncleared one has nothing
+	// to hand down, and the delegation falls through to the manifest rule
+	// like any other.
+	//
+	// Making this unconditional would not be a shortcut, it would be a hole.
+	// Read, Grep and Glob are not gated, so an orchestrator can work its way
+	// through a whole repository, fork before it ever touches a gated tool,
+	// and let the fork do every edit — both gates bypassed by an agent that
+	// was exempted for knowledge it turned out not to have.
+	if verdict == AgentInherits {
+		if caller, ok := ReadFlag(root, in.SessionID, in.AgentID); ok && caller.Status == StatusCleared {
+			clearSpawn(root, in, Flag{
+				Status: StatusCleared, Producer: "inherited", Token: caller.Token,
+			}, stderr)
+			return exitAllow
+		}
 	}
 	// Name the next action, not the fault. A block that only says "no" turns
 	// into a retry of the same call; a block that says what to run is a loop
@@ -89,10 +105,28 @@ func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) i
 	fmt.Fprint(stderr, "This delegation carries no valid knowledge manifest.\n\n"+
 		"Call wiki_preflight with the task and the delegate's role, then include the\n"+
 		"token it returns in the delegation prompt. An empty catalogue is a normal\n"+
-		"answer and still returns a token — include it and proceed.\n\n"+
-		"A token minted before the wiki was last edited no longer verifies; run\n"+
+		"answer and still returns a token — include it and proceed.\n\n")
+	// The table was just asked which role this delegate needs, and the answer
+	// is the one thing the caller would otherwise have to guess. Saying it
+	// also puts the agents page on screen at the only moment it matters,
+	// which is how a wrong entry there gets noticed at all.
+	if role != "" {
+		fmt.Fprintf(stderr, "The agents page puts this delegate in the %q role — pass that as\n"+
+			"wiki_preflight's role argument.\n\n", role)
+	}
+	fmt.Fprint(stderr, "A token minted before the wiki was last edited no longer verifies; run\n"+
 		"wiki_preflight again rather than reusing one from earlier in the session.\n")
 	return exitBlock
+}
+
+// clearSpawn leaves the note the spawn hook will consume. This is the only
+// moment anyone sees both the clearance and the agent it was granted to:
+// SubagentStart carries no delegation prompt and no caller, so neither half
+// of this decision is available again later.
+func clearSpawn(root string, in hookInput, f Flag, stderr io.Writer) {
+	if err := WritePending(root, in.SessionID, in.str("subagent_type"), f); err != nil {
+		fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
+	}
 }
 
 // gateChange is gate ②: no edits by an agent that was never cleared.
@@ -174,22 +208,27 @@ func markSpawn(store *Store, root string, in hookInput, stderr io.Writer) int {
 		return exitAllow
 	}
 
-	if _, gated := store.Agents.Role(in.AgentType); !gated {
+	if _, verdict := store.Agents.Role(in.AgentType); verdict == AgentExempt {
 		_ = WriteFlag(root, in.SessionID, in.AgentID, Flag{
 			Status: StatusCleared, Producer: "exempt",
 		})
 		return exitAllow
 	}
 
-	// The delegation gate left a note if it verified a token for this agent
-	// type. Consuming it clears the spawn, so the normal path costs no
-	// blocked call at all.
+	// The delegation gate left a note if it cleared this agent type — by a
+	// verified token, or by inheritance from a cleared caller. Consuming it
+	// clears the spawn, so the normal path costs no blocked call at all.
 	//
-	// The token cannot be checked here: SubagentStart carries agent_id and
-	// agent_type and no prompt, so this hook never sees a manifest.
+	// The note carries its own producer rather than being stamped here. How
+	// a clearance was earned is not something this hook can re-derive, and
+	// writing "manifest" over an inherited one would leave a record that
+	// cannot tell the two apart.
+	//
+	// The token cannot be checked here either: SubagentStart carries agent_id
+	// and agent_type and no prompt, so this hook never sees a manifest.
 	if pending, ok := ConsumePending(root, in.SessionID, in.AgentType); ok {
 		_ = WriteFlag(root, in.SessionID, in.AgentID, Flag{
-			Status: StatusCleared, Producer: "manifest", Token: pending.Token,
+			Status: StatusCleared, Producer: pending.Producer, Token: pending.Token,
 		})
 		return exitAllow
 	}

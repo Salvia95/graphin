@@ -123,6 +123,65 @@ func TestGateAllowsExemptAgentWithoutToken(t *testing.T) {
 	}
 }
 
+func TestGateInheritingAgentFollowsItsCaller(t *testing.T) {
+	root := gateWorkspace(t, true)
+
+	// The caller has loaded nothing. A fork of it inherits nothing, so it is
+	// gated like any other delegation — the hole this closes is an
+	// orchestrator that reads its way through a repository (Read, Grep and
+	// Glob are not gated), forks, and lets the fork do every edit.
+	code, msg := runVerb(t, "gate", hookJSON(t, map[string]any{
+		"tool_name": "Task", "cwd": root, "session_id": "s1",
+		"tool_input": map[string]any{"subagent_type": "fork", "prompt": "carry on"},
+	}))
+	if code != exitBlock {
+		t.Fatalf("exit = %d (%s), want block: an uncleared caller has no clearance to hand down", code, msg)
+	}
+
+	// Now the caller is cleared. The fork begins holding what the caller
+	// held, so it needs nothing of its own.
+	mustWrite(t, FlagPath(root, "s1", ""), `{"status":"cleared","producer":"resolve"}`)
+	if code, msg := runVerb(t, "gate", hookJSON(t, map[string]any{
+		"tool_name": "Task", "cwd": root, "session_id": "s1",
+		"tool_input": map[string]any{"subagent_type": "fork", "prompt": "carry on"},
+	})); code != exitAllow {
+		t.Fatalf("exit = %d (%s), want allow for a fork of a cleared caller", code, msg)
+	}
+
+	// And the clearance is recorded as inherited, not as a manifest that was
+	// never verified.
+	spawn(t, root, "s1", "f1", "fork")
+	if f, _ := ReadFlag(root, "s1", "f1"); f.Status != StatusCleared || f.Producer != "inherited" {
+		t.Fatalf("flag = %+v, want cleared by inheritance", f)
+	}
+}
+
+func TestGateBlockNamesTheRoleFromTheAgentsPage(t *testing.T) {
+	root := gateWorkspace(t, true)
+	mustWrite(t, filepath.Join(root, DirName, "agents.md"),
+		"---\nagents:\n  - backend-dev — backend\n---\n")
+
+	// The table was just asked which role this delegate needs. Saying it is
+	// the one thing the caller would otherwise have to guess.
+	_, msg := runVerb(t, "gate", hookJSON(t, map[string]any{
+		"tool_name": "Task", "cwd": root, "session_id": "s1",
+		"tool_input": map[string]any{"subagent_type": "backend-dev", "prompt": "fix it"},
+	}))
+	if !strings.Contains(msg, `"backend"`) {
+		t.Errorf("block message does not name the role:\n%s", msg)
+	}
+
+	// An agent the table has never heard of has no role to name, and
+	// inventing one would be worse than staying quiet.
+	_, msg = runVerb(t, "gate", hookJSON(t, map[string]any{
+		"tool_name": "Task", "cwd": root, "session_id": "s1",
+		"tool_input": map[string]any{"subagent_type": "who-dis", "prompt": "fix it"},
+	}))
+	if strings.Contains(msg, "agents page puts this delegate") {
+		t.Errorf("block message invented a role for an unlisted agent:\n%s", msg)
+	}
+}
+
 func TestGateRejectsTokenMintedBeforeAWikiEdit(t *testing.T) {
 	root := gateWorkspace(t, true)
 	tok := validToken(t, root)
