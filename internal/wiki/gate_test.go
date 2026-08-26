@@ -2,6 +2,7 @@ package wiki
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -107,12 +108,18 @@ func TestGateAllowsExemptAgentWithoutToken(t *testing.T) {
 	root := gateWorkspace(t, true)
 	// graphin ships read-only investigators that hold Bash. Gating them would
 	// stop them for knowledge they will never use.
-	code, _ := runVerb(t, "gate", hookJSON(t, map[string]any{
-		"tool_name": "Task", "cwd": root, "session_id": "s1",
-		"tool_input": map[string]any{"subagent_type": "graphin-explorer", "prompt": "where is X"},
-	}))
-	if code != exitAllow {
-		t.Fatalf("exit = %d, want allow for an exempt agent", code)
+	//
+	// The namespaced form is what a plugin agent actually arrives as, and it
+	// is the one that matters: the bare name is what the table is written
+	// with, but nothing outside our own tests ever sends it.
+	for _, name := range []string{"graphin-explorer", "graphin-guide:graphin-explorer"} {
+		code, _ := runVerb(t, "gate", hookJSON(t, map[string]any{
+			"tool_name": "Task", "cwd": root, "session_id": "s1",
+			"tool_input": map[string]any{"subagent_type": name, "prompt": "where is X"},
+		}))
+		if code != exitAllow {
+			t.Fatalf("exit = %d, want allow for exempt agent %q", code, name)
+		}
 	}
 }
 
@@ -283,10 +290,16 @@ func TestSpawnWithoutADelegationLeavesBreadcrumb(t *testing.T) {
 
 func TestMarkSpawnClearsExemptAgent(t *testing.T) {
 	root := gateWorkspace(t, true)
-	spawn(t, root, "s1", "a1", "graphin-explorer")
-	f, _ := ReadFlag(root, "s1", "a1")
-	if f.Status != StatusCleared || f.Producer != "exempt" {
-		t.Fatalf("flag = %+v, want cleared by exemption", f)
+	// Both gates read the same table, so both have to survive the namespace
+	// a plugin agent arrives with. Missing it here costs a blocked edit
+	// rather than a blocked spawn, which is the harder one to trace back.
+	for i, name := range []string{"graphin-explorer", "graphin-guide:graphin-explorer"} {
+		agent := fmt.Sprintf("a%d", i)
+		spawn(t, root, "s1", agent, name)
+		f, _ := ReadFlag(root, "s1", agent)
+		if f.Status != StatusCleared || f.Producer != "exempt" {
+			t.Fatalf("flag for %q = %+v, want cleared by exemption", name, f)
+		}
 	}
 }
 
