@@ -149,6 +149,80 @@
         "r": "b3:eebc45ac276057ccc2cf49c087864fdedc1eea36e0b2c032d64c49028cab6814"
       }
     },
+    "delegation-gate": {
+      "docs/delegation-gate.md#0-한-문단": {
+        "h": "b3:bd608081eb69efa0b7f61a750cfccb0dc4603f2c05f234dfddf8051b26c0e46a",
+        "r": "b3:c09e87868e05a2de56534666df7e4aaa130a52e76f60dc4da5d37656704e9614"
+      },
+      "docs/delegation-gate.md#2-무대가-서는-조건": {
+        "h": "b3:cd74acf81f5d37f40bc26fa9de0078a305e7604b77c589e7fec32cf4b71b4f2e",
+        "r": "b3:819c5ae362e1bddead59ce7efd327adb6793f981f6c7a4462ad14b61a01ccb6a"
+      },
+      "docs/delegation-gate.md#4-플래그-상태-기계": {
+        "h": "b3:ab853abc72a3509f4380648116a1b08358a6c686a9b392ee21ca30bba4605b85",
+        "r": "b3:00d13d026e2792315b828218232da4573f76a2f2ea9e9935791c407b150a1b8a"
+      },
+      "docs/delegation-gate.md#6-이-게이트가-하지-않는-것": {
+        "h": "b3:d07aff25e0ef0abf12b56789a739902d5b69d63cc3ad60f264508a52621b7cca",
+        "r": "b3:b3410c87b0971e49c084a7af7959fe2cb47459dfc5fdc0bf7d862f3f200ba742"
+      },
+      "docs/delegation-gate.md#7-마찰-로그": {
+        "h": "b3:c71e872ddc99e077ac1d5381edb75390c4f525f85086fbca1fb8ca17652922ae",
+        "r": "b3:000aee1c367bc5c63a25c9f3a20384c1935a49a095c7844ee09c51bfc0cee799"
+      },
+      "docs/delegation-gate.md#장면-1--정상-경로": {
+        "h": "b3:e4c50161a27a721e435e4788484258acbf3ade6a42b63c6984fd4ed9464f68e3",
+        "r": "b3:7d3219d651ae920c4e73af5ac364f3001275b97db742125b472d81aa7dd64ed0"
+      },
+      "docs/delegation-gate.md#장면-10--오케스트레이터-자신이-편집한다": {
+        "h": "b3:e7d911a1bc5622fa199291a6924b62c2296c616373c2cea38608d88f840859b4",
+        "r": "b3:43378f48ba71045dc7afefdb660b6656370e50dc99408b32be03993aed9bf634"
+      },
+      "docs/delegation-gate.md#장면-12--브레드크럼이-아예-없다": {
+        "h": "b3:eba357a22791a5a4aacf0f8d0e5342d7a11c630f1621c77a7144ee8ca45954f5",
+        "r": "b3:eb397b33be820ebb40987b40e31f7e34b15f2af84b00bf91ef3fe1e60c166607"
+      },
+      "docs/delegation-gate.md#장면-13--설치가-깨졌거나-옛-바이너리다": {
+        "h": "b3:cf66dc379fd41a04b360fab566b0e0efd6cae4a4bf1487805d8e8cc2700bc25a",
+        "r": "b3:1d6a78e4179759eba60bef6c5a8a72343a92e64a32e4e66fe59cc07b27138cd2"
+      },
+      "docs/delegation-gate.md#장면-14--비상구": {
+        "h": "b3:3adf156eddff4e81b6b95af71d90cf569ed99af60e7b4ccbc2766b7982d52c10",
+        "r": "b3:faf385d51111c3b447dc6b97c1461907632d2529c10130f7f7d6395f8a0caf7b"
+      },
+      "docs/delegation-gate.md#장면-2--위키가-할-말이-없는-일": {
+        "h": "b3:3fa97e784a3c6228f894a31468796b7db514e588d6ae9ac9318627760c2b5a46",
+        "r": "b3:9b6d197faf316545e29f06bec90301f41bad6423dc344441819f24df90276229"
+      },
+      "docs/delegation-gate.md#장면-3--토큰-없이-위임": {
+        "h": "b3:6cdf3eae6f5bde33ae1228ce9dde3bfe9dd69539d804c9d138a143c20be8ef05",
+        "r": "b3:8c47767ca55d05be00ef061cae2fb6ef612b8bdf2272ef347c2985655cee853d"
+      },
+      "docs/delegation-gate.md#장면-4--지어낸-토큰": {
+        "h": "b3:e46efa6e8e0ac74ec9555ef0aa89a597736968676c2576d62c05de92c53e21bf",
+        "r": "b3:cbedc5c2a23ecc72782e72969804d13ca490c700ef68628345838da55d0fb7bc"
+      },
+      "docs/delegation-gate.md#장면-5--세션-도중-위키가-바뀐다": {
+        "h": "b3:f5838a63d8b6522677d4a6c2d7cbb1dabd10ca1f18022e659b5b4293bf5a7bea",
+        "r": "b3:d338dd09e9d38af31c618b1037ba6aed01b7dd3eb74ce127fe72197cf4dfed58"
+      },
+      "docs/delegation-gate.md#장면-6--면제된-에이전트": {
+        "h": "b3:ff5a310589e7bad5ba75993b2cea53df66207bd025e03f9e1bfb3c273746ff1a",
+        "r": "b3:5404d6146552eacd32efc918d806af117a1ced6e1abdf2226bb21b21468664ec"
+      },
+      "docs/delegation-gate.md#장면-7--표에-없는-에이전트": {
+        "h": "b3:f3a7ced52b275f14fa8abac651fa1f33a1a924ffc03ef6e9bda7560586fcfafb",
+        "r": "b3:24a8f856c91e1c46bb8687b95d15d9b930874aa1636c65d0f333feff0422c1dd"
+      },
+      "docs/delegation-gate.md#장면-8--이름이-네임스페이스를-달고-온다": {
+        "h": "b3:f029a381bec9ea4bb0d3859596038861718af0753b5e9791f7f719a67bd44715",
+        "r": "b3:350d6d09807e0d2af8a90987b3ee818569ba9b2be4b0a414e504355145f2517e"
+      },
+      "docs/delegation-gate.md#장면-9--부른-쪽의-클리어런스를-물려받는다": {
+        "h": "b3:d4341f5cce2c6c7b0b16369d35ddd5c7bc336ae5ff80fd1f8b83b23238261607",
+        "r": "b3:d5893427a200762e16332186064407b61be0e8e286a3ee984896ad25a0d41fac"
+      }
+    },
     "design": {
       "docs/design-system.md#01-토큰이-실제로-사는-곳": {
         "h": "b3:41fbb3bce85a0a0e04ecff3be390439b9312e999880a316a4dbbf6ba94a9b5e0",
