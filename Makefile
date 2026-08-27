@@ -1,7 +1,7 @@
 GO ?= go
 
 # packages with heavy concurrency — always exercised under -race at phase gates
-RACE_PKGS = ./internal/graph/... ./internal/store/... ./internal/workspace/... ./internal/watch/...
+RACE_PKGS = ./internal/graph/... ./internal/store/... ./internal/workspace/... ./internal/watch/... ./internal/mcp/...
 
 # Build identity. These land in `graphin version` and the MCP handshake — the
 # release workflow overrides VERSION on the command line.

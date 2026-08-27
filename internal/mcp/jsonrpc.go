@@ -35,6 +35,12 @@ const (
 	codeMethodNotFound = -32601
 	codeInvalidParams  = -32602
 	codeInternalError  = -32603
+
+	// codeUnsupportedVersion is UnsupportedProtocolVersionError (2026-07-28).
+	// -32020..-32099 is reserved for the specification: a code from that range
+	// may only be emitted with the meaning the spec gives it, and no
+	// implementation may mint new ones there.
+	codeUnsupportedVersion = -32022
 )
 
 // writer serializes newline-delimited JSON-RPC messages onto one stream.
