@@ -1,6 +1,7 @@
 package wiki
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -49,6 +50,7 @@ func (s Selection) Empty() bool { return len(s.Sets) == 0 && len(s.Terms) == 0 }
 func (st *Store) Select(role, task string) Selection {
 	var sel Selection
 	wanted := map[string]bool{}
+	stop := st.stopKeys()
 
 	for _, s := range st.ForRole(role) {
 		if !wanted[s.Name] {
@@ -61,7 +63,7 @@ func (st *Store) Select(role, task string) Selection {
 		if wanted[s.Name] {
 			continue
 		}
-		if matchesTask(s, task) {
+		if matchesTask(s, task, stop) {
 			wanted[s.Name] = true
 			sel.Matched = append(sel.Matched, s.Name)
 		}
@@ -107,8 +109,48 @@ func (st *Store) termsIn(task string) []*Term {
 	return out
 }
 
+// grammarKeys are the matching keys Korean grammar produces rather than
+// vocabulary.
+//
+// Bigram expansion exists to bridge the particle glued to a word — "릴리스를"
+// and "릴리스" would never meet otherwise — but it also emits the particle,
+// and "…는지" or "…한다" ends a sentence in every task anyone will ever write.
+// Two of those clear a bar meant to require two shared subjects.
+//
+// Only closed-class morphemes are listed, and that is the whole reason this
+// list is allowed to exist: a stoplist of domain words rots as the vocabulary
+// moves, so it would have to be maintained by whoever adds a set. Korean
+// grammar does not move. Anything here that could also be content — 하는,
+// 없는, 하지 — was left out on purpose.
+var grammarKeys = map[string]bool{
+	"는지": true, "을지": true, "는가": true, "인가": true, "느냐": true,
+	"니다": true, "습니": true, "한다": true, "했다": true, "된다": true,
+	"이다": true, "에서": true, "으로": true, "에게": true, "부터": true,
+	"까지": true, "처럼": true, "마다": true, "라도": true, "하면": true,
+	"되면": true, "려면": true,
+}
+
+// stopKeys are keys that cannot tell one set in this wiki from another, so
+// counting them toward the threshold only manufactures matches.
+//
+// Beyond grammar there is one more: the project's own name. Every set in a
+// wiki is about the project the wiki belongs to, so naming it says nothing
+// about which set — and it is in most of them, which is exactly what a key
+// with no discriminating power looks like. A set genuinely named after the
+// project still matches through the name path below, which does not read this.
+func (st *Store) stopKeys() map[string]bool {
+	out := make(map[string]bool, len(grammarKeys)+4)
+	for k := range grammarKeys {
+		out[k] = true
+	}
+	for _, k := range wordKeys(strings.ToLower(filepath.Base(st.Root))) {
+		out[k] = true
+	}
+	return out
+}
+
 // matchesTask scores one set against the task description.
-func matchesTask(s *Set, task string) bool {
+func matchesTask(s *Set, task string, stop map[string]bool) bool {
 	// The set's own name is a stronger signal than any single label word: a
 	// task that says "release" and a set called "release" are about the same
 	// thing far more often than not. Both the filename and the heading count,
@@ -117,7 +159,11 @@ func matchesTask(s *Set, task string) bool {
 	if countMatchingWords(task, keySet(s.Name+" "+s.Title)) > 0 {
 		return true
 	}
-	return countMatchingWords(task, keySet(setText(s))) >= minTaskMatches
+	keys := keySet(setText(s))
+	for k := range stop {
+		delete(keys, k)
+	}
+	return countMatchingWords(task, keys) >= minTaskMatches
 }
 
 // setText is the set's labels: its name, the paragraph saying what it is for,

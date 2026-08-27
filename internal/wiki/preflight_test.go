@@ -128,3 +128,45 @@ func TestFirstSentenceKeepsCatalogueLinesShort(t *testing.T) {
 		}
 	}
 }
+
+// koreanWiki builds a workspace whose set labels are Korean, in a directory
+// named after the project — the shape every real wiki here has.
+func koreanWiki(t *testing.T) *Store {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "graphin")
+	mustWrite(t, filepath.Join(root, "docs", "target.md"), targetDoc)
+	mustWrite(t, filepath.Join(root, DirName, setsSubdir, "release.md"),
+		"---\nroles: []\n---\n\n# 릴리스\n\n"+
+			"graphin 릴리스를 낼 때 필요한 지식. 버전 자리를 판단한다.\n\n"+
+			"## 버전 자리\n\n"+
+			"- [규칙](../../target.md#section-one) — minor는 사용자가 손댈 게 생겼다는 뜻이다.\n")
+	store, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
+}
+
+func TestSelectIgnoresKoreanGrammar(t *testing.T) {
+	st := koreanWiki(t)
+	// "…는지"와 "…한다"는 모든 한국어 작업 문장에 나온다. 둘이 문턱을 넘으면
+	// 어떤 세트든 어떤 작업에나 붙는다.
+	sel := st.Select("", "이 화면이 맞는지 확인한다")
+	if len(sel.Sets) != 0 {
+		t.Errorf("grammar alone matched %v", sel.Matched)
+	}
+	// 진짜 어휘가 둘이면 여전히 걸린다 — 조사가 붙어 있어도.
+	if sel := st.Select("", "버전 자리를 정하고 사용자에게 알린다"); len(sel.Sets) != 1 {
+		t.Errorf("real vocabulary stopped matching: %v", sel.Matched)
+	}
+}
+
+func TestSelectIgnoresTheProjectName(t *testing.T) {
+	st := koreanWiki(t)
+	// 위키의 모든 세트가 그 프로젝트에 관한 것이므로, 이름을 부르는 것은 어느
+	// 세트인지를 말해 주지 않는다.
+	sel := st.Select("", "graphin 지식을 정리한다")
+	if len(sel.Sets) != 0 {
+		t.Errorf("the project name carried a match: %v", sel.Matched)
+	}
+}
