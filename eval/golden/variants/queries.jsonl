@@ -1,0 +1,4 @@
+{"id": "workspace-lock-target", "shape": "prose", "query": "where is the workspace lock file acquired and released", "top_k": 5, "target": "code"}
+{"id": "embed-crash-recovery-target", "shape": "prose", "query": "how embeddings survive a crash and which files are re-embedded", "top_k": 5, "target": "code"}
+{"id": "versioning-rules-target", "shape": "docs", "query": "which version digit to bump for a breaking change", "top_k": 5, "target": "docs"}
+{"id": "graphindb-contract-target", "shape": "docs", "query": "what a graphindb schema snapshot file must contain", "top_k": 5, "target": "docs"}

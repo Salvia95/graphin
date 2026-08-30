@@ -1,0 +1,10 @@
+{"id": "truncate-cap", "files": ["internal/mcp/truncate.go"], "why": "func Truncate와 MaxResponseBytes가 정의된 유일한 파일", "evidence": ["utf8.RuneStart"]}
+{"id": "inflight-wait", "files": ["internal/mcp/server.go"], "why": "Serve의 calls.Wait() — stdin이 닫힌 뒤 진행 중 호출을 기다리는 곳", "evidence": ["s.calls.Wait()"]}
+{"id": "workspace-lock", "files": ["internal/lock/lockfile.go", "internal/workspace/workspace.go"], "why": "Acquire 정의와 Bootstrap의 유일한 호출부. 둘 다 없으면 답이 반쪽이다", "evidence": ["func Acquire", "lock.Acquire"]}
+{"id": "embed-crash-recovery", "files": ["internal/semantic/persist.go"], "why": "StaleFiles — vectors.bin 헤더와 현재 해시를 비교해 재임베드 대상을 고른다", "evidence": ["func (e *Engine) StaleFiles"]}
+{"id": "versioning-rules", "files": ["docs/plugin-distribution.md"], "why": "§13.3의 0.X.0 / 0.x.Y 표", "evidence": ["**0.X.0** (minor)"]}
+{"id": "graphindb-contract", "files": ["schema/graphindb.md"], "why": "스냅샷 파일 규약 문서", "evidence": ["매니페스트 (`graphindb.json`)"]}
+{"id": "launcher-reinstall", "files": ["plugin/graphin/bin/graphin-launch.sh"], "why": "매니페스트 바이트 비교(cmp -s)로 설치본의 신선도를 판단한다", "evidence": ["cmp -s"]}
+{"id": "wordpiece", "files": ["internal/tokenizer/wordpiece.go"], "why": "wordpiece 구현 파일", "evidence": ["func (wp *wordPiece) Encode"]}
+{"id": "watch-debounce", "files": ["internal/watch/debounce.go"], "why": "quiet/cap 디바운서 구현", "evidence": ["quiet   time.Duration"]}
+{"id": "rank-definition-vs-callers", "files": ["internal/search/router.go"], "why": "Tier-0 승격이 사는 곳. 2026-08-07 채택 진단이 찾은 실패를 골든셋에 남겨 둔다", "evidence": ["func tier0Cap"]}

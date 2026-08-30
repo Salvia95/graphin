@@ -1,0 +1,4 @@
+{"id": "workspace-lock-target", "files": ["internal/lock/lockfile.go", "internal/workspace/workspace.go"], "why": "workspace-lock과 같은 정답. 다른 것은 target=code 하나뿐이다", "evidence": ["func Acquire", "lock.Acquire"]}
+{"id": "embed-crash-recovery-target", "files": ["internal/semantic/persist.go"], "why": "embed-crash-recovery와 같은 정답. 다른 것은 target=code 하나뿐이다", "evidence": ["func (e *Engine) StaleFiles"]}
+{"id": "versioning-rules-target", "files": ["docs/plugin-distribution.md"], "why": "versioning-rules와 같은 정답. 다른 것은 target=docs 하나뿐이다", "evidence": ["**0.X.0** (minor)"]}
+{"id": "graphindb-contract-target", "files": ["schema/graphindb.md"], "why": "graphindb-contract와 같은 정답. 다른 것은 target=docs 하나뿐이다", "evidence": ["매니페스트 (`graphindb.json`)"]}
