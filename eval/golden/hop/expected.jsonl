@@ -1,0 +1,3 @@
+{"id": "hop-truncate-callers", "files": ["internal/mcp/server.go"], "evidence": ["Truncate(text)"], "why": "Truncate를 실제로 쓰는 곳. 정의만 읽어서는 '응답 상한을 누가 적용하나'에 답이 안 된다 — used_by 한 홉이 필요하다"}
+{"id": "hop-bootstrap-background", "files": ["internal/workspace/indexer.go"], "evidence": ["func (w *Workspace) initialScan"], "why": "Bootstrap이 고루틴으로 띄우는 초기 스캔. uses 한 홉 건너에 있다"}
+{"id": "hop-tokenize-callers", "files": ["internal/search/router.go"], "evidence": ["lexical.Tokenize(query)"], "why": "토크나이저를 질의 경로에서 쓰는 곳. 정의는 lexical 패키지에 있고 답은 호출부다"}

@@ -1,0 +1,10 @@
+{"id": "truncate-cap", "shape": "bare-symbol", "query": "Truncate", "top_k": 5}
+{"id": "inflight-wait", "shape": "sentence-with-symbol", "query": "how does Serve wait for in-flight tool calls before returning", "top_k": 5}
+{"id": "workspace-lock", "shape": "prose", "query": "where is the workspace lock file acquired and released", "top_k": 5}
+{"id": "embed-crash-recovery", "shape": "prose", "query": "how embeddings survive a crash and which files are re-embedded", "top_k": 5}
+{"id": "versioning-rules", "shape": "docs", "query": "which version digit to bump for a breaking change", "top_k": 5}
+{"id": "graphindb-contract", "shape": "docs", "query": "what a graphindb schema snapshot file must contain", "top_k": 5}
+{"id": "launcher-reinstall", "shape": "shell", "query": "how the launcher decides the installed binary is stale", "top_k": 5}
+{"id": "wordpiece", "shape": "bare-symbol", "query": "wordpiece tokenizer", "top_k": 5}
+{"id": "watch-debounce", "shape": "prose", "query": "file watcher debounce quiet period and cap", "top_k": 5}
+{"id": "rank-definition-vs-callers", "shape": "prose-hard", "query": "why a symbol definition ranks below its own call sites", "top_k": 5}

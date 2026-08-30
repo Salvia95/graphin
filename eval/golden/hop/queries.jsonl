@@ -1,0 +1,3 @@
+{"id": "hop-truncate-callers", "shape": "impact", "query": "Truncate", "top_k": 5, "hops": 1}
+{"id": "hop-bootstrap-background", "shape": "impact", "query": "Workspace.Bootstrap", "top_k": 5, "hops": 1}
+{"id": "hop-tokenize-callers", "shape": "impact", "query": "lexical.Tokenize", "top_k": 5, "hops": 1}
