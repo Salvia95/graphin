@@ -40,8 +40,22 @@ func NewIndex() *Index {
 	}
 }
 
-// Upsert replaces the document's tokens.
+// Upsert replaces the document's tokens. Terms are stemmed on the way in;
+// Search stems the query the same way, so the two sides can never drift —
+// which is the whole reason normalization lives here and not at the call
+// sites, of which there are several on each side.
 func (ix *Index) Upsert(docID string, tokens []string) {
+	ix.upsert(docID, stemAll(tokens))
+}
+
+// restore reinstates tokens that were already stemmed before they were
+// persisted. Stemming is not idempotent for every word (`precede` → `preced`
+// → `prec`), so a reload must not run them through again.
+func (ix *Index) restore(docID string, tokens []string) {
+	ix.upsert(docID, tokens)
+}
+
+func (ix *Index) upsert(docID string, tokens []string) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 	ix.removeLocked(docID)
@@ -112,7 +126,8 @@ func (ix *Index) Snapshot() map[string][]string {
 }
 
 // Search scores unique query tokens with BM25 and returns up to topK hits.
-// Ties break on DocID so results are deterministic.
+// The query is stemmed exactly as Upsert stemmed the documents. Ties break on
+// DocID so results are deterministic.
 func (ix *Index) Search(queryTokens []string, topK int) []Hit {
 	ix.mu.RLock()
 	defer ix.mu.RUnlock()
@@ -126,7 +141,7 @@ func (ix *Index) Search(queryTokens []string, topK int) []Hit {
 	}
 	seen := map[string]bool{}
 	scores := map[string]float64{}
-	for _, q := range queryTokens {
+	for _, q := range stemAll(queryTokens) {
 		if seen[q] {
 			continue
 		}
