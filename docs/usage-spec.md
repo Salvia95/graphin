@@ -133,7 +133,7 @@ config key라 신뢰할 수 없다.
 
 | 툴 | p |
 |---|---|
-| `search_hybrid` | query, top_k + 응답에서 result_count, result_ids(≤5) |
+| `search_hybrid` | query, top_k, target(설정됐을 때만 — 부재 = 전체 검색) + 응답에서 result_count, result_ids(≤5) |
 | `explore_graph` | node_id, direction |
 | `read_code` | node_id |
 | `Grep` | pattern, path(상대), glob |
