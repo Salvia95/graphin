@@ -9,7 +9,10 @@ import (
 	"github.com/Salvia95/graphin/internal/store"
 )
 
-const snapshotVersion = 1
+// Bumped to 2 when the index began stemming its terms: a v1 snapshot holds
+// raw tokens, and restoring those beside a stemmed query would answer every
+// inflected question with nothing.
+const snapshotVersion = 2
 
 type snapshot struct {
 	Version int
@@ -46,7 +49,7 @@ func Load(path string) (*Index, *SymbolTable, error) {
 		return ix, st, nil
 	}
 	for id, toks := range snap.Docs {
-		ix.Upsert(id, toks)
+		ix.restore(id, toks)
 	}
 	for id, simple := range snap.Simple {
 		st.Put(id, simple)
