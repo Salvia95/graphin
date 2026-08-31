@@ -307,3 +307,86 @@ func TestFindRootBounded(t *testing.T) {
 		t.Fatalf("findRoot(%q) = %q, want %q", near, got, root)
 	}
 }
+
+// Token economy is a comparison, so graphin and the grep that replaced it have
+// to be priced by the same ruler. The hook is the only place that sees both.
+func TestIngestPricesEveryToolTheSameWay(t *testing.T) {
+	root := mkWorkspace(t)
+	body := strings.Repeat("x", 500)
+	for _, tc := range []struct {
+		tool  string
+		input map[string]any
+	}{
+		{"mcp__k__search_hybrid", map[string]any{"query": "q"}},
+		{"Grep", map[string]any{"pattern": "q"}},
+	} {
+		in := hookJSON(t, map[string]any{
+			"cwd": root, "tool_name": tc.tool,
+			"tool_input":    tc.input,
+			"tool_response": map[string]any{"text": body},
+		})
+		Ingest(in, io.Discard, noEnv)
+	}
+	evs := readEvents(t, root)
+	if len(evs) != 2 {
+		t.Fatalf("got %d events", len(evs))
+	}
+	for _, ev := range evs {
+		got, ok := ev.P["response_bytes"].(float64)
+		if !ok || int(got) < len(body) {
+			t.Fatalf("%s: response_bytes = %v, want at least %d", ev.Tool, ev.P["response_bytes"], len(body))
+		}
+	}
+}
+
+// Which retriever earned the slots, how large a pool it chose from, and
+// whether the search redirected the caller — none of it is recoverable from
+// the result ids alone.
+func TestIngestSearchRecordsRetrieverAxes(t *testing.T) {
+	root := mkWorkspace(t)
+	xml := `<results semantic_ready="true" candidates="42">` +
+		`<node id="a.B#m" rank="1" match_type="exact" />` +
+		`<node id="c.D" rank="2" match_type="both" />` +
+		`<node id="e.F" rank="3" match_type="both" />` +
+		`<hint>no indexed symbol is named it — a package-level constant</hint>` +
+		`</results>`
+	in := hookJSON(t, map[string]any{
+		"cwd": root, "tool_name": "mcp__k__search_hybrid",
+		"tool_input":    map[string]any{"query": "RETRY_BUDGET"},
+		"tool_response": map[string]any{"content": []any{map[string]any{"type": "text", "text": xml}}},
+	})
+	Ingest(in, io.Discard, noEnv)
+	p := readEvents(t, root)[0].P
+
+	if p["candidates"] != float64(42) {
+		t.Errorf("candidates = %v, want 42", p["candidates"])
+	}
+	if p["hint"] != "unnamed_ident" {
+		t.Errorf("hint = %v, want unnamed_ident", p["hint"])
+	}
+	mt, _ := p["match_types"].(map[string]any)
+	if mt["exact"] != float64(1) || mt["both"] != float64(2) {
+		t.Errorf("match_types = %v, want one exact and two both", mt)
+	}
+}
+
+func TestIngestKeywordSearchPayload(t *testing.T) {
+	root := mkWorkspace(t)
+	xml := `<results retriever="keyword" mode="regex" files="2" node_ids="true">` +
+		`<file path="a.go" matches="3" rank="1"><node id="a.F" line="4" match_type="keyword">x</node></file>` +
+		`</results>`
+	in := hookJSON(t, map[string]any{
+		"cwd": root, "tool_name": "mcp__k__search_keyword",
+		"tool_input":    map[string]any{"pattern": "RETRY_.*", "regex": true, "path": "billing/"},
+		"tool_response": map[string]any{"text": xml},
+	})
+	Ingest(in, io.Discard, noEnv)
+	p := readEvents(t, root)[0].P
+
+	if p["pattern"] != "RETRY_.*" || p["regex"] != true || p["path"] != "billing/" {
+		t.Fatalf("payload = %v", p)
+	}
+	if p["files"] != float64(2) || p["result_count"] != float64(1) {
+		t.Fatalf("files/result_count = %v/%v, want 2/1", p["files"], p["result_count"])
+	}
+}
