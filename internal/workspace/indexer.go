@@ -69,6 +69,53 @@ func (w *Workspace) NodeLocation(id string) (relPath string, line int, ok bool) 
 	return m.RelPath, int(m.StartLine), true
 }
 
+// FileNode is one node's byte span inside a file, for resolving a raw file
+// offset back to the node that owns it.
+type FileNode struct {
+	ID        string
+	StartByte uint32
+	EndByte   uint32
+}
+
+// NodesInFiles collects the nodes of the named files in one pass. Keyword
+// search hands back file offsets, and an offset is only useful to an agent
+// once it is a node id — that is the currency explore_graph and read_code
+// speak. Taking the whole path set at once matters: the node map is global,
+// so resolving files one at a time would rescan it per file.
+func (w *Workspace) NodesInFiles(rels []string) map[string][]FileNode {
+	want := make(map[string]bool, len(rels))
+	for _, r := range rels {
+		want[r] = true
+	}
+	out := make(map[string][]FileNode, len(rels))
+	w.nodesMu.RLock()
+	defer w.nodesMu.RUnlock()
+	for id, m := range w.nodes {
+		if m.RelPath == "" || !want[m.RelPath] {
+			continue
+		}
+		out[m.RelPath] = append(out[m.RelPath], FileNode{ID: id, StartByte: m.StartByte, EndByte: m.EndByte})
+	}
+	return out
+}
+
+// NodeAtOffset picks the node owning a byte offset: the smallest span that
+// contains it, so a method wins over the class and the class over the file.
+// Ties break on id to stay deterministic.
+func NodeAtOffset(nodes []FileNode, off uint32) (string, bool) {
+	best, bestSpan := "", ^uint32(0)
+	for _, n := range nodes {
+		if off < n.StartByte || off >= n.EndByte {
+			continue
+		}
+		span := n.EndByte - n.StartByte
+		if span < bestSpan || (span == bestSpan && n.ID < best) {
+			best, bestSpan = n.ID, span
+		}
+	}
+	return best, best != ""
+}
+
 // NodeKind returns the indexed node's kind ("" if unknown) — used by the
 // Phase 7c eval harness to filter whole-file nodes out of region lists.
 func (w *Workspace) NodeKind(id string) string {

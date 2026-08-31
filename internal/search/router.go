@@ -155,10 +155,92 @@ func (r *Router) SearchFiltered(query string, topK int, filter Filter) []Result 
 	return r.SearchFilteredK(query, topK, rrfK, filter)
 }
 
+// SearchFilteredStats is SearchFiltered plus Stats, at the shipped RRF
+// constant — the shape a tool handler wants.
+func (r *Router) SearchFilteredStats(query string, topK int, filter Filter) ([]Result, Stats) {
+	return r.SearchStats(query, topK, rrfK, filter)
+}
+
+// Stats is what the response can say about the retrieval itself, without
+// exposing a score. Match types already rank the evidence — exact beats a
+// both-engine agreement beats a single engine — but they say nothing about how
+// hard the query was, and an RRF score cannot fill that gap either: with k=60
+// the first and tenth results differ by 1/61 against 1/70, so any band derived
+// from them would call everything strong.
+//
+// LexicalMatched does say it. It is the size of the pool the ranking chose
+// from, which is the difference between "the query named something" and "the
+// query touched a third of the repository".
+type Stats struct {
+	LexicalMatched int
+	SemanticReady  bool
+	// AbsentIdents are identifier-shaped words of the query that no indexed
+	// symbol spells. They matter because an empty result list is not the dead
+	// end a search loop actually hits: BM25 splits `zzz_no_such_symbol_zzz`
+	// into `zzz`, `no`, `such`, `symbol` and answers with five plausible hits
+	// built entirely out of the common words. Saying which identifier is
+	// simply not here is the difference between "look harder" and "look
+	// elsewhere".
+	AbsentIdents []string
+	// UnnamedIdents are identifier-shaped words the index does hold as text
+	// but that name no symbol. `RETRY_BUDGET` is the shape: a package-level
+	// constant is a real thing an agent asks for, and it is spelled inside the
+	// bodies that use it, but no node is named it — so the ranking can only
+	// ever answer with its callers. Saying so sends the caller to the
+	// retriever that can point at the declaration itself.
+	UnnamedIdents []string
+}
+
+// codeShaped narrows identTokens for hint purposes: a bare acronym like HTTP
+// passes the identifier shape test but is ordinary prose in a question, and
+// reporting it every time would make the hint noise.
+func codeShaped(w string) bool {
+	if strings.Contains(w, "_") {
+		return true
+	}
+	hasLower, hasUpper := false, false
+	for _, r := range w {
+		switch {
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		}
+	}
+	return hasLower && hasUpper
+}
+
+// absentIdents keeps the identifier-shaped words whose joined form no document
+// carries. The joined form is the test that works: `stemFinalE` indexes as
+// `stemfinale` beside its parts, so its absence means the symbol itself is
+// missing rather than one of its syllables being rare.
+func (r *Router) identStates(query string) (absent, unnamed []string) {
+	for _, w := range identTokens(query) {
+		term := strings.ToLower(w)
+		if parts := lexical.SplitIdentifier(w); len(parts) > 1 {
+			term = strings.Join(parts, "")
+		}
+		switch {
+		case !r.Lex.HasTerm(term):
+			absent = append(absent, w)
+		case len(r.Sym.Lookup(w)) == 0 && codeShaped(w):
+			unnamed = append(unnamed, w)
+		}
+	}
+	return absent, unnamed
+}
+
 // SearchFilteredK is Search with both knobs. The filter is applied to every
 // candidate stream — Tier-0 included — so an exact match outside the requested
 // population never takes a slot it would then have to be excused from.
 func (r *Router) SearchFilteredK(query string, topK, k int, filter Filter) []Result {
+	hits, _ := r.SearchStats(query, topK, k, filter)
+	return hits
+}
+
+// SearchStats is SearchFilteredK plus what the caller needs to decide whether
+// to ask again differently.
+func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result, Stats) {
 	if topK <= 0 {
 		topK = 5
 	}
@@ -209,10 +291,12 @@ func (r *Router) SearchFilteredK(query string, topK, k int, filter Filter) []Res
 		if filter != nil {
 			n = fetchSize(topK, filter)
 		}
-		for _, h := range r.Lex.Search(lexical.Tokenize(query), n) {
+		hits, matched := r.Lex.SearchMatched(lexical.Tokenize(query), n)
+		for _, h := range hits {
 			add(h.DocID, MatchLexical)
 		}
-		return out
+		absent, unnamed := r.identStates(query)
+		return out, Stats{LexicalMatched: matched, AbsentIdents: absent, UnnamedIdents: unnamed}
 	}
 
 	// RRF merge: Score(d) = Σ 1/(k + rank), rank 1-based per engine.
@@ -230,7 +314,8 @@ func (r *Router) SearchFilteredK(query string, topK, k int, filter Filter) []Res
 		}
 		return f
 	}
-	for i, h := range r.Lex.Search(lexical.Tokenize(query), fetch) {
+	lexHits, matched := r.Lex.SearchMatched(lexical.Tokenize(query), fetch)
+	for i, h := range lexHits {
 		f := at(h.DocID)
 		f.score += 1.0 / float64(k+i+1)
 		f.lex = true
@@ -263,5 +348,6 @@ func (r *Router) SearchFilteredK(query string, topK, k int, filter Filter) []Res
 			add(id, MatchLexical)
 		}
 	}
-	return out
+	absent, unnamed := r.identStates(query)
+	return out, Stats{LexicalMatched: matched, SemanticReady: true, AbsentIdents: absent, UnnamedIdents: unnamed}
 }
