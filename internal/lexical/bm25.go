@@ -74,6 +74,14 @@ func (ix *Index) upsert(docID string, tokens []string) {
 	}
 }
 
+// HasTerm reports whether any document carries the term. It stems first, so
+// the caller asks in the words it has rather than the words the index stores.
+func (ix *Index) HasTerm(t string) bool {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	return len(ix.postings[Stem(t)]) > 0
+}
+
 // Delete removes the document if present.
 func (ix *Index) Delete(docID string) {
 	ix.mu.Lock()
@@ -129,11 +137,22 @@ func (ix *Index) Snapshot() map[string][]string {
 // The query is stemmed exactly as Upsert stemmed the documents. Ties break on
 // DocID so results are deterministic.
 func (ix *Index) Search(queryTokens []string, topK int) []Hit {
+	hits, _ := ix.SearchMatched(queryTokens, topK)
+	return hits
+}
+
+// SearchMatched also reports how many documents matched any query term at all,
+// before topK cut the list. That count is the only discrimination signal a
+// lexical-only response has: five results drawn from four candidates and five
+// drawn from three thousand look identical otherwise, and they are not the
+// same situation for an agent deciding whether to narrow the query or reach
+// for another retriever.
+func (ix *Index) SearchMatched(queryTokens []string, topK int) ([]Hit, int) {
 	ix.mu.RLock()
 	defer ix.mu.RUnlock()
 	n := len(ix.docs)
 	if n == 0 || topK <= 0 {
-		return nil
+		return nil, 0
 	}
 	avg := float64(ix.totalLen) / float64(n)
 	if avg == 0 {
@@ -168,8 +187,9 @@ func (ix *Index) Search(queryTokens []string, topK int) []Hit {
 		}
 		return hits[i].DocID < hits[j].DocID
 	})
+	matched := len(hits)
 	if len(hits) > topK {
 		hits = hits[:topK]
 	}
-	return hits
+	return hits, matched
 }

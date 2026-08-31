@@ -13,6 +13,7 @@ import (
 
 	"github.com/Salvia95/graphin/internal/bench"
 	"github.com/Salvia95/graphin/internal/graph"
+	"github.com/Salvia95/graphin/internal/keyword"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/nodeid"
 	"github.com/Salvia95/graphin/internal/search"
@@ -52,6 +53,29 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			},
 		}, []string{"query"}),
 		Handler: searchHandler(ws),
+	})
+
+	reg.Register(&mcp.Tool{
+		Name: "search_keyword",
+		Description: "Literal or regex file search over the same tree the index walks, ranked by match count. " +
+			"Returns the matching lines with the node id that owns each one, so a string hit flows straight into " +
+			"explore_graph and read_code. Reach for it when you know the exact text — an error message, a config " +
+			"key, a magic constant, a string built at runtime that no parser can see as a call — and when a symbol " +
+			"you are certain exists did not come back from search_hybrid. It also works before the index is warm, " +
+			"which is when the ranked retrievers are least useful.",
+		InputSchema: objSchema(map[string]any{
+			"pattern": map[string]any{"type": "string", "description": "Text to find. Case-insensitive."},
+			"regex": map[string]any{
+				"type": "boolean", "default": false,
+				"description": "Treat pattern as a regular expression (RE2). Off by default so that dots and " +
+					"brackets in a name are not silently reinterpreted.",
+			},
+			"path": map[string]any{
+				"type": "string", "description": "Only search files whose path contains this substring.",
+			},
+			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max files."},
+		}, []string{"pattern"}),
+		Handler: keywordHandler(ws),
 	})
 
 	reg.Register(&mcp.Tool{
@@ -196,7 +220,7 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			filter = func(id string) bool { return nodeid.Target(ws.NodeKind(id), id) == target }
 		}
 
-		results := ws.Router.SearchFiltered(a.Query, a.TopK, filter)
+		results, stats := ws.Router.SearchFilteredStats(a.Query, a.TopK, filter)
 		semReady := ws.Router.SemanticReady()
 
 		var sb strings.Builder
@@ -207,10 +231,15 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		// Echo the filter. Without it a short list reads as "the workspace has
 		// little of this", when it may mean the filter excluded the rest.
+		// candidates is the pool the ranking chose from, not the pool it
+		// returned. Five results out of four candidates and five out of three
+		// thousand are the same response otherwise, and only one of them means
+		// "this query named something".
 		if target != "" {
-			fmt.Fprintf(&sb, `<results semantic_ready="%t" target="%s">`, semReady, mcp.EscapeAttr(target))
+			fmt.Fprintf(&sb, `<results semantic_ready="%t" target="%s" candidates="%d">`,
+				semReady, mcp.EscapeAttr(target), stats.LexicalMatched)
 		} else {
-			fmt.Fprintf(&sb, `<results semantic_ready="%t">`, semReady)
+			fmt.Fprintf(&sb, `<results semantic_ready="%t" candidates="%d">`, semReady, stats.LexicalMatched)
 		}
 		if msg := ws.SemUnavailable(); msg != "" {
 			fmt.Fprintf(&sb, "\n  <model_status code=%q hint=\"semantic search unavailable; lexical fallback active\" />",
@@ -233,9 +262,183 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			}
 			sb.WriteString(" />")
 		}
-		sb.WriteString("\n</results>")
-		return sb.String(), false
+		if h := searchHint(stats, len(results), ws.Lex.Len(), target); h != "" {
+			fmt.Fprintf(&sb, "\n  <hint>%s</hint>", mcp.EscapeText(h))
+		}
+		body := sb.String() + "\n</results>"
+		return body + costLine(len(body)), false
 	}
+}
+
+// searchHint turns the two dead ends of a search loop into an instruction.
+// Both are invisible in the result list itself: an empty list says nothing
+// about which retriever to try next, and a full list drawn from a third of the
+// repository looks exactly like a full list drawn from four nodes.
+func searchHint(stats search.Stats, returned, indexed int, target string) string {
+	// Checked before the empty case, because it is the one that actually
+	// fires. A query naming a symbol that is not here still comes back full:
+	// the tokenizer keeps the common words and the ranking obliges.
+	if len(stats.UnnamedIdents) > 0 {
+		return fmt.Sprintf("%s appears in the code but no indexed symbol is named it — a package-level "+
+			"constant or a name the parser does not lift into a node. The ranking can only answer with its "+
+			"users; search_keyword points at the declaration",
+			strings.Join(quoteAll(stats.UnnamedIdents), ", "))
+	}
+	if len(stats.AbsentIdents) > 0 {
+		return fmt.Sprintf("no indexed symbol spells %s. search_keyword still finds it as text "+
+			"(a string built at runtime, a config key, a file the parser skipped); if that is empty too, "+
+			"it is not in this workspace", strings.Join(quoteAll(stats.AbsentIdents), ", "))
+	}
+	if returned == 0 {
+		h := "no ranked result. search_keyword finds an exact string the ranking cannot; " +
+			"otherwise name the symbol rather than describing it"
+		if target != "" {
+			h += `, or drop target="` + target + `" — it may have excluded the answer`
+		}
+		return h
+	}
+	if m := stats.LexicalMatched; indexed > 0 && m >= broadMatchFloor && m*100/indexed >= broadMatchPercent {
+		return fmt.Sprintf("this query touched %d of %d indexed nodes, so the ranking did most of the "+
+			"deciding. Narrow it, or use search_keyword if you know the exact text", m, indexed)
+	}
+	return ""
+}
+
+func quoteAll(ss []string) []string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = `"` + s + `"`
+	}
+	return out
+}
+
+// A query is "broad" when it matched both a large share of the index and a
+// large number outright: the share alone would fire on every query in a
+// ten-node workspace.
+const (
+	broadMatchFloor   = 100
+	broadMatchPercent = 25
+)
+
+// costLine reports what this response costs the caller's context. MCP is
+// stateless, so graphin cannot keep a running budget — the agent sums these,
+// and a number that excluded its own element would drift as it did.
+//
+// The value includes the element carrying it, which needs a fixed point:
+// widening the number widens the response. It settles in one or two passes.
+func costLine(bodyLen int) string {
+	n := bodyLen
+	for range 4 {
+		line := fmt.Sprintf("\n<cost bytes=\"%d\" />", n)
+		total := bodyLen + len(line)
+		if total == n {
+			return line
+		}
+		n = total
+	}
+	return fmt.Sprintf("\n<cost bytes=\"%d\" />", n)
+}
+
+// keywordMaxLines caps matched lines per file, and keywordMaxText caps each
+// one. search_hybrid returns no bodies because a node is large; a matched line
+// is not a body, it is the evidence of the match. Without it the agent has to
+// read_code every candidate to tell a real hit from an incidental one, which is
+// the exact cost this retriever exists to avoid.
+const (
+	keywordMaxLines = 3
+	keywordMaxText  = 160
+)
+
+func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
+	type args struct {
+		Pattern string `json:"pattern"`
+		Regex   bool   `json:"regex"`
+		Path    string `json:"path"`
+		TopK    int    `json:"top_k"`
+	}
+	return func(_ context.Context, raw json.RawMessage) (string, bool) {
+		var a args
+		if err := json.Unmarshal(raw, &a); err != nil || strings.TrimSpace(a.Pattern) == "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, "pattern is required", &st), true
+		}
+		if a.TopK <= 0 {
+			a.TopK = 5
+		}
+		if a.TopK > 20 {
+			a.TopK = 20
+		}
+		opts, err := keyword.Compile(a.Pattern, a.Regex)
+		if err != nil {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, "pattern is not a valid regular expression: "+err.Error(), &st), true
+		}
+		opts.PathContains = strings.TrimSpace(a.Path)
+		opts.MaxLines, opts.MaxFiles = keywordMaxLines, a.TopK
+
+		// Deliberately not gated on bootstrap. This retriever reads the tree,
+		// not the index, so it is the one search that still answers while the
+		// others are warming up — and that window is exactly when an agent
+		// would otherwise leave for its host's grep.
+		hits, err := keyword.Search(ws.Root, opts)
+		if err != nil {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, "keyword search failed: "+err.Error(), &st), true
+		}
+
+		paths := make([]string, 0, len(hits))
+		for _, h := range hits {
+			paths = append(paths, h.RelPath)
+		}
+		byFile := map[string][]workspace.FileNode{}
+		if ws.Bootstrapped() {
+			byFile = ws.NodesInFiles(paths)
+		}
+
+		var sb strings.Builder
+		st := ws.FSM.Status()
+		if st.State != "ready" {
+			sb.WriteString(st.XML())
+			sb.WriteString("\n")
+		}
+		mode := "literal"
+		if a.Regex {
+			mode = "regex"
+		}
+		// Echo the mode and whether ids could be resolved at all. A response
+		// with no ids means the index is not up yet, not that the hits are
+		// outside the graph — those read the same otherwise.
+		fmt.Fprintf(&sb, `<results retriever="keyword" mode="%s" files="%d" node_ids="%t">`,
+			mode, len(hits), ws.Bootstrapped())
+		for i, h := range hits {
+			fmt.Fprintf(&sb, "\n  <file path=\"%s\" matches=\"%d\" rank=\"%d\">",
+				mcp.EscapeAttr(h.RelPath), h.Matches, i+1)
+			for _, ln := range h.Lines {
+				id, _ := workspace.NodeAtOffset(byFile[h.RelPath], uint32(ln.Byte))
+				sb.WriteString("\n    ")
+				if id != "" {
+					fmt.Fprintf(&sb, `<node id="%s" line="%d" match_type="keyword">`, mcp.EscapeAttr(id), ln.No)
+				} else {
+					fmt.Fprintf(&sb, `<node line="%d" match_type="keyword">`, ln.No)
+				}
+				sb.WriteString(mcp.EscapeText(truncRunes(ln.Text, keywordMaxText)))
+				sb.WriteString("</node>")
+			}
+			sb.WriteString("\n  </file>")
+		}
+		body := sb.String() + "\n</results>"
+		return body + costLine(len(body)), false
+	}
+}
+
+// truncRunes cuts on a rune boundary so a multibyte identifier never ends in
+// half a character.
+func truncRunes(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	return string(r[:max]) + "…"
 }
 
 func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
