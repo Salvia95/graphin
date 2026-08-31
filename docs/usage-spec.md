@@ -133,7 +133,8 @@ config key라 신뢰할 수 없다.
 
 | 툴 | p |
 |---|---|
-| `search_hybrid` | query, top_k, target(설정됐을 때만 — 부재 = 전체 검색) + 응답에서 result_count, result_ids(≤5) |
+| `search_hybrid` | query, top_k, target(설정됐을 때만 — 부재 = 전체 검색) + 응답에서 result_count, result_ids(≤5), match_types(검색기별 슬롯 수), candidates(랭킹이 고른 풀 크기), hint(재유도 종류) |
+| `search_keyword` | pattern, regex, path + 응답에서 files, result_count, result_ids(≤5) |
 | `explore_graph` | node_id, direction |
 | `read_code` | node_id |
 | `Grep` | pattern, path(상대), glob |
@@ -141,6 +142,8 @@ config key라 신뢰할 수 없다.
 | `Read`/`Edit`/`Write` | file_path(상대) |
 | `Bash` | search(bool) + search일 때만 pattern. 파이프/`&&`/`;` 세그먼트별 argv[0] ∈ {grep, rg, egrep, fgrep, ag, ack, fd, find} 또는 `git grep` |
 | 기타 | p 생략 |
+
+**`response_bytes`는 위 모든 툴에 붙는다** — 툴별 분기가 아니라 공통으로 붙이는 것이 요점이다. graphin 호출과 그것을 대신한 grep이 같은 자로 재져야 토큰 이코노미를 비교할 수 있고, 비교에는 자가 하나여야 한다. 서버도 자기 응답에 `<cost bytes>`를 싣지만 그건 자기 툴에만 붙는다 — 루프 전체의 값을 매길 수 있는 곳은 훅뿐이다.
 
 ## 4. 지표 조작적 정의
 

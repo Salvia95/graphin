@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -160,7 +161,44 @@ func appendLine(dir string, line []byte) error {
 // extractPayload keeps only what the metrics need (spec §3). Never the full
 // Bash command line, never file contents, never response bodies beyond
 // graphin result IDs.
+//
+// response_bytes is added to every payload here rather than inside the
+// branches, and that placement is the point: it is measured the same way for
+// a graphin call and for the grep that replaced it. Token economy is a
+// comparison, and a comparison needs one ruler. The server also reports its
+// own <cost bytes>, but only for its own tools — the hook is the only place
+// that can price the whole loop.
 func extractPayload(root, tool string, input map[string]any, resp json.RawMessage) map[string]any {
+	p := basePayload(root, tool, input, resp)
+	if p == nil {
+		return nil
+	}
+	if n := responseTextLen(resp); n > 0 {
+		p["response_bytes"] = n
+	}
+	return p
+}
+
+// responseTextLen is how many bytes of text the tool put into the agent's
+// context: the strings of the response, not the JSON that carried them.
+func responseTextLen(resp json.RawMessage) int {
+	if len(resp) == 0 {
+		return 0
+	}
+	var v any
+	if json.Unmarshal(resp, &v) != nil {
+		return len(resp)
+	}
+	var texts []string
+	collectStrings(v, &texts, 0)
+	n := 0
+	for _, t := range texts {
+		n += len(t)
+	}
+	return n
+}
+
+func basePayload(root, tool string, input map[string]any, resp json.RawMessage) map[string]any {
 	name := tool
 	if m := mcpSuffix.FindStringSubmatch(tool); m != nil {
 		name = m[1]
@@ -179,6 +217,38 @@ func extractPayload(root, tool string, input map[string]any, resp json.RawMessag
 		// recorded when set: absent means the caller searched everything.
 		if v := str("target"); v != "" {
 			p["target"] = v
+		}
+		if ids := responseNodeIDs(resp); ids != nil {
+			p["result_count"] = len(ids)
+			if len(ids) > 5 {
+				ids = ids[:5]
+			}
+			p["result_ids"] = ids
+		}
+		// Which retriever earned the slots, and how large a pool it chose
+		// from. Contribution per retriever cannot be asked of the log any
+		// other way: the result ids alone do not say whether the vector index
+		// found them or BM25 did.
+		if mt := responseAttrCounts(resp, matchTypeAttr); len(mt) > 0 {
+			p["match_types"] = mt
+		}
+		if c, ok := responseAttrInt(resp, candidatesAttr); ok {
+			p["candidates"] = c
+		}
+		if h, ok := responseHintKind(resp); ok {
+			p["hint"] = h
+		}
+		return p
+	case "search_keyword":
+		p := map[string]any{"pattern": str("pattern")}
+		if v, ok := input["regex"].(bool); ok && v {
+			p["regex"] = true
+		}
+		if v := str("path"); v != "" {
+			p["path"] = v
+		}
+		if f, ok := responseAttrInt(resp, filesAttr); ok {
+			p["files"] = f
 		}
 		if ids := responseNodeIDs(resp); ids != nil {
 			p["result_count"] = len(ids)
@@ -233,6 +303,83 @@ var nodeIDAttr = regexp.MustCompile(`<node id="([^"]+)"`)
 // response is MCP content whose text blocks hold graphin's XML
 // (`<results>…<node id="…"/>…`); shapes vary by client, so gather every
 // string field and regex the XML. Returns nil when nothing matches.
+var (
+	matchTypeAttr  = regexp.MustCompile(`match_type="([^"]+)"`)
+	candidatesAttr = regexp.MustCompile(`candidates="(\d+)"`)
+	filesAttr      = regexp.MustCompile(`<results[^>]*files="(\d+)"`)
+	hintText       = regexp.MustCompile(`<hint>([^<]{0,60})`)
+)
+
+// resultsText returns the <results> body of a graphin tool response.
+func resultsText(resp json.RawMessage) (string, bool) {
+	if len(resp) == 0 {
+		return "", false
+	}
+	var v any
+	if json.Unmarshal(resp, &v) != nil {
+		return "", false
+	}
+	var texts []string
+	collectStrings(v, &texts, 0)
+	for _, t := range texts {
+		if strings.Contains(t, "<results") {
+			return t, true
+		}
+	}
+	return "", false
+}
+
+func responseAttrCounts(resp json.RawMessage, re *regexp.Regexp) map[string]int {
+	t, ok := resultsText(resp)
+	if !ok {
+		return nil
+	}
+	out := map[string]int{}
+	for _, m := range re.FindAllStringSubmatch(t, -1) {
+		out[m[1]]++
+	}
+	return out
+}
+
+func responseAttrInt(resp json.RawMessage, re *regexp.Regexp) (int, bool) {
+	t, ok := resultsText(resp)
+	if !ok {
+		return 0, false
+	}
+	m := re.FindStringSubmatch(t)
+	if m == nil {
+		return 0, false
+	}
+	n, err := strconv.Atoi(m[1])
+	return n, err == nil
+}
+
+// responseHintKind records that the search redirected the caller, and which
+// way, without storing the sentence. The kinds are the loop's branch points:
+// a name that is not here, a name that is not a symbol, a query too broad to
+// have decided anything.
+func responseHintKind(resp json.RawMessage) (string, bool) {
+	t, ok := resultsText(resp)
+	if !ok {
+		return "", false
+	}
+	m := hintText.FindStringSubmatch(t)
+	if m == nil {
+		return "", false
+	}
+	switch h := m[1]; {
+	case strings.Contains(h, "no indexed symbol is named it"):
+		return "unnamed_ident", true
+	case strings.Contains(h, "no indexed symbol spells"):
+		return "absent_ident", true
+	case strings.Contains(h, "touched"):
+		return "broad_query", true
+	case strings.Contains(h, "no ranked result"):
+		return "empty", true
+	}
+	return "other", true
+}
+
 func responseNodeIDs(resp json.RawMessage) []string {
 	if len(resp) == 0 {
 		return nil
