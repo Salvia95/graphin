@@ -172,6 +172,14 @@ func extractPayload(root, tool string, input map[string]any, resp json.RawMessag
 		if k, ok := input["top_k"].(float64); ok {
 			p["top_k"] = int(k)
 		}
+		// The target filter is the one search knob the skill pushes hard
+		// (docs/eval/2026-08-12-target-filter). Dropping it here made "does
+		// the agent actually filter" unanswerable from the log — the query
+		// alone cannot tell a filtered search from an unfiltered one. Only
+		// recorded when set: absent means the caller searched everything.
+		if v := str("target"); v != "" {
+			p["target"] = v
+		}
 		if ids := responseNodeIDs(resp); ids != nil {
 			p["result_count"] = len(ids)
 			if len(ids) > 5 {

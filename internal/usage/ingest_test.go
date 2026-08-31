@@ -163,6 +163,34 @@ func TestIngestSearchHybridExtractsResultIDs(t *testing.T) {
 	}
 }
 
+func TestIngestSearchHybridRecordsTargetOnlyWhenSet(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		input map[string]any
+		want  any
+	}{
+		{"filtered", map[string]any{"query": "how the lock is released", "target": "code"}, "code"},
+		{"unfiltered", map[string]any{"query": "how the lock is released"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := mkWorkspace(t)
+			in := hookJSON(t, map[string]any{
+				"cwd": root, "tool_name": "mcp__mykey__search_hybrid",
+				"tool_input":    tc.input,
+				"tool_response": map[string]any{"text": `<results semantic_ready="true"></results>`},
+			})
+			Ingest(in, io.Discard, noEnv)
+			evs := readEvents(t, root)
+			if len(evs) != 1 {
+				t.Fatalf("got %d events", len(evs))
+			}
+			if got := evs[0].P["target"]; got != tc.want {
+				t.Fatalf("target = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestIngestBashSearchKeepsPatternNotCommand(t *testing.T) {
 	root := mkWorkspace(t)
 	in := hookJSON(t, map[string]any{
