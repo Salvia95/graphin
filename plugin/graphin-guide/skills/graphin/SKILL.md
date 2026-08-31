@@ -57,6 +57,7 @@ background:
 | `bootstrap_workspace` | Starts indexing + live file watching. | `model_type`: `english_optimal` \| `multilingual_cjk` (pick by the language of code/comments). `offline`: for air-gapped setups. |
 | `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). `target`: `code` \| `docs` \| `db` — see below. |
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
+| `search_keyword` | Literal or regex matches over the same tree the index walks, ranked by match count, each matching line carrying the **node id** that owns it. | `pattern` (required). `regex` (default false). `path` (rel-path substring). `top_k` (files, default 5). |
 | `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
 
 `diagnose_index` reports the index's own health — counts, edges whose target is
@@ -139,6 +140,49 @@ Two things to know:
   all tests, the implementation is usually one hop away — `explore_graph` the
   test and read its `uses`.
 
+## Four retrievers, not one
+
+`search_hybrid` blends three — exact symbol match, keyword-ish BM25, and
+meaning-based vectors. `search_keyword` is the fourth, and it is a different
+kind of thing: it reads the files rather than the index, so it finds text that
+never became a symbol.
+
+| You have | Reach for |
+|---|---|
+| A symbol name | `search_hybrid` — exact match lands it at rank 1 |
+| A sentence about behavior | `search_hybrid` with `target="code"` |
+| An exact string: an error message, a config key, a magic constant, a name built at runtime | `search_keyword` |
+| A symbol `search_hybrid` insists does not exist | `search_keyword` — the parser may not lift it into a node |
+| The index still warming up | `search_keyword` — it does not need the index at all |
+
+They are complements, not alternatives. A keyword hit comes back as a node id,
+so the usual move is **find the string, then expand with the graph**:
+`search_keyword` → `explore_graph` on the node it resolved → `read_code`.
+
+## Read the response before you read code
+
+Every search response says more than its result list, and the extra attributes
+are there to stop you spending a read you did not need.
+
+- **`candidates="N"`** — how large a pool the ranking chose from. Five results
+  out of four candidates and five out of three thousand look identical
+  otherwise, and only the first means "this query named something". A big
+  number with no exact match means the ranking guessed; narrow the query.
+- **`match_type`** — the evidence ladder. `exact` (you typed the symbol) beats
+  `both` (BM25 and the vector index agreed) beats a single engine.
+- **`<hint>`** — the response redirecting you. It fires when the query names
+  something the index does not hold as a symbol, or when the query was so broad
+  that the ranking did all the deciding. **Follow it**: it names the retriever
+  that can answer instead.
+- **`<cost bytes="N" />`** — what this response just cost your context. The
+  server is stateless and cannot keep a running total, so if you are working to
+  a budget, sum these yourself.
+
+A hint saying an identifier "appears in the code but no indexed symbol is named
+it" is the common one worth knowing: package-level constants are real things to
+ask about, and no node is named them, so the ranking can only ever answer with
+their users. `search_keyword` points at the declaration.
+
 ## Tuning recall vs. precision
 
 `explore_graph`'s `min_confidence` is your main knob:
@@ -202,6 +246,9 @@ it reflects the schema as checked in, not the current production state.
 
 ## Quick recipes
 
+- **"Where is this exact string?"** (an error message, a config key) →
+  `search_keyword("the string")` — the answer is the `file`/`line`, and the
+  `id` lets you keep going without searching again.
 - **"Where is feature X?"** → `search_hybrid("X in plain words", target="code")` —
   the answer is the `file`/`line` on the top result. `read_code` only if you need
   the body.

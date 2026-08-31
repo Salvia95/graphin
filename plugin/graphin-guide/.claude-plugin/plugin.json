@@ -1,7 +1,7 @@
 {
   "name": "graphin-guide",
-  "description": "Usage guidance for the graphin MCP server: skills for progressive-disclosure navigation (search → explore → read) and for the docs/wiki knowledge layer — knowledge sets over documentation sections, a project glossary, the propose-and-review queue, and the pre-flight gate that blocks delegation or edits until the knowledge for the work has been loaded. Plus a read-only explorer subagent that returns cited summaries instead of raw search output. Install alongside the graphin plugin.",
-  "version": "0.4.2",
+  "description": "Usage guidance for the graphin MCP server: skills for progressive-disclosure navigation (search → explore → read) and for the docs/wiki knowledge layer — knowledge sets over documentation sections, a project glossary, the propose-and-review queue, and the pre-flight gate that blocks delegation or edits until the knowledge for the work has been loaded. Plus two read-only subagents: an explorer that returns cited summaries instead of raw search output, and a budget-aware retrieval agent that answers content questions by moving between the symbol, keyword, semantic and graph retrievers as each response directs. Install alongside the graphin plugin.",
+  "version": "0.5.0",
   "author": {
     "name": "Salvia95",
     "url": "https://github.com/Salvia95"
