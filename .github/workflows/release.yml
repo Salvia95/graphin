@@ -195,6 +195,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The rag behavior benchmark is a RELEASE GATE, but not here: it runs at
+  # the Claude Code level before this workflow is ever dispatched (owner
+  # decision, 2026-09-01 — no API-billed CI benchmark). `score --gate 0.80`
+  # records a commit-bound pass marker, a session hook refuses the dispatch
+  # command without one, and the release agent verifies it as step 1. See
+  # docs/rag-bench-spec.md §8. CI still enforces the rubric's change control
+  # (rag-bench-guard in ci.yml).
   publish:
     needs: build
     runs-on: ubuntu-22.04

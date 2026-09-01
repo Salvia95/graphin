@@ -284,3 +284,46 @@ jobs:
       # for why the two callers must not drift.
       - name: Install the published release and assert it
         run: sh scripts/install-smoke.sh "$PWD/plugin/graphin" "${{ matrix.arch }}"
+
+  # The rag-bench rubric and golden set (docs/rag-bench-spec.md §8) move only
+  # with the owner's explicit approval. Two checks, two failure modes: the
+  # hash lock catches content that drifted without a re-approval, and the
+  # trailer check makes the approval itself a recorded fact in history.
+  rag-bench-guard:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guarded files match rubric.lock
+        run: python3 scripts/eval-rag.py verify-lock
+
+      - name: Guarded changes carry an approval trailer
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          if [ "$EVENT" = "pull_request" ]; then
+            range="origin/${BASE_REF}..HEAD"
+          elif [ -n "$BEFORE" ] \
+               && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE" 2>/dev/null; then
+            range="${BEFORE}..${SHA}"
+          else
+            # First push to a branch, forced push, or manual dispatch: the
+            # honest range is unknowable, so check the head commit only.
+            range="${SHA}~1..${SHA}"
+          fi
+          fail=0
+          for c in $(git log --format=%H "$range" -- scripts/eval-rag.py eval/rag); do
+            if ! git show -s --format=%B "$c" | grep -q '^Rag-Bench-Approved-By:'; then
+              echo "::error::commit $c touches the rag-bench rubric/golden set without a 'Rag-Bench-Approved-By:' trailer (docs/rag-bench-spec.md §8)"
+              fail=1
+            fi
+          done
+          exit "$fail"

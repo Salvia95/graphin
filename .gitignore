@@ -27,3 +27,4 @@ internal/console/ui/node_modules/
 internal/console/ui/tsconfig.tsbuildinfo
 internal/console/ui/dist/*
 !internal/console/ui/dist/.gitkeep
+.rag-bench-unlock

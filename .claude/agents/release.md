@@ -22,6 +22,7 @@ source of truth and they change:
 | Which digit moves? When is a release note mandatory? | `docs/plugin-distribution.md` §13 |
 | Why `workflow_dispatch`, and what does it commit back? | `docs/plugin-distribution.md` §5.2 |
 | What does CI already prove — and what does it not? | `docs/plugin-distribution.md` §10.3 |
+| The behavior-benchmark release floor and its marker | `docs/rag-bench-spec.md` §8 |
 
 ## 1. Refuse unless all of these hold
 
@@ -30,10 +31,36 @@ git status --porcelain                    # empty
 git fetch -q origin
 git rev-parse HEAD origin/main | uniq     # one line → local == origin
 gh run list --limit 1 --json headSha,conclusion,status   # success, on this HEAD
+jq -r '.commit, .corpus, .mode, .rate' .graphin/rag-gate-pass.json 2>/dev/null
+jq -r '.commit, .reason' .graphin/rag-gate-waiver.json 2>/dev/null
 ```
 
 A dirty or unpushed tree means the caller is still holding work. Stop and say
 which check failed. Do not commit or push it yourself.
+
+**The benchmark gate is tiered by the digit you choose in step 2**, and one of
+these must hold for this exact HEAD (`jq -r .commit` equals
+`git rev-parse --short HEAD`, `corpus` NOT `"worktree"`):
+
+| You chose | Accept |
+|---|---|
+| minor or major (0.X / X.0) | pass marker with `mode: "full"` — or a waiver |
+| patch (0.x.Y) | pass marker `"full"` or `"smoke"` — or a waiver |
+
+A **waiver** (`rag-gate-waiver.json`) is the caller's recorded judgment that
+the diff cannot move the benchmark; the `waive` command's path rail already
+verified that, so accept it for any tier — but **quote its `reason` in your
+report**, so the skip is visible where the release is.
+
+The dispatch hook enforces all of this again, so skipping the check does not
+work — it just fails later with less context. If nothing valid is present:
+**refuse**, and tell the caller what to produce on this commit —
+`scripts/eval-rag.py run --out <fresh> --runs 3 --detach` (full),
+`run --out <fresh> --subset smoke --jobs 3` (patch), then
+`score --out <fresh> --gate 0.80`; or `waive --reason "…"` when the change
+cannot affect performance. Do not run the benchmark yourself — measuring is
+the caller's step, verifying is yours. Below the floor, the release does not
+happen; the floor is change-controlled and is never the thing that moves.
 
 ## 2. Choose the version
 
