@@ -282,6 +282,10 @@
         "h": "b3:5e73c647000b64b132fc4531046cf72e2fe22d5e7dd90d8d5eb7587c33fd6234",
         "r": "b3:43e5b167191ac9cfc0be111c63b4f26b884f55fa7f0c4eb100486d16c27a7772"
       },
+      "docs/eval/gate-log.md#관찰-중--게이트가-5분을-넘기는-이유": {
+        "h": "b3:9b3a9bfc88f7ba15d3f342a67639d9f61f8f4356513ad4806eaa579c940a56cb",
+        "r": "b3:69acaf9252d2e2ee217a21d35191f68c1c36b82c188521401b74b2fce842142d"
+      },
       "docs/rag-bench-spec.md#0-무엇을-재나": {
         "h": "b3:abe4a1fc770696ea795ab86b9b64ebfcf066ef9b4b4154e131363a440c127b87",
         "r": "b3:990f0f49a97382b63612f323ce78b876ccaf3ab9b9d4805f839e17f9e58d4716"
@@ -307,8 +311,8 @@
         "r": "b3:1f61e46c6a8f639e14c94c5e38e63e06a817d39bf436b17777cfa414e466ac60"
       },
       "docs/rag-bench-spec.md#7-모니터링-중--지어낸-노드-id": {
-        "h": "b3:07c5556c7934620b29add7db4f5b5ca6622340cb5974629102fdb04d801ffac2",
-        "r": "b3:887df952b81a87dac10011d2af12dc205b9ff4de0772f7b79ce1c602c5f33412"
+        "h": "b3:74d81983234f5f7cd5c1b95a99e9d6d2759d46abab41a505ed3bd7ba7b8dfbbb",
+        "r": "b3:c5b40e06cfaf08c9db8ce3e9a5e9e45acf93a5799b0524ef2dfe8cc252c3e16c"
       },
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
         "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",

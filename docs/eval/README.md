@@ -22,6 +22,11 @@ SWE-Explore 하니스(`graphin eval swe-explore`, docs/phase7-spec.md §3) 실�
 | [2026-09-01-rag-baseline](2026-09-01-rag-baseline/findings.md) | graphin-rag 행동 골든셋(`eval/rag`, 이 저장소가 코퍼스) 첫 베이스라인 — 19태스크 × 3런, sonnet, lexical-only | **49/57** — not-here 9/9·out-of-reach 6/6, 가짜 인용·지어낸 id 0 · 잔여 실패는 프롬프트-에코 무인용(5)과 침묵 예산 초과(3) · 루브릭 1.0.0→1.0.3 교정 3클래스(문맥 무시 채점·미전달 예산·자기 코퍼스가 search_keyword에 잡힘) 기록 |
 | [2026-09-01-rag-merged-agent](2026-09-01-rag-merged-agent/findings.md) | explorer를 rag로 통합(가이드 0.6.0)하고 러너 격리를 고친 뒤 재베이스라인 — 27태스크(db-nav 신설) × 3런, 루브릭 1.3.0 | **76/81** — multi-hop·not-here·budget-pressure·**db-nav 만점**, 위임 호출 0(직전 9) · 프롬프트-에코는 절반만 해소(`rag-read-omission` 0/3은 스킬이 답을 서술해 구조상 함정) · **새 신호: 노드 id를 작명 규칙에서 추론해 넘긴 런 6/81**(직전 0) · `escaped` 판정이 스냅샷 이탈 2건을 pass에서 걷어냈다 |
 
+**릴리스 게이트는 런이 아니라 대장이다.** 릴리스마다 돌리는 rag 벤치 게이트의
+수치는 [gate-log.md](gate-log.md)에 한 줄씩 쌓는다 — 산출물은 스크래치에
+나오고 마커는 git-ignore라, 적지 않으면 통과한 순간 사라진다. 지금 그 대장이
+지켜보는 것은 게이트가 5분을 넘기는 이유다.
+
 ## 규약
 
 - 디렉터리명: `<YYYY-MM-DD>-<범위 슬러그>`.
