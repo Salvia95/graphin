@@ -224,7 +224,7 @@ they start disagreeing about the same agent.
 
 **An agent the table has never heard of is gated, with no role.** The reverse
 default would silently exempt every new agent, which is the state the gate
-exists to prevent. graphin's own read-only agents (`graphin-explorer`,
+exists to prevent. graphin's own read-only agents (`graphin-rag`,
 `release`) are exempt in the binary, because they run in repositories where no
 file of yours describes them.
 

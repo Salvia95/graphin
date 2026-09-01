@@ -19,6 +19,8 @@ SWE-Explore 하니스(`graphin eval swe-explore`, docs/phase7-spec.md §3) 실�
 | [2026-08-11-adoption-remeasure](2026-08-11-adoption-remeasure/findings.md) | 권고 ③ 첫 재측정 — 배달 구간 A/B/C를 갈라 kinder·graphin 1,615 이벤트 | **판정 불가**(표본·kinder 중단·Go 미지원 대조군) · **새 결함: 부트스트랩하지 않은 워크스페이스는 지표에 아예 안 잡힌다** — 지금 채택률은 전부 생존 편향 위 |
 | [2026-08-12-target-filter](2026-08-12-target-filter/findings.md) | 이 저장소 대상 산문 질의 8개 × top_k 5 = 40슬롯, 필터 전후 | **산문 질의 슬롯의 70%가 코드가 아니었다**(docs 21 · text 7) · `target=code`로 구현 히트 7 → 22 · **다음 층은 테스트다** — 문서를 걷어내자 40슬롯 중 18을 테스트가 가져갔다 |
 | [2026-08-31-stem-normalization](2026-08-31-stem-normalization/findings.md) | 어간 정규화(영어 접미사 + 한국어 조사) 회귀·개선 판정, 451 lexical 27점 스윕 기준선까지 새로 빌드 | **개선 증명** — 출하 설정 ndcg@300 +1.91%p(p=0.047)·first_useful_hit +1.13%p(p=0.024), 135개 검정 중 유의 회귀 0건, 제출 라인 불변 · 한국어 규칙은 이 벤치가 재지 못한다(영어 저장소뿐) |
+| [2026-09-01-rag-baseline](2026-09-01-rag-baseline/findings.md) | graphin-rag 행동 골든셋(`eval/rag`, 이 저장소가 코퍼스) 첫 베이스라인 — 19태스크 × 3런, sonnet, lexical-only | **49/57** — not-here 9/9·out-of-reach 6/6, 가짜 인용·지어낸 id 0 · 잔여 실패는 프롬프트-에코 무인용(5)과 침묵 예산 초과(3) · 루브릭 1.0.0→1.0.3 교정 3클래스(문맥 무시 채점·미전달 예산·자기 코퍼스가 search_keyword에 잡힘) 기록 |
+| [2026-09-01-rag-merged-agent](2026-09-01-rag-merged-agent/findings.md) | explorer를 rag로 통합(가이드 0.6.0)하고 러너 격리를 고친 뒤 재베이스라인 — 27태스크(db-nav 신설) × 3런, 루브릭 1.3.0 | **76/81** — multi-hop·not-here·budget-pressure·**db-nav 만점**, 위임 호출 0(직전 9) · 프롬프트-에코는 절반만 해소(`rag-read-omission` 0/3은 스킬이 답을 서술해 구조상 함정) · **새 신호: 노드 id를 작명 규칙에서 추론해 넘긴 런 6/81**(직전 0) · `escaped` 판정이 스냅샷 이탈 2건을 pass에서 걷어냈다 |
 
 ## 규약
 

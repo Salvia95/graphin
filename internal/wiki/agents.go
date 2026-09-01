@@ -51,6 +51,10 @@ type AgentTable struct {
 // editing for their own reasons, so a gate keyed on tools alone would stop
 // them for knowledge they will never use.
 var builtinAgents = map[string]string{
+	"graphin-rag": RoleExempt,
+	// Merged into graphin-rag in graphin-guide 0.6.0. Kept exempt because the
+	// binary and the plugin ship separately: an install that still has the old
+	// agent must not start failing a gate it passed yesterday.
 	"graphin-explorer": RoleExempt,
 	"release":          RoleExempt,
 	"Explore":          RoleExempt,

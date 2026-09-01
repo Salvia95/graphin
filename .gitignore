@@ -28,3 +28,6 @@ internal/console/ui/tsconfig.tsbuildinfo
 internal/console/ui/dist/*
 !internal/console/ui/dist/.gitkeep
 .rag-bench-unlock
+
+# Python bytecode from scripts/
+__pycache__/

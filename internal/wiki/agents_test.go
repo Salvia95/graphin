@@ -10,7 +10,8 @@ func TestAgentTableBuiltinsAreExempt(t *testing.T) {
 	// reasons. A gate keyed on tools alone would stop all of them for
 	// knowledge they will never use.
 	for _, name := range []string{
-		"graphin-explorer", "release", "Explore", "Plan", "statusline-setup",
+		"graphin-rag", "graphin-explorer", "release", "Explore", "Plan",
+		"statusline-setup",
 	} {
 		if _, v := tbl.Role(name); v != AgentExempt {
 			t.Errorf("%s should be exempt, got verdict %d", name, v)

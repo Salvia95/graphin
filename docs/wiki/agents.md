@@ -34,7 +34,7 @@ cleared면 그 클리어런스를 물려주고(`producer=inherited`), 아니면 
 
 ## 기본값은 바이너리에 있다
 
-graphin이 배포하는 에이전트(`graphin-explorer`, `release`)와, 지식을 원할
+graphin이 배포하는 에이전트(`graphin-rag`, `release`)와, 지식을 원할
 수가 없는 기본 제공 에이전트(`Explore`, `Plan`,
 `statusline-setup`)는 **코드에 내장**돼 있다. 남의 저장소에서도 돌기 때문이다 —
 거기엔 그것들을 설명할 우리 파일이 없다. 전부 파일을 고치지 않으면서 Bash를 쥐고
@@ -48,7 +48,7 @@ graphin이 배포하는 에이전트(`graphin-explorer`, `release`)와, 지식�
 ## 이름은 네임스페이스를 달고 온다
 
 플러그인이 배포하는 에이전트는 페이로드에 `플러그인:에이전트` 꼴로
-도착한다. graphin 자신의 탐색기도 `graphin-guide:graphin-explorer`이지,
+도착한다. graphin 자신의 내비게이터도 `graphin-guide:graphin-rag`이지,
 표에 적힌 맨 이름이 아니다. 그래서 조회는 정확히 일치하는 이름을 먼저
 찾고, 없으면 마지막 `:` 뒤 조각으로 한 번 더 찾는다.
 

@@ -207,8 +207,8 @@
         "r": "b3:d338dd09e9d38af31c618b1037ba6aed01b7dd3eb74ce127fe72197cf4dfed58"
       },
       "docs/delegation-gate.md#장면-6--면제된-에이전트": {
-        "h": "b3:ff5a310589e7bad5ba75993b2cea53df66207bd025e03f9e1bfb3c273746ff1a",
-        "r": "b3:5404d6146552eacd32efc918d806af117a1ced6e1abdf2226bb21b21468664ec"
+        "h": "b3:313abe14e7ee57d6ad94521f411626c6215b4b130dc3ed135f4bbfc51abe3a52",
+        "r": "b3:cd7458957218b92033b578a87f9661c1620433b220c2107236023b2492d16443"
       },
       "docs/delegation-gate.md#장면-7--표에-없는-에이전트": {
         "h": "b3:f3a7ced52b275f14fa8abac651fa1f33a1a924ffc03ef6e9bda7560586fcfafb",
@@ -273,6 +273,56 @@
         "r": "b3:295192ea1ec8566d563b1a7587e5f0198580cdbd043842f5090a4c197c20c67a"
       }
     },
+    "rag-bench": {
+      ".claude/skills/rag-golden-set/SKILL.md#절대-규칙-이-작업에-graphin을-쓰지-않는다": {
+        "h": "b3:beecdb503c9e2fb4071775aebfe5a704f9fcd68cfc31e722043763d64f8696d1",
+        "r": "b3:519fc25e86014f1b4fbf24472090c7e64679102386f2b8ef379e73c2018cb771"
+      },
+      ".claude/skills/rag-golden-set/SKILL.md#절차": {
+        "h": "b3:5e73c647000b64b132fc4531046cf72e2fe22d5e7dd90d8d5eb7587c33fd6234",
+        "r": "b3:43e5b167191ac9cfc0be111c63b4f26b884f55fa7f0c4eb100486d16c27a7772"
+      },
+      "docs/rag-bench-spec.md#0-무엇을-재나": {
+        "h": "b3:abe4a1fc770696ea795ab86b9b64ebfcf066ef9b4b4154e131363a440c127b87",
+        "r": "b3:990f0f49a97382b63612f323ce78b876ccaf3ab9b9d4805f839e17f9e58d4716"
+      },
+      "docs/rag-bench-spec.md#1-층은-에이전트의-종료-상태다": {
+        "h": "b3:f024f72a34bface55f4ab71d0636bdac53204fa668fa3aecbb65fb49d8690d25",
+        "r": "b3:1d85f9c78e39e69383a5dcf3518747a9bbda0e5a48feb16da4d4ad11a4505c4b"
+      },
+      "docs/rag-bench-spec.md#3-루브릭--세-축과-판정": {
+        "h": "b3:ba8164851cd0b7a9deffb78b68cbd180e148328076b9371d76995fabc04b7446",
+        "r": "b3:ffcf7107b69efff9bd7729361d427f2b5981e418bd7e4a6586f25bdcd99a099d"
+      },
+      "docs/rag-bench-spec.md#4-러너가-격리하는-것-못-하는-것": {
+        "h": "b3:e5b4befc3f8518550d3e52e635983105363793e2dc603dcbbe98b8f168546417",
+        "r": "b3:3c62efa9a074f26adc168c876a895834c4e17d44fb6de735fbef2ce5983f3389"
+      },
+      "docs/rag-bench-spec.md#5-판정-절차": {
+        "h": "b3:323b6edf54909218d727bce634758bd224977be52776090f151a6a028bd2cc8e",
+        "r": "b3:a0a02b9848692dac4ddff9671d588d82fe301fd1876ac6cea4a4b872e6764d20"
+      },
+      "docs/rag-bench-spec.md#6-환경-핀": {
+        "h": "b3:b49e79a33adc509c8fec0258ef41d7b825463bde36dc06f374da24c859f2bff8",
+        "r": "b3:1f61e46c6a8f639e14c94c5e38e63e06a817d39bf436b17777cfa414e466ac60"
+      },
+      "docs/rag-bench-spec.md#7-모니터링-중--지어낸-노드-id": {
+        "h": "b3:07c5556c7934620b29add7db4f5b5ca6622340cb5974629102fdb04d801ffac2",
+        "r": "b3:887df952b81a87dac10011d2af12dc205b9ff4de0772f7b79ce1c602c5f33412"
+      },
+      "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
+        "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",
+        "r": "b3:352d16d8a2113850dc53a10040af6953e12e856a0c53d5235ede5adcc948a3c4"
+      },
+      "docs/rag-bench-spec.md#8-유지-결정--스킬이-답을-서술하는-태스크-2026-09-01-소유자-결정": {
+        "h": "b3:6380a4bc4c47c891131f741aac9ba82f50c84eac35278a24e407cc3f32c6491d",
+        "r": "b3:139a1b61fba68764c22b58059e3deb53bf953363178fcc2e188e0d9f1da7e726"
+      },
+      "docs/rag-bench-spec.md#9-알려진-한계와-다음-축": {
+        "h": "b3:0809be96a3e95cdd894f297c27d92437a558e8778056d39125f16ce227ab346c",
+        "r": "b3:3f58a784b955fc2c654f43430917ffa664ec9adbab4b2be89aaaf0af6af29283"
+      }
+    },
     "release": {
       "docs/plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07": {
         "h": "b3:b4c500e61df2588ca8ebae28941ee70d4767f81a2388b7e19733b08681bcaa33",
@@ -309,6 +359,10 @@
       "docs/plugin-distribution.md#52-릴리스--githubworkflowsreleaseyml": {
         "h": "b3:10a174ad208a1815d16873b2ceca6dac954d2a3d3bf2ba0b5484e30f10e09c1f",
         "r": "b3:2536e0ae39d7202cb5bdfe4fb85909728d9d462ffe31d4789d7b3b53ac4473b2"
+      },
+      "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
+        "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",
+        "r": "b3:352d16d8a2113850dc53a10040af6953e12e856a0c53d5235ede5adcc948a3c4"
       }
     }
   }
