@@ -1,17 +1,17 @@
 {
   "schema": 1,
-  "version": "0.4.9",
+  "version": "0.4.10",
   "repo": "Salvia95/graphin",
-  "tag": "v0.4.9",
+  "tag": "v0.4.10",
   "platforms": {
     "linux/amd64": {
-      "asset": "graphin_0.4.9_linux_amd64.tar.gz",
-      "sha256": "9fc0a8e7dd49e5941b8f3c3c74be76a0e6ba71509a067c90dc1b969f4f4a6c11",
+      "asset": "graphin_0.4.10_linux_amd64.tar.gz",
+      "sha256": "fddf2f3440654a8a9ac6fa6a31ce6072873ce4c671d60cbd3469378f0f9f4b42",
       "bin": "graphin"
     },
     "linux/arm64": {
-      "asset": "graphin_0.4.9_linux_arm64.tar.gz",
-      "sha256": "1f8f75f8e851e1090843243e9598b4dc5678bc3757bf5f278649dd720329bec7",
+      "asset": "graphin_0.4.10_linux_arm64.tar.gz",
+      "sha256": "ee288622519c1605495e8e3fdbabb5c506b730900c1d207da9dd4eb12db9e28b",
       "bin": "graphin"
     }
   },
