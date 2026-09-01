@@ -21,6 +21,7 @@ SWE-Explore 하니스(`graphin eval swe-explore`, docs/phase7-spec.md §3) 실�
 | [2026-08-31-stem-normalization](2026-08-31-stem-normalization/findings.md) | 어간 정규화(영어 접미사 + 한국어 조사) 회귀·개선 판정, 451 lexical 27점 스윕 기준선까지 새로 빌드 | **개선 증명** — 출하 설정 ndcg@300 +1.91%p(p=0.047)·first_useful_hit +1.13%p(p=0.024), 135개 검정 중 유의 회귀 0건, 제출 라인 불변 · 한국어 규칙은 이 벤치가 재지 못한다(영어 저장소뿐) |
 | [2026-09-01-rag-baseline](2026-09-01-rag-baseline/findings.md) | graphin-rag 행동 골든셋(`eval/rag`, 이 저장소가 코퍼스) 첫 베이스라인 — 19태스크 × 3런, sonnet, lexical-only | **49/57** — not-here 9/9·out-of-reach 6/6, 가짜 인용·지어낸 id 0 · 잔여 실패는 프롬프트-에코 무인용(5)과 침묵 예산 초과(3) · 루브릭 1.0.0→1.0.3 교정 3클래스(문맥 무시 채점·미전달 예산·자기 코퍼스가 search_keyword에 잡힘) 기록 |
 | [2026-09-01-rag-merged-agent](2026-09-01-rag-merged-agent/findings.md) | explorer를 rag로 통합(가이드 0.6.0)하고 러너 격리를 고친 뒤 재베이스라인 — 27태스크(db-nav 신설) × 3런, 루브릭 1.3.0 | **76/81** — multi-hop·not-here·budget-pressure·**db-nav 만점**, 위임 호출 0(직전 9) · 프롬프트-에코는 절반만 해소(`rag-read-omission` 0/3은 스킬이 답을 서술해 구조상 함정) · **새 신호: 노드 id를 작명 규칙에서 추론해 넘긴 런 6/81**(직전 0) · `escaped` 판정이 스냅샷 이탈 2건을 pass에서 걷어냈다 |
+| [2026-09-02-scaling](2026-09-02-scaling/findings.md) | 코퍼스 크기(50k→1.74M LOC, 34×)에 따른 질문 하나의 비용 — graphin vs grep 에이전트, 72런 × 2설계 | **검출 실패, 그러나 이유가 다르다** — 1차(Python 밸러스트)는 분리 가능성 때문에 난이도가 안 올랐고, 2차(Go 밸러스트)는 **잡음(셀당 28%)이 효과(6~7%)의 4배**라 검정력이 없었다 · 부수 확립: 인덱싱은 LOC가 아니라 노드 수를 따르고(174만 LOC 9초), 언어별 심볼 밀도가 시맨틱 게이트 지점을 바꾼다 |
 
 **릴리스 게이트는 런이 아니라 대장이다.** 릴리스마다 돌리는 rag 벤치 게이트의
 수치는 [gate-log.md](gate-log.md)에 한 줄씩 쌓는다 — 산출물은 스크래치에
