@@ -1,0 +1,2973 @@
+{
+  "meta": {
+    "rubric_version": "1.0.2",
+    "graphin_commit": "e7f9999",
+    "worktree_dirty": true,
+    "corpus": "worktree",
+    "model": "sonnet",
+    "cli_version": "2.1.252 (Claude Code)",
+    "semantic": false,
+    "runs": 3,
+    "agent_sha": "b83715c342ad14515981da4632ec06ac928bbe788a31e7c24638fd334ee72678",
+    "skill_sha": "e7b2b89cae319d9d653a00af61e33d025f2fbb6e606172993662ff41ba9f547d",
+    "prompt_sha": "efc0d81ae806fb025af1ad90b037f3fc5ee7f8467214fbab54b9f6f5b97f1d66",
+    "taskset_sha": "0c1c39bae800b5ae31c6223ce3aaa8e48f0e9a6aabb6e1cc2fe957816faa67da",
+    "tasks": [
+      "rag-read-omission",
+      "rag-semantic-gate",
+      "rag-stem-rules",
+      "rag-usage-rotation",
+      "rag-hint-conditions",
+      "rag-lock-steal",
+      "rag-md-section-id",
+      "rag-fk-edges",
+      "rag-hop-truncate",
+      "rag-hop-stem-sides",
+      "rag-hop-grep-baseline",
+      "rag-hop-patternshape",
+      "rag-nh-redis",
+      "rag-nh-grpc",
+      "rag-nh-rankdef",
+      "rag-oor-latency",
+      "rag-oor-adoption",
+      "rag-bp-change-flow",
+      "rag-bp-hybrid-path"
+    ],
+    "started": "2026-09-01T07:49:03"
+  },
+  "rubric_version": "1.0.3",
+  "tiers": {
+    "answered": {
+      "pass": 18,
+      "total": 24
+    },
+    "multi-hop": {
+      "pass": 11,
+      "total": 12
+    },
+    "not-here": {
+      "pass": 9,
+      "total": 9
+    },
+    "out-of-reach": {
+      "pass": 6,
+      "total": 6
+    },
+    "budget-pressure": {
+      "pass": 5,
+      "total": 6
+    }
+  },
+  "runs": [
+    {
+      "task": "rag-read-omission",
+      "run": 0,
+      "wall_s": 13.9,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 0,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [
+        "internal/mcp/tools/tools.go"
+      ],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "fail",
+      "calls": 0,
+      "nav_calls": 0,
+      "bytes_total": 0,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {},
+      "read_batch_max": 0,
+      "cost_usd": 0.09386399999999999,
+      "turns": 1
+    },
+    {
+      "task": "rag-semantic-gate",
+      "run": 0,
+      "wall_s": 51.7,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 25705,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/workspace/gate.go",
+        "internal/workspace/inspect.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 18432,
+      "self_report_ratio": 0.72,
+      "calls": 16,
+      "nav_calls": 14,
+      "bytes_total": 25705,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 7,
+          "bytes": 14963
+        },
+        "mcp__graphin__read_code": {
+          "calls": 7,
+          "bytes": 10604
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.19170159999999997,
+      "turns": 17
+    },
+    {
+      "task": "rag-stem-rules",
+      "run": 0,
+      "wall_s": 37.7,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 16959,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lexical/stem.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 12,
+      "nav_calls": 5,
+      "bytes_total": 16959,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 5,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 493
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 4042
+        },
+        "Glob": {
+          "calls": 1,
+          "bytes": 260
+        },
+        "Read": {
+          "calls": 4,
+          "bytes": 12026
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.1349824,
+      "turns": 13
+    },
+    {
+      "task": "rag-usage-rotation",
+      "run": 0,
+      "wall_s": 36.0,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 17635,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/usage/ingest.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 9216,
+      "self_report_ratio": 0.52,
+      "calls": 12,
+      "nav_calls": 10,
+      "bytes_total": 17635,
+      "invented_ids": 0,
+      "hints_seen": 2,
+      "hints_followed": 1,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 4,
+          "bytes": 4528
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 3,
+          "bytes": 3851
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 8180
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 938
+        }
+      },
+      "read_batch_max": 4,
+      "cost_usd": 0.1400236,
+      "turns": 13
+    },
+    {
+      "task": "rag-hint-conditions",
+      "run": 0,
+      "wall_s": 51.7,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 19045,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/mcp/tools/tools.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 15360,
+      "self_report_ratio": 0.81,
+      "calls": 10,
+      "nav_calls": 6,
+      "bytes_total": 19045,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 11461
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 2337
+        },
+        "Read": {
+          "calls": 2,
+          "bytes": 3326
+        },
+        "mcp__graphin__read_code": {
+          "calls": 1,
+          "bytes": 1783
+        }
+      },
+      "read_batch_max": 1,
+      "cost_usd": 0.1445846,
+      "turns": 11
+    },
+    {
+      "task": "rag-lock-steal",
+      "run": 0,
+      "wall_s": 70.6,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 15590,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lock/lockfile.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 9216,
+      "self_report_ratio": 0.59,
+      "calls": 10,
+      "nav_calls": 8,
+      "bytes_total": 15590,
+      "invented_ids": 0,
+      "hints_seen": 2,
+      "hints_followed": 0,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 2360
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 3,
+          "bytes": 4474
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 8618
+        }
+      },
+      "read_batch_max": 5,
+      "cost_usd": 0.175124,
+      "turns": 11
+    },
+    {
+      "task": "rag-md-section-id",
+      "run": 0,
+      "wall_s": 33.5,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 21651,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/parse/markdown.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 9,
+      "nav_calls": 1,
+      "bytes_total": 21651,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 1,
+          "bytes": 2929
+        },
+        "Read": {
+          "calls": 3,
+          "bytes": 18468
+        },
+        "Glob": {
+          "calls": 2,
+          "bytes": 51
+        },
+        "Bash": {
+          "calls": 1,
+          "bytes": 65
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.12389380000000001,
+      "turns": 10
+    },
+    {
+      "task": "rag-fk-edges",
+      "run": 0,
+      "wall_s": 132.8,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 64856,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/parse/dbschema.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "over_silent",
+      "verdict": "fail",
+      "calls": 19,
+      "nav_calls": 13,
+      "bytes_total": 64856,
+      "invented_ids": 0,
+      "hints_seen": 4,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 8,
+          "bytes": 17911
+        },
+        "mcp__graphin__read_code": {
+          "calls": 5,
+          "bytes": 22110
+        },
+        "Read": {
+          "calls": 2,
+          "bytes": 15055
+        },
+        "Grep": {
+          "calls": 1,
+          "bytes": 1064
+        },
+        "Agent": {
+          "calls": 1,
+          "bytes": 8578
+        }
+      },
+      "read_batch_max": 8,
+      "cost_usd": 0.36863740000000006,
+      "turns": 2
+    },
+    {
+      "task": "rag-hop-truncate",
+      "run": 0,
+      "wall_s": 62.6,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 16718,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/mcp/server.go",
+        "internal/mcp/truncate.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 12288,
+      "self_report_ratio": 0.74,
+      "calls": 10,
+      "nav_calls": 7,
+      "bytes_total": 16718,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 2,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1497
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 778
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 11576
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 2729
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.1773518,
+      "turns": 11
+    },
+    {
+      "task": "rag-hop-stem-sides",
+      "run": 0,
+      "wall_s": 35.7,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 13595,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lexical/bm25.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 13312,
+      "self_report_ratio": 0.98,
+      "calls": 7,
+      "nav_calls": 5,
+      "bytes_total": 13595,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 3,
+          "bytes": 11102
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 2355
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.10825760000000001,
+      "turns": 8
+    },
+    {
+      "task": "rag-hop-grep-baseline",
+      "run": 0,
+      "wall_s": 196.4,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 34735,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/keyword/keyword.go",
+        "internal/eval/sweexplore/grep.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 16,
+      "nav_calls": 10,
+      "bytes_total": 34735,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 11381
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 4243
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 7614
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 1272
+        },
+        "Bash": {
+          "calls": 1,
+          "bytes": 613
+        },
+        "Read": {
+          "calls": 2,
+          "bytes": 5085
+        },
+        "Agent": {
+          "calls": 1,
+          "bytes": 4389
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.21341410000000005,
+      "turns": 2
+    },
+    {
+      "task": "rag-hop-patternshape",
+      "run": 0,
+      "wall_s": 38.9,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 8419,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/usage/event.go",
+        "internal/usage/stream.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 11,
+      "nav_calls": 7,
+      "bytes_total": 8419,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 2,
+          "bytes": 0
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 170
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 5,
+          "bytes": 4464
+        },
+        "mcp__graphin__read_code": {
+          "calls": 1,
+          "bytes": 3532
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 115
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.1362874,
+      "turns": 12
+    },
+    {
+      "task": "rag-nh-redis",
+      "run": 0,
+      "wall_s": 113.6,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 21214,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "calls": 25,
+      "nav_calls": 3,
+      "bytes_total": 21214,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "Bash": {
+          "calls": 4,
+          "bytes": 2106
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "Grep": {
+          "calls": 12,
+          "bytes": 2546
+        },
+        "mcp__graphin__diagnose_index": {
+          "calls": 1,
+          "bytes": 1657
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1917
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 2401
+        },
+        "Read": {
+          "calls": 2,
+          "bytes": 3044
+        },
+        "Agent": {
+          "calls": 1,
+          "bytes": 7405
+        }
+      },
+      "read_batch_max": 1,
+      "cost_usd": 0.2606377,
+      "turns": 2
+    },
+    {
+      "task": "rag-nh-grpc",
+      "run": 0,
+      "wall_s": 33.8,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 3767,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 5000,
+      "self_report_ratio": 1.33,
+      "calls": 10,
+      "nav_calls": 6,
+      "bytes_total": 3767,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 6,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 5,
+          "bytes": 2205
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1325
+        },
+        "Bash": {
+          "calls": 2,
+          "bytes": 99
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.08960879999999999,
+      "turns": 11
+    },
+    {
+      "task": "rag-nh-rankdef",
+      "run": 0,
+      "wall_s": 23.1,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 2848,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 2355,
+      "self_report_ratio": 0.83,
+      "calls": 8,
+      "nav_calls": 4,
+      "bytes_total": 2848,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 3,
+          "bytes": 0
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 2318
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 392
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.086938,
+      "turns": 9
+    },
+    {
+      "task": "rag-oor-latency",
+      "run": 0,
+      "wall_s": 62.7,
+      "end_state": "out-of-reach",
+      "budget": 40000,
+      "bytes": 1775,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 1536,
+      "self_report_ratio": 0.87,
+      "calls": 8,
+      "nav_calls": 1,
+      "bytes_total": 1775,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "Bash": {
+          "calls": 5,
+          "bytes": 100
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1537
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.1119628,
+      "turns": 9
+    },
+    {
+      "task": "rag-oor-adoption",
+      "run": 0,
+      "wall_s": 34.2,
+      "end_state": "out-of-reach",
+      "budget": 40000,
+      "bytes": 1162,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 5,
+      "nav_calls": 0,
+      "bytes_total": 1162,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {
+        "Skill": {
+          "calls": 1,
+          "bytes": 31
+        },
+        "Bash": {
+          "calls": 4,
+          "bytes": 1131
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.0789546,
+      "turns": 7
+    },
+    {
+      "task": "rag-bp-change-flow",
+      "run": 0,
+      "wall_s": 53.7,
+      "end_state": "answered",
+      "budget": 20000,
+      "bytes": 15899,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/workspace/indexer.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 18432,
+      "self_report_ratio": 1.16,
+      "calls": 11,
+      "nav_calls": 9,
+      "bytes_total": 15899,
+      "invented_ids": 0,
+      "hints_seen": 3,
+      "hints_followed": 1,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 6,
+          "bytes": 5358
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 1,
+          "bytes": 3659
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 6744
+        }
+      },
+      "read_batch_max": 7,
+      "cost_usd": 0.1517232,
+      "turns": 12
+    },
+    {
+      "task": "rag-bp-hybrid-path",
+      "run": 0,
+      "wall_s": 127.0,
+      "end_state": "answered",
+      "budget": 20000,
+      "bytes": 35462,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/search/router.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "over_stated",
+      "verdict": "pass",
+      "self_report_bytes": 16384,
+      "self_report_ratio": 0.46,
+      "calls": 24,
+      "nav_calls": 21,
+      "bytes_total": 35462,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 539
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 10,
+          "bytes": 11040
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 7,
+          "bytes": 4788
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 10618
+        },
+        "Agent": {
+          "calls": 1,
+          "bytes": 8339
+        }
+      },
+      "read_batch_max": 6,
+      "cost_usd": 0.30854960000000003,
+      "turns": 2
+    },
+    {
+      "task": "rag-read-omission",
+      "run": 1,
+      "wall_s": 7.2,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 0,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [
+        "internal/mcp/tools/tools.go"
+      ],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "fail",
+      "calls": 0,
+      "nav_calls": 0,
+      "bytes_total": 0,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {},
+      "read_batch_max": 0,
+      "cost_usd": 0.008912400000000001,
+      "turns": 1
+    },
+    {
+      "task": "rag-semantic-gate",
+      "run": 1,
+      "wall_s": 35.1,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 12643,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/workspace/gate.go",
+        "internal/workspace/inspect.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 7168,
+      "self_report_ratio": 0.57,
+      "calls": 12,
+      "nav_calls": 10,
+      "bytes_total": 12643,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 5,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 8,
+          "bytes": 7375
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 5130
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.10734819999999999,
+      "turns": 13
+    },
+    {
+      "task": "rag-stem-rules",
+      "run": 1,
+      "wall_s": 69.2,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 17773,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lexical/stem.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 12288,
+      "self_report_ratio": 0.69,
+      "calls": 24,
+      "nav_calls": 17,
+      "bytes_total": 17773,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 5,
+          "bytes": 6247
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 1181
+        },
+        "mcp__graphin__read_code": {
+          "calls": 4,
+          "bytes": 3487
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 4,
+          "bytes": 1641
+        },
+        "Read": {
+          "calls": 5,
+          "bytes": 5079
+        }
+      },
+      "read_batch_max": 6,
+      "cost_usd": 0.21958740000000002,
+      "turns": 25
+    },
+    {
+      "task": "rag-usage-rotation",
+      "run": 1,
+      "wall_s": 62.3,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 26989,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/usage/ingest.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 13312,
+      "self_report_ratio": 0.49,
+      "calls": 18,
+      "nav_calls": 15,
+      "bytes_total": 26989,
+      "invented_ids": 0,
+      "hints_seen": 2,
+      "hints_followed": 1,
+      "search_runs_max": 6,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 2,
+          "bytes": 0
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 5,
+          "bytes": 7080
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 6,
+          "bytes": 7399
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__read_code": {
+          "calls": 4,
+          "bytes": 12372
+        }
+      },
+      "read_batch_max": 4,
+      "cost_usd": 0.183833,
+      "turns": 19
+    },
+    {
+      "task": "rag-hint-conditions",
+      "run": 1,
+      "wall_s": 12.1,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 0,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [
+        "internal/mcp/tools/tools.go"
+      ],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "fail",
+      "calls": 0,
+      "nav_calls": 0,
+      "bytes_total": 0,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {},
+      "read_batch_max": 0,
+      "cost_usd": 0.0122134,
+      "turns": 1
+    },
+    {
+      "task": "rag-lock-steal",
+      "run": 1,
+      "wall_s": 38.4,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 7677,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lock/lockfile.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 7,
+      "nav_calls": 4,
+      "bytes_total": 7677,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 1956
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1931
+        },
+        "mcp__graphin__read_code": {
+          "calls": 1,
+          "bytes": 2415
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 1237
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.0874002,
+      "turns": 8
+    },
+    {
+      "task": "rag-md-section-id",
+      "run": 1,
+      "wall_s": 32.6,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 17574,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/parse/markdown.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 7168,
+      "self_report_ratio": 0.41,
+      "calls": 11,
+      "nav_calls": 8,
+      "bytes_total": 17574,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 3,
+          "bytes": 3714
+        },
+        "mcp__graphin__read_code": {
+          "calls": 4,
+          "bytes": 4337
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1207
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 8178
+        }
+      },
+      "read_batch_max": 1,
+      "cost_usd": 0.1119648,
+      "turns": 12
+    },
+    {
+      "task": "rag-fk-edges",
+      "run": 1,
+      "wall_s": 57.8,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 17014,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/parse/dbschema.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 13312,
+      "self_report_ratio": 0.78,
+      "calls": 14,
+      "nav_calls": 11,
+      "bytes_total": 17014,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 5,
+          "bytes": 7895
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 2414
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 87
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 6209
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 271
+        }
+      },
+      "read_batch_max": 4,
+      "cost_usd": 0.1551146,
+      "turns": 15
+    },
+    {
+      "task": "rag-hop-truncate",
+      "run": 1,
+      "wall_s": 49.0,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 15556,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/mcp/server.go",
+        "internal/mcp/truncate.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 12288,
+      "self_report_ratio": 0.79,
+      "calls": 8,
+      "nav_calls": 6,
+      "bytes_total": 15556,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1497
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 778
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 10414
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 2729
+        }
+      },
+      "read_batch_max": 4,
+      "cost_usd": 0.1238374,
+      "turns": 9
+    },
+    {
+      "task": "rag-hop-stem-sides",
+      "run": 1,
+      "wall_s": 44.0,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 19375,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lexical/bm25.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 15360,
+      "self_report_ratio": 0.79,
+      "calls": 14,
+      "nav_calls": 12,
+      "bytes_total": 19375,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 1,
+          "bytes": 9802
+        },
+        "mcp__graphin__read_code": {
+          "calls": 4,
+          "bytes": 2942
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 4,
+          "bytes": 4085
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 3,
+          "bytes": 2408
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.15123520000000001,
+      "turns": 15
+    },
+    {
+      "task": "rag-hop-grep-baseline",
+      "run": 1,
+      "wall_s": 34.3,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 9467,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/keyword/keyword.go",
+        "internal/eval/sweexplore/grep.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 9216,
+      "self_report_ratio": 0.97,
+      "calls": 12,
+      "nav_calls": 10,
+      "bytes_total": 9467,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 1725
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 3773
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 1874
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 3,
+          "bytes": 1957
+        }
+      },
+      "read_batch_max": 1,
+      "cost_usd": 0.0984496,
+      "turns": 13
+    },
+    {
+      "task": "rag-hop-patternshape",
+      "run": 1,
+      "wall_s": 30.9,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 7187,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/usage/event.go"
+      ],
+      "must_cite_miss": [
+        "internal/usage/stream.go"
+      ],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "fail",
+      "self_report_bytes": 4096,
+      "self_report_ratio": 0.57,
+      "calls": 7,
+      "nav_calls": 4,
+      "bytes_total": 7187,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1548
+        },
+        "mcp__graphin__read_code": {
+          "calls": 1,
+          "bytes": 3674
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 1796
+        },
+        "Bash": {
+          "calls": 1,
+          "bytes": 31
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.08333320000000001,
+      "turns": 8
+    },
+    {
+      "task": "rag-nh-redis",
+      "run": 1,
+      "wall_s": 23.2,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 5958,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 6144,
+      "self_report_ratio": 1.03,
+      "calls": 5,
+      "nav_calls": 3,
+      "bytes_total": 5958,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 678
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 5142
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.0609968,
+      "turns": 6
+    },
+    {
+      "task": "rag-nh-grpc",
+      "run": 1,
+      "wall_s": 30.4,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 3597,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 3276,
+      "self_report_ratio": 0.91,
+      "calls": 10,
+      "nav_calls": 6,
+      "bytes_total": 3597,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 5,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 5,
+          "bytes": 2475
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 928
+        },
+        "Bash": {
+          "calls": 2,
+          "bytes": 56
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.0764128,
+      "turns": 11
+    },
+    {
+      "task": "rag-nh-rankdef",
+      "run": 1,
+      "wall_s": 22.7,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 6997,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 7168,
+      "self_report_ratio": 1.02,
+      "calls": 6,
+      "nav_calls": 3,
+      "bytes_total": 6997,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 2,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1052
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 5807
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.06004140000000001,
+      "turns": 7
+    },
+    {
+      "task": "rag-oor-latency",
+      "run": 1,
+      "wall_s": 55.2,
+      "end_state": "out-of-reach",
+      "budget": 40000,
+      "bytes": 2734,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 1331,
+      "self_report_ratio": 0.49,
+      "calls": 8,
+      "nav_calls": 2,
+      "bytes_total": 2734,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "Bash": {
+          "calls": 4,
+          "bytes": 76
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 2520
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.0958406,
+      "turns": 9
+    },
+    {
+      "task": "rag-oor-adoption",
+      "run": 1,
+      "wall_s": 59.2,
+      "end_state": "out-of-reach",
+      "budget": 40000,
+      "bytes": 3637,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 6,
+      "nav_calls": 0,
+      "bytes_total": 3637,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {
+        "Skill": {
+          "calls": 1,
+          "bytes": 31
+        },
+        "Bash": {
+          "calls": 5,
+          "bytes": 3606
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.090784,
+      "turns": 8
+    },
+    {
+      "task": "rag-bp-change-flow",
+      "run": 1,
+      "wall_s": 75.1,
+      "end_state": "answered",
+      "budget": 20000,
+      "bytes": 26437,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/workspace/indexer.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "over_stated",
+      "verdict": "pass",
+      "calls": 17,
+      "nav_calls": 15,
+      "bytes_total": 26437,
+      "invented_ids": 0,
+      "hints_seen": 4,
+      "hints_followed": 1,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 5,
+          "bytes": 8224
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 12880
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 3,
+          "bytes": 2662
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 2533
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.200256,
+      "turns": 18
+    },
+    {
+      "task": "rag-bp-hybrid-path",
+      "run": 1,
+      "wall_s": 159.5,
+      "end_state": "answered",
+      "budget": 20000,
+      "bytes": 35618,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/search/router.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "over_silent",
+      "verdict": "fail",
+      "self_report_bytes": 7,
+      "self_report_ratio": 0.0,
+      "calls": 20,
+      "nav_calls": 17,
+      "bytes_total": 35618,
+      "invented_ids": 0,
+      "hints_seen": 3,
+      "hints_followed": 2,
+      "search_runs_max": 7,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 539
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 11,
+          "bytes": 11679
+        },
+        "mcp__graphin__read_code": {
+          "calls": 5,
+          "bytes": 15779
+        },
+        "Agent": {
+          "calls": 1,
+          "bytes": 7483
+        }
+      },
+      "read_batch_max": 1,
+      "cost_usd": 0.34975320000000004,
+      "turns": 2
+    },
+    {
+      "task": "rag-read-omission",
+      "run": 2,
+      "wall_s": 9.3,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 0,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [
+        "internal/mcp/tools/tools.go"
+      ],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "fail",
+      "self_report_bytes": 0,
+      "self_report_ratio": null,
+      "calls": 0,
+      "nav_calls": 0,
+      "bytes_total": 0,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {},
+      "read_batch_max": 0,
+      "cost_usd": 0.0101724,
+      "turns": 1
+    },
+    {
+      "task": "rag-semantic-gate",
+      "run": 2,
+      "wall_s": 64.2,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 23238,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/workspace/gate.go",
+        "internal/workspace/inspect.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 15,
+      "nav_calls": 3,
+      "bytes_total": 23238,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 3,
+          "bytes": 5353
+        },
+        "Read": {
+          "calls": 6,
+          "bytes": 9832
+        },
+        "Bash": {
+          "calls": 3,
+          "bytes": 2800
+        },
+        "Agent": {
+          "calls": 1,
+          "bytes": 5115
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.1637116,
+      "turns": 2
+    },
+    {
+      "task": "rag-stem-rules",
+      "run": 2,
+      "wall_s": 190.9,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 22341,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lexical/stem.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 20,
+      "nav_calls": 13,
+      "bytes_total": 22341,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 5,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 2283
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 9,
+          "bytes": 8332
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 4232
+        },
+        "Bash": {
+          "calls": 1,
+          "bytes": 322
+        },
+        "Glob": {
+          "calls": 1,
+          "bytes": 24
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 6789
+        },
+        "Grep": {
+          "calls": 2,
+          "bytes": 221
+        }
+      },
+      "read_batch_max": 5,
+      "cost_usd": 0.207052,
+      "turns": 21
+    },
+    {
+      "task": "rag-usage-rotation",
+      "run": 2,
+      "wall_s": 51.7,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 16441,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/usage/ingest.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 9216,
+      "self_report_ratio": 0.56,
+      "calls": 18,
+      "nav_calls": 12,
+      "bytes_total": 16441,
+      "invented_ids": 0,
+      "hints_seen": 2,
+      "hints_followed": 1,
+      "search_runs_max": 6,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 2,
+          "bytes": 0
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 3,
+          "bytes": 4346
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 6,
+          "bytes": 4390
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 5505
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 938
+        },
+        "Read": {
+          "calls": 2,
+          "bytes": 1087
+        },
+        "Grep": {
+          "calls": 1,
+          "bytes": 37
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.1638328,
+      "turns": 19
+    },
+    {
+      "task": "rag-hint-conditions",
+      "run": 2,
+      "wall_s": 33.1,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 0,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [
+        "internal/mcp/tools/tools.go"
+      ],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "fail",
+      "self_report_bytes": 0,
+      "self_report_ratio": null,
+      "calls": 0,
+      "nav_calls": 0,
+      "bytes_total": 0,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {},
+      "read_batch_max": 0,
+      "cost_usd": 0.0326584,
+      "turns": 1
+    },
+    {
+      "task": "rag-lock-steal",
+      "run": 2,
+      "wall_s": 33.7,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 7546,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lock/lockfile.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 4600,
+      "self_report_ratio": 0.61,
+      "calls": 11,
+      "nav_calls": 8,
+      "bytes_total": 7546,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 2374
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 1855
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 3092
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 87
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.0952318,
+      "turns": 12
+    },
+    {
+      "task": "rag-md-section-id",
+      "run": 2,
+      "wall_s": 27.0,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 8639,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/parse/markdown.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 4096,
+      "self_report_ratio": 0.47,
+      "calls": 7,
+      "nav_calls": 5,
+      "bytes_total": 8639,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 1,
+          "bytes": 518
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 2941
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 5042
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.0786424,
+      "turns": 8
+    },
+    {
+      "task": "rag-fk-edges",
+      "run": 2,
+      "wall_s": 65.0,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 19114,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/parse/dbschema.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 13312,
+      "self_report_ratio": 0.7,
+      "calls": 17,
+      "nav_calls": 14,
+      "bytes_total": 19114,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 6,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 1509
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 9,
+          "bytes": 12720
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 87
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 4660
+        }
+      },
+      "read_batch_max": 4,
+      "cost_usd": 0.1685546,
+      "turns": 18
+    },
+    {
+      "task": "rag-hop-truncate",
+      "run": 2,
+      "wall_s": 50.4,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 15549,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/mcp/server.go",
+        "internal/mcp/truncate.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 12288,
+      "self_report_ratio": 0.79,
+      "calls": 8,
+      "nav_calls": 6,
+      "bytes_total": 15549,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 3,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 492
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 2714
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 778
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 11427
+        }
+      },
+      "read_batch_max": 5,
+      "cost_usd": 0.1270868,
+      "turns": 9
+    },
+    {
+      "task": "rag-hop-stem-sides",
+      "run": 2,
+      "wall_s": 62.5,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 21150,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/lexical/bm25.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 17408,
+      "self_report_ratio": 0.82,
+      "calls": 14,
+      "nav_calls": 12,
+      "bytes_total": 21150,
+      "invented_ids": 0,
+      "hints_seen": 3,
+      "hints_followed": 1,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 10972
+        },
+        "mcp__graphin__read_code": {
+          "calls": 3,
+          "bytes": 2905
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 3,
+          "bytes": 5398
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 2,
+          "bytes": 1737
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.167613,
+      "turns": 15
+    },
+    {
+      "task": "rag-hop-grep-baseline",
+      "run": 2,
+      "wall_s": 173.1,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 25362,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/keyword/keyword.go",
+        "internal/eval/sweexplore/grep.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 20,
+      "nav_calls": 10,
+      "bytes_total": 25362,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 0,
+      "search_runs_max": 1,
+      "by_tool": {
+        "Agent": {
+          "calls": 1,
+          "bytes": 1059
+        },
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 4,
+          "bytes": 8925
+        },
+        "ScheduleWakeup": {
+          "calls": 2,
+          "bytes": 344
+        },
+        "mcp__graphin__read_code": {
+          "calls": 4,
+          "bytes": 10084
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 2,
+          "bytes": 1894
+        },
+        "Bash": {
+          "calls": 2,
+          "bytes": 888
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 1418
+        },
+        "Grep": {
+          "calls": 2,
+          "bytes": 612
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.2772649,
+      "turns": 1
+    },
+    {
+      "task": "rag-hop-patternshape",
+      "run": 2,
+      "wall_s": 147.1,
+      "end_state": "answered",
+      "budget": 40000,
+      "bytes": 8856,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/usage/event.go",
+        "internal/usage/stream.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 7168,
+      "self_report_ratio": 0.81,
+      "calls": 9,
+      "nav_calls": 5,
+      "bytes_total": 8856,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 492
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 2,
+          "bytes": 2810
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 4378
+        },
+        "Read": {
+          "calls": 1,
+          "bytes": 87
+        },
+        "Bash": {
+          "calls": 1,
+          "bytes": 951
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.0939814,
+      "turns": 10
+    },
+    {
+      "task": "rag-nh-redis",
+      "run": 2,
+      "wall_s": 28.0,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 7926,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 7800,
+      "self_report_ratio": 0.98,
+      "calls": 7,
+      "nav_calls": 5,
+      "bytes_total": 7926,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 5,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 2450
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 3,
+          "bytes": 5338
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.06674899999999999,
+      "turns": 8
+    },
+    {
+      "task": "rag-nh-grpc",
+      "run": 2,
+      "wall_s": 34.3,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 8831,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 7680,
+      "self_report_ratio": 0.87,
+      "calls": 8,
+      "nav_calls": 6,
+      "bytes_total": 8831,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 6,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 4,
+          "bytes": 4673
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 4020
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.0795064,
+      "turns": 9
+    },
+    {
+      "task": "rag-nh-rankdef",
+      "run": 2,
+      "wall_s": 19.9,
+      "end_state": "not-here",
+      "budget": 40000,
+      "bytes": 1787,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "forbidden_hit": [],
+      "verdict": "pass",
+      "self_report_bytes": 1740,
+      "self_report_ratio": 0.97,
+      "calls": 7,
+      "nav_calls": 3,
+      "bytes_total": 1787,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 1,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 3,
+          "bytes": 0
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 2,
+          "bytes": 1453
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 1,
+          "bytes": 196
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.054725600000000006,
+      "turns": 8
+    },
+    {
+      "task": "rag-oor-latency",
+      "run": 2,
+      "wall_s": 10.5,
+      "end_state": "out-of-reach",
+      "budget": 40000,
+      "bytes": 0,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 0,
+      "nav_calls": 0,
+      "bytes_total": 0,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {},
+      "read_batch_max": 0,
+      "cost_usd": 0.0106378,
+      "turns": 1
+    },
+    {
+      "task": "rag-oor-adoption",
+      "run": 2,
+      "wall_s": 41.6,
+      "end_state": "out-of-reach",
+      "budget": 40000,
+      "bytes": 1689,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "calls": 3,
+      "nav_calls": 0,
+      "bytes_total": 1689,
+      "invented_ids": 0,
+      "hints_seen": 0,
+      "hints_followed": 0,
+      "search_runs_max": 0,
+      "by_tool": {
+        "Skill": {
+          "calls": 1,
+          "bytes": 31
+        },
+        "Bash": {
+          "calls": 2,
+          "bytes": 1658
+        }
+      },
+      "read_batch_max": 0,
+      "cost_usd": 0.0583824,
+      "turns": 5
+    },
+    {
+      "task": "rag-bp-change-flow",
+      "run": 2,
+      "wall_s": 69.5,
+      "end_state": "answered",
+      "budget": 20000,
+      "bytes": 18045,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/workspace/indexer.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "within",
+      "verdict": "pass",
+      "self_report_bytes": 18636,
+      "self_report_ratio": 1.03,
+      "calls": 14,
+      "nav_calls": 12,
+      "bytes_total": 18045,
+      "invented_ids": 0,
+      "hints_seen": 1,
+      "hints_followed": 1,
+      "search_runs_max": 4,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 1,
+          "bytes": 493
+        },
+        "mcp__graphin__search_keyword": {
+          "calls": 9,
+          "bytes": 11632
+        },
+        "mcp__graphin__read_code": {
+          "calls": 2,
+          "bytes": 5782
+        }
+      },
+      "read_batch_max": 3,
+      "cost_usd": 0.1569824,
+      "turns": 15
+    },
+    {
+      "task": "rag-bp-hybrid-path",
+      "run": 2,
+      "wall_s": 85.1,
+      "end_state": "answered",
+      "budget": 20000,
+      "bytes": 25607,
+      "fake_citations": [],
+      "self_citations": [],
+      "must_cite_hit": [
+        "internal/search/router.go"
+      ],
+      "must_cite_miss": [],
+      "evidence_miss": [],
+      "evidence_any_hit": true,
+      "budget_state": "over_stated",
+      "verdict": "pass",
+      "self_report_bytes": 5939,
+      "self_report_ratio": 0.23,
+      "calls": 12,
+      "nav_calls": 10,
+      "bytes_total": 25607,
+      "invented_ids": 0,
+      "hints_seen": 3,
+      "hints_followed": 0,
+      "search_runs_max": 2,
+      "by_tool": {
+        "ToolSearch": {
+          "calls": 1,
+          "bytes": 0
+        },
+        "mcp__graphin__bootstrap_workspace": {
+          "calls": 1,
+          "bytes": 138
+        },
+        "mcp__graphin__search_hybrid": {
+          "calls": 4,
+          "bytes": 5769
+        },
+        "mcp__graphin__read_code": {
+          "calls": 5,
+          "bytes": 17975
+        },
+        "mcp__graphin__explore_graph": {
+          "calls": 1,
+          "bytes": 1725
+        }
+      },
+      "read_batch_max": 2,
+      "cost_usd": 0.18500280000000002,
+      "turns": 13
+    }
+  ]
+}

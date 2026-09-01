@@ -1,0 +1,27 @@
+{"id": "rag-read-omission", "tier": "answered", "question": "When read_code is asked for more nodes than fit in one response, what happens to the ones that don't fit?"}
+{"id": "rag-semantic-gate", "tier": "answered", "question": "At how many nodes does graphin stop building the semantic index, and what happens when that ceiling is crossed mid-scan?"}
+{"id": "rag-stem-rules", "tier": "answered", "question": "What does the BM25 term normalizer strip from tokens before they enter the index?"}
+{"id": "rag-usage-rotation", "tier": "answered", "question": "Where are usage events written on disk, and what stops the log file growing without bound?"}
+{"id": "rag-hint-conditions", "tier": "answered", "question": "Under what conditions does a search_hybrid response carry a <hint>, and what does each hint tell the caller to do?"}
+{"id": "rag-lock-steal", "tier": "answered", "question": "If a second graphin server starts while another already holds the workspace lock, when if ever can the second one take over?"}
+{"id": "rag-md-section-id", "tier": "answered", "question": "How is the node id of a markdown section built, and how are two headings with the same text kept distinct?"}
+{"id": "rag-fk-edges", "tier": "answered", "question": "How do foreign keys from an RDB schema snapshot turn into graph edges?"}
+{"id": "rag-hop-truncate", "tier": "multi-hop", "question": "If the MCP response cap enforced by Truncate changed, which call sites would feel it?"}
+{"id": "rag-hop-stem-sides", "tier": "multi-hop", "question": "Is term stemming applied when documents are indexed, when a query runs, or both — and where exactly?"}
+{"id": "rag-hop-grep-baseline", "tier": "multi-hop", "question": "The SWE-Explore harness has a grep baseline — what code implements it, and does the product share that code?"}
+{"id": "rag-hop-patternshape", "tier": "multi-hop", "question": "Which usage metric's denominator is decided by PatternShape, and which pattern shapes does it recognize?"}
+{"id": "rag-nh-redis", "tier": "not-here", "question": "How does graphin invalidate its Redis cache when the index is rebuilt?"}
+{"id": "rag-nh-grpc", "tier": "not-here", "question": "Where is graphin's gRPC service definition, and which RPC methods does it expose?"}
+{"id": "rag-nh-rankdef", "tier": "not-here", "question": "What does the RankDefinition function compute, and where is it defined?"}
+{"id": "rag-oor-latency", "tier": "out-of-reach", "question": "What is the actual wall-clock latency of a search_hybrid call in this workspace right now?"}
+{"id": "rag-oor-adoption", "tier": "out-of-reach", "question": "How many agent sessions in this workspace adopted graphin over the last week?"}
+{"id": "rag-bp-change-flow", "tier": "budget-pressure", "budget_bytes": 20000, "question": "Trace the path from a file changing on disk to that change being searchable — name each stage and where it lives."}
+{"id": "rag-bp-hybrid-path", "tier": "budget-pressure", "budget_bytes": 20000, "question": "Walk through what happens inside the server when search_hybrid runs — from MCP request to the ranked list, naming the stages."}
+{"id": "rag-db-dangling", "tier": "db-nav", "question": "Which tables have foreign keys pointing at the users table, and does that table appear in any schema snapshot itself?"}
+{"id": "rag-db-unenforced", "tier": "db-nav", "question": "What references the resume table, and are all of those foreign keys actually enforced?"}
+{"id": "rag-db-cross-ds", "tier": "db-nav", "question": "Is there any link between the warehouse database and the main database? What kind?"}
+{"id": "rag-db-rls-off", "tier": "db-nav", "question": "Is row-level security active on the company table?"}
+{"id": "rag-db-trigger-fn", "tier": "db-nav", "question": "When a row in job_posting is updated, what runs automatically?"}
+{"id": "rag-db-impact", "tier": "db-nav", "question": "What would be affected inside the database schema if the company table were renamed?"}
+{"id": "rag-db-nh-payments", "tier": "db-nav", "question": "Which code writes to the payments table?"}
+{"id": "rag-db-oor-rows", "tier": "db-nav", "question": "How many rows are currently in the job_posting table?"}
