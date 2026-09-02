@@ -1,0 +1,273 @@
+{
+  "rubric_version": "0.1.0",
+  "graphin_commit": "2e2123c",
+  "model": "sonnet",
+  "runs": 3,
+  "corpus_files": 412,
+  "semantic": false,
+  "tasks": 6,
+  "arms": {
+    "grep": {
+      "nav": [
+        16,
+        18
+      ],
+      "knowledge": [
+        15,
+        18
+      ],
+      "insight": [
+        17,
+        18
+      ],
+      "overall": [
+        13,
+        18
+      ],
+      "calls": 18,
+      "retrieval": 37374,
+      "tokens_in": 340256,
+      "wall_s": 82
+    },
+    "wiki-rag": {
+      "nav": [
+        13,
+        18
+      ],
+      "knowledge": [
+        14,
+        18
+      ],
+      "insight": [
+        17,
+        18
+      ],
+      "overall": [
+        9,
+        18
+      ],
+      "calls": 20,
+      "retrieval": 36388,
+      "tokens_in": 381596,
+      "wall_s": 80
+    }
+  },
+  "by_coverage": {
+    "wiki_covered": {
+      "tasks": 4,
+      "grep": {
+        "nav": [
+          10,
+          12
+        ],
+        "knowledge": [
+          9,
+          12
+        ],
+        "insight": [
+          11,
+          12
+        ],
+        "overall": [
+          7,
+          12
+        ],
+        "tokens_in": 332693
+      },
+      "wiki-rag": {
+        "nav": [
+          8,
+          12
+        ],
+        "knowledge": [
+          9,
+          12
+        ],
+        "insight": [
+          12,
+          12
+        ],
+        "overall": [
+          5,
+          12
+        ],
+        "tokens_in": 353388
+      }
+    },
+    "wiki_uncovered": {
+      "tasks": 2,
+      "grep": {
+        "nav": [
+          6,
+          6
+        ],
+        "knowledge": [
+          6,
+          6
+        ],
+        "insight": [
+          6,
+          6
+        ],
+        "overall": [
+          6,
+          6
+        ],
+        "tokens_in": 360418
+      },
+      "wiki-rag": {
+        "nav": [
+          5,
+          6
+        ],
+        "knowledge": [
+          5,
+          6
+        ],
+        "insight": [
+          5,
+          6
+        ],
+        "overall": [
+          4,
+          6
+        ],
+        "tokens_in": 398200
+      }
+    }
+  },
+  "per_task": {
+    "cb-response-cap": {
+      "wiki_covered": true,
+      "overall": {
+        "grep": [
+          3,
+          3
+        ],
+        "wiki-rag": [
+          3,
+          3
+        ]
+      },
+      "tokens_in": {
+        "grep": 466105,
+        "wiki-rag": 608728
+      }
+    },
+    "cb-unlisted-agent": {
+      "wiki_covered": true,
+      "overall": {
+        "grep": [
+          2,
+          3
+        ],
+        "wiki-rag": [
+          2,
+          3
+        ]
+      },
+      "tokens_in": {
+        "grep": 239151,
+        "wiki-rag": 270248
+      }
+    },
+    "cb-prose-only-tool": {
+      "wiki_covered": true,
+      "overall": {
+        "grep": [
+          1,
+          3
+        ],
+        "wiki-rag": [
+          0,
+          3
+        ]
+      },
+      "tokens_in": {
+        "grep": 316378,
+        "wiki-rag": 363042
+      }
+    },
+    "cb-console-drift-screen": {
+      "wiki_covered": true,
+      "overall": {
+        "grep": [
+          1,
+          3
+        ],
+        "wiki-rag": [
+          0,
+          3
+        ]
+      },
+      "tokens_in": {
+        "grep": 478635,
+        "wiki-rag": 342457
+      }
+    },
+    "cb-python-semantic": {
+      "wiki_covered": false,
+      "overall": {
+        "grep": [
+          3,
+          3
+        ],
+        "wiki-rag": [
+          3,
+          3
+        ]
+      },
+      "tokens_in": {
+        "grep": 378035,
+        "wiki-rag": 503675
+      }
+    },
+    "cb-go-semantic": {
+      "wiki_covered": false,
+      "overall": {
+        "grep": [
+          3,
+          3
+        ],
+        "wiki-rag": [
+          1,
+          3
+        ]
+      },
+      "tokens_in": {
+        "grep": 342800,
+        "wiki-rag": 380513
+      }
+    }
+  },
+  "preflight": {
+    "cb-response-cap": [
+      "delegation-gate",
+      "release"
+    ],
+    "cb-unlisted-agent": [
+      "delegation-gate",
+      "design"
+    ],
+    "cb-prose-only-tool": [
+      "design"
+    ],
+    "cb-console-drift-screen": [
+      "console"
+    ],
+    "cb-python-semantic": [],
+    "cb-go-semantic": []
+  },
+  "escape_attempts": {
+    "grep": 16,
+    "wiki-rag": 12
+  },
+  "sign_test": {
+    "metric": "tokens_in",
+    "cheaper_for_wiki_rag": 1,
+    "n": 6,
+    "p_two_sided": 0.219,
+    "significant": false,
+    "cheaper_for_grep": 5
+  }
+}

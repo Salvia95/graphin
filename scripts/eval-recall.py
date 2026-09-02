@@ -37,7 +37,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Results pointing at these paths are the measurement reading its own tooling.
 # They are reported, never filtered: a silent filter would hide the day the
 # golden set starts answering its own questions.
-TIERS = ("base", "variants", "hop")
+TIERS = ("base", "variants", "hop", "tests")
 
 SELF_PREFIXES = ("eval/golden/", ".claude/skills/", "scripts/eval-recall.py")
 

@@ -1,0 +1,152 @@
+{
+  "corpus": "2e2123c",
+  "tier": "base",
+  "sets": 10,
+  "era": "2026-07-28 (stateless)",
+  "note": "top_k sweep via --queries override; eval/golden was not modified",
+  "runs": {
+    "lexical-k5": {
+      "recall": 0.5,
+      "delivery": 0.35,
+      "graphin_bytes": 49152,
+      "sets": 10
+    },
+    "lexical-k20": {
+      "recall": 0.8,
+      "delivery": 0.35,
+      "graphin_bytes": 75248,
+      "sets": 10
+    },
+    "lexical-k50": {
+      "recall": 0.8,
+      "delivery": 0.35,
+      "graphin_bytes": 75248,
+      "sets": 10
+    },
+    "hybrid-k5": {
+      "recall": 0.75,
+      "delivery": 0.45,
+      "graphin_bytes": 50386,
+      "sets": 10
+    },
+    "hybrid-k20": {
+      "recall": 0.8,
+      "delivery": 0.45,
+      "graphin_bytes": 71575,
+      "sets": 10
+    }
+  },
+  "headroom": {
+    "lexical": {
+      "recall_at_5": 0.5,
+      "ceiling_at_50": 0.8,
+      "gap": 0.3
+    },
+    "hybrid": {
+      "recall_at_5": 0.75,
+      "ceiling_at_20": 0.8,
+      "gap": 0.05
+    },
+    "out_of_pool": 0.2
+  },
+  "filter_simulation": {
+    "lexical_k50_pool": {
+      "none": 0.5,
+      "drop_unit_tests": 0.5,
+      "drop_all_tests": 0.6,
+      "drop_e2e_only": 0.5,
+      "drop_tests_and_docs": 0.65
+    },
+    "hybrid_k20_pool": {
+      "none": 0.8,
+      "drop_unit_tests": 0.8,
+      "drop_all_tests": 0.8,
+      "drop_e2e_only": 0.8,
+      "drop_tests_and_docs": 0.7
+    }
+  },
+  "test_occupancy": {
+    "lexical": {
+      "top5_test": 0.24,
+      "top3_test": 0.2667
+    },
+    "hybrid": {
+      "top5_test": 0.44,
+      "top3_test": 0.4333
+    }
+  },
+  "golden_answers_that_are_tests": {
+    "eval/golden (before)": 0,
+    "eval/golden/tests (after)": 6,
+    "eval/rag must_cite": 0
+  },
+  "tests_tier": {
+    "created": "2026-09-02",
+    "sets": 6,
+    "shapes": {
+      "literal": 3,
+      "prose": 3
+    },
+    "answers_in_unit_tests": 5,
+    "answers_in_e2e": 1,
+    "runs": {
+      "lexical": {
+        "recall": 0.6667,
+        "delivery": 0.6667,
+        "graphin_bytes": 30151,
+        "grep_symbol_bytes": 20226
+      },
+      "hybrid": {
+        "recall": 0.8333,
+        "delivery": 0.5,
+        "graphin_bytes": 24364,
+        "grep_symbol_bytes": 20226
+      }
+    },
+    "filter_simulation": {
+      "lexical": {
+        "none": 0.6667,
+        "drop_unit_tests": 0.1667,
+        "drop_all_tests": 0.0
+      },
+      "hybrid": {
+        "none": 0.8333,
+        "drop_unit_tests": 0.1667,
+        "drop_all_tests": 0.0
+      }
+    },
+    "grep_comparison_hybrid": {
+      "literal": {
+        "n": 3,
+        "graphin": {
+          "recall": 1.0,
+          "bytes": 11040
+        },
+        "grep_symbol": {
+          "recall": 1.0,
+          "bytes": 20275,
+          "usable": 3
+        },
+        "grep_literal": {
+          "recall": 1.0,
+          "bytes": 15692697
+        }
+      },
+      "prose": {
+        "n": 3,
+        "graphin": {
+          "recall": 0.6667,
+          "bytes": 13324
+        },
+        "grep_symbol": {
+          "usable": 0
+        },
+        "grep_literal": {
+          "recall": 1.0,
+          "bytes": 20470989
+        }
+      },
+      "note": "문항 수를 맞춘 비교. 층 합계(graphin 6문항 vs grep 3문항)는 비교 불가"
+    }
+  }
+}

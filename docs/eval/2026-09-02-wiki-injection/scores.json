@@ -1,0 +1,138 @@
+{
+  "rubric_version": "0.1.0",
+  "graphin_commit": "2e2123c",
+  "model": "sonnet",
+  "runs": 3,
+  "corpus_files": 409,
+  "semantic": false,
+  "arms": {
+    "none": {
+      "correct": 17,
+      "n": 18,
+      "calls_med": 18.5,
+      "retrieval_med": 40555.5,
+      "tokens_in_med": 303322.0,
+      "wall_s_med": 64.9,
+      "prompt_bytes_med": 256.0
+    },
+    "injected": {
+      "correct": 18,
+      "n": 18,
+      "calls_med": 0.0,
+      "retrieval_med": 0.0,
+      "tokens_in_med": 19326.5,
+      "wall_s_med": 11.9,
+      "prompt_bytes_med": 11279.5
+    }
+  },
+  "per_task": {
+    "wiki-release-digit": {
+      "tokens_in": {
+        "none": 482669,
+        "injected": 19182,
+        "ratio": 25.2
+      },
+      "correct": {
+        "none": 3,
+        "injected": 3
+      }
+    },
+    "wiki-forged-token": {
+      "tokens_in": {
+        "none": 222270,
+        "injected": 19641,
+        "ratio": 11.3
+      },
+      "correct": {
+        "none": 3,
+        "injected": 3
+      }
+    },
+    "wiki-rescore-compat": {
+      "tokens_in": {
+        "none": 253442,
+        "injected": 19031,
+        "ratio": 13.3
+      },
+      "correct": {
+        "none": 3,
+        "injected": 3
+      }
+    },
+    "wiki-console-index": {
+      "tokens_in": {
+        "none": 314833,
+        "injected": 19471,
+        "ratio": 16.2
+      },
+      "correct": {
+        "none": 3,
+        "injected": 3
+      }
+    },
+    "wiki-severity-colour": {
+      "tokens_in": {
+        "none": 193106,
+        "injected": 18128,
+        "ratio": 10.7
+      },
+      "correct": {
+        "none": 3,
+        "injected": 3
+      }
+    },
+    "wiki-failure-denominator": {
+      "tokens_in": {
+        "none": 373312,
+        "injected": 20011,
+        "ratio": 18.7
+      },
+      "correct": {
+        "none": 2,
+        "injected": 3
+      }
+    }
+  },
+  "injection": {
+    "adoption": {
+      "bytes": 12017,
+      "sections_served": 7,
+      "omitted_budget": 15
+    },
+    "console": {
+      "bytes": 11096,
+      "sections_served": 4,
+      "omitted_budget": 10
+    },
+    "delegation-gate": {
+      "bytes": 12278,
+      "sections_served": 9,
+      "omitted_budget": 9
+    },
+    "design": {
+      "bytes": 8441,
+      "sections_served": 12,
+      "omitted_budget": 0
+    },
+    "rag-bench": {
+      "bytes": 10134,
+      "sections_served": 6,
+      "omitted_budget": 7
+    },
+    "release": {
+      "bytes": 10535,
+      "sections_served": 5,
+      "omitted_budget": 5
+    }
+  },
+  "wiki_files_read_by_none_arm": {
+    "runs": 9,
+    "of": 18
+  },
+  "sign_test": {
+    "metric": "tokens_in",
+    "wins_for_injected": 6,
+    "n": 6,
+    "p_two_sided": 0.0312
+  }
+}

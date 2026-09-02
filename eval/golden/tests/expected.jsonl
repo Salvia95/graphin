@@ -1,0 +1,6 @@
+{"id": "test-drop-assert", "files": ["internal/semantic/drain_test.go"], "why": "TestNoDropUnderColdBurst — 5만 건 콜드 버스트에서 Dropped()가 0이어야 한다는 계약. 구현에도 문서에도 이 규칙은 없다", "evidence": ["backlog must never drop"]}
+{"id": "test-breadcrumb-assert", "files": ["internal/wiki/gate_test.go"], "why": "게이트가 브레드크럼 부재를 호출자 과실이 아니라 설치 결함으로 보고해야 한다는 단언", "evidence": ["a missing breadcrumb must be reported as an install fault"]}
+{"id": "test-rename-drift-assert", "files": ["e2e/wiki_test.go"], "why": "섹션이 리네임만 됐을 때 드리프트로 읽히면 안 된다는 e2e 단언 — 핀 해시가 리네임 탐지기가 아니라는 규칙의 유일한 고정점", "evidence": ["a pure rename must not read as drift"]}
+{"id": "test-tier0-guard", "files": ["internal/search/rrf_test.go"], "why": "TestTier0StillWinsOverRRF — 시맨틱과 BM25가 다른 노드를 밀어올려도 exact가 1위를 지킨다는 단언", "evidence": ["Tier-0 must stay rank 1"]}
+{"id": "test-scan-edit-guard", "files": ["internal/workspace/defer_test.go"], "why": "초기 스캔 중 도착한 배치는 lexical-ready까지 미뤄야 라이브 편집이 스캔의 낡은 읽기에 덮이지 않는다", "evidence": ["The batch must NOT be applied while lexical-ready is pending"]}
+{"id": "test-definition-rank-guard", "files": ["internal/workspace/ranking_test.go"], "why": "2026-08-07 진단 권고 ④의 회귀 케이스 — 정의가 자기 호출부에 1위를 뺏기는 실패를 픽스처로 고정한다", "evidence": ["at rank 1, want"]}

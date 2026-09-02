@@ -1,0 +1,6 @@
+{"id": "wiki-release-digit", "sets": ["release"], "question": "We are releasing a change that renames one MCP tool. Which version digit moves, and which tier of the release gate has to run before dispatch?"}
+{"id": "wiki-forged-token", "sets": ["delegation-gate"], "question": "An agent hands over a token it invented without running preflight. Separately, someone edits a set summary after a token was already issued. What happens in each case, and why?"}
+{"id": "wiki-rescore-compat", "sets": ["rag-bench"], "question": "If we change only the rubric's grading rules, versus changing the runner's behaviour, how does each affect whether runs recorded earlier can still be re-scored?"}
+{"id": "wiki-console-index", "sets": ["console"], "question": "Why can the console not open the index directly, and where had that same constraint already forced a design decision before the console existed?"}
+{"id": "wiki-severity-colour", "sets": ["design"], "question": "In the console's decision queue, which colour token marks a drifted entry, and why is yellow not used to signal severity?"}
+{"id": "wiki-failure-denominator", "sets": ["adoption"], "question": "Why does the discovery-failure metric count only symbol-shaped searches, and why was the dot deliberately left out of the characters that mark a pattern as a regex?"}

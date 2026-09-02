@@ -1,0 +1,6 @@
+{"id": "test-drop-assert", "shape": "literal", "query": "backlog must never drop, dropped=127", "top_k": 5, "grep": "backlog must never drop"}
+{"id": "test-breadcrumb-assert", "shape": "literal", "query": "a missing breadcrumb must be reported as an install fault", "top_k": 5, "grep": "missing breadcrumb"}
+{"id": "test-rename-drift-assert", "shape": "literal", "query": "a pure rename must not read as drift", "top_k": 5, "grep": "pure rename"}
+{"id": "test-tier0-guard", "shape": "prose", "query": "which test asserts an exact match stays ahead of the merged ranking", "top_k": 5}
+{"id": "test-scan-edit-guard", "shape": "prose", "query": "where is it verified that an edit made during the initial scan is not overwritten by the scan", "top_k": 5}
+{"id": "test-definition-rank-guard", "shape": "prose", "query": "what pins the regression where a symbol definition loses the top rank to its callers", "top_k": 5}
