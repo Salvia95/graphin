@@ -40,6 +40,10 @@ const (
 	// DecisionUncovered is work the wiki had no answer for. The only kind
 	// here that asks for writing rather than judging.
 	DecisionUncovered DecisionKind = "uncovered"
+	// DecisionUnreviewed is a set an agent changed that no person has looked
+	// at since. Agent maintenance applies first and is controlled after, and
+	// this is the control: the flag stays until someone reads the diff.
+	DecisionUnreviewed DecisionKind = "unreviewed"
 )
 
 // severity orders the queue. Lower is more urgent, and the order is a claim
@@ -51,10 +55,13 @@ var severity = map[DecisionKind]int{
 	DecisionGlossaryFull: 1,
 	DecisionExpired:      2,
 	DecisionDrift:        3,
-	DecisionApprove:      4,
-	DecisionStaleSkill:   5,
-	DecisionUnreadSet:    6,
-	DecisionUncovered:    7,
+	// Above approve: an unreviewed change is already being served, while a
+	// candidate is not served until someone says so.
+	DecisionUnreviewed: 4,
+	DecisionApprove:    5,
+	DecisionStaleSkill: 6,
+	DecisionUnreadSet:  7,
+	DecisionUncovered:  8,
 }
 
 // Decision is one thing waiting on a person, in one shape whatever it came from.
@@ -132,8 +139,11 @@ type SetView struct {
 	RelPath       string   `json:"rel_path"`
 	Roles         []string `json:"roles"`
 	Tags          []string `json:"tags"`
+	Aliases       []string `json:"aliases"`
 	Prerequisites []string `json:"prerequisites"`
 	Mode          Mode     `json:"mode"`
+	Origin        string   `json:"origin,omitempty"`
+	Unreviewed    bool     `json:"unreviewed"`
 	Entries       int      `json:"entries"`
 	// Offered and Opened are the catalogue's own return on cost: a line
 	// shown in every matching preflight and never resolved is paying rent.
@@ -170,8 +180,10 @@ type Health struct {
 	Drifted   int `json:"drifted"`
 	Expired   int `json:"expired"`
 	Awaiting  int `json:"awaiting"`
-	Sets      int `json:"sets"`
-	Entries   int `json:"entries"`
+	// Unreviewed counts sets an agent changed that nobody has looked at.
+	Unreviewed int `json:"unreviewed"`
+	Sets       int `json:"sets"`
+	Entries    int `json:"entries"`
 	// Answered counts misses that a set now matches. They are gone from the
 	// backlog, and a number that quietly shrinks with no trace is a number
 	// nobody trusts twice.
@@ -286,10 +298,24 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 		o.Sets = append(o.Sets, SetView{
 			Name: s.Name, Title: s.Title, Summary: firstLine(s.Summary()),
 			RelPath: s.RelPath, Roles: nonNil(s.Roles), Tags: nonNil(s.Tags),
-			Prerequisites: nonNil(s.Prerequisites), Mode: s.Mode,
+			Aliases: nonNil(s.Aliases), Prerequisites: nonNil(s.Prerequisites), Mode: s.Mode,
+			Origin: s.Origin, Unreviewed: s.Unreviewed,
 			Entries: len(items), Items: items,
 			Offered: friction.Matched[s.Name], Opened: friction.Resolved[s.Name],
 			Expired: expired, Dangling: danglingBySet[s.Name], Drifted: driftBySet[s.Name],
+		})
+	}
+
+	for _, s := range sets {
+		if !s.Unreviewed {
+			continue
+		}
+		o.Decisions = append(o.Decisions, Decision{
+			Kind: DecisionUnreviewed, Set: s.Name,
+			File: s.RelPath, Line: 1,
+			Title:  s.Name,
+			Detail: unreviewedDetail(s),
+			Action: "Read the diff, then set reviewed: true in the frontmatter",
 		})
 	}
 
@@ -399,15 +425,26 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 	}
 	answered := o.Health.Answered
 	o.Health = Health{
-		Answered:  answered,
-		Decisions: len(o.Decisions),
-		Dangling:  countKind(o.Decisions, DecisionDangling),
-		Drifted:   countKind(o.Decisions, DecisionDrift),
-		Expired:   countKind(o.Decisions, DecisionExpired),
-		Awaiting:  len(proposals),
-		Sets:      len(o.Sets), Entries: entries,
+		Answered:   answered,
+		Decisions:  len(o.Decisions),
+		Dangling:   countKind(o.Decisions, DecisionDangling),
+		Drifted:    countKind(o.Decisions, DecisionDrift),
+		Expired:    countKind(o.Decisions, DecisionExpired),
+		Awaiting:   len(proposals),
+		Unreviewed: countKind(o.Decisions, DecisionUnreviewed),
+		Sets:       len(o.Sets), Entries: entries,
 	}
 	return o, nil
+}
+
+// unreviewedDetail says what kind of agent change is waiting. A set an agent
+// wrote from nothing and a set an agent repaired one line of are the same
+// decision with very different reading loads.
+func unreviewedDetail(s *Set) string {
+	if s.Origin == OriginAgent {
+		return "An agent wrote this set and no person has reviewed it. Every section it serves carries the flag until someone does."
+	}
+	return "An agent changed this set — a repointed entry, a rewritten summary or catalogue line — and no person has reviewed it. The change is served now; the flag is the control."
 }
 
 func countKind(ds []Decision, k DecisionKind) int {

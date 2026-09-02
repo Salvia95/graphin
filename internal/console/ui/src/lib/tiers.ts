@@ -59,7 +59,7 @@ export const TIER: Record<Tier, TierSpec> = {
   },
 }
 
-// The map from Go's eight kinds onto the four tiers. Yellow is absent from it
+// The map from Go's nine kinds onto the four tiers. Yellow is absent from it
 // on purpose: brand yellow belongs to actions and stat numbers, so severity
 // runs on its own ramp (design-system.md §0.5).
 export const TIER_OF: Record<DecisionKind, Tier> = {
@@ -67,6 +67,8 @@ export const TIER_OF: Record<DecisionKind, Tier> = {
   glossary_full: "alert",
   expired: "watch",
   drift: "watch",
+  // An agent's change that is already being served: watch, like drift.
+  unreviewed: "watch",
   stale_skill: "watch",
   approve: "info",
   unread_set: "neutral",

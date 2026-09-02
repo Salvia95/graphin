@@ -2,6 +2,7 @@
 type: knowledge_set
 description: 위임 게이트를 고치거나 그 동작을 판단할 때 필요한 지식 — 무엇을 막고, 무엇을 일부러 안 막고, 어디서 통과시키는지.
 tags: [gate, delegation, wiki, knowledge]
+aliases: [knowledge gate, wiki gate, preflight, manifest token, breadcrumb, subagent, agent table, spawn, exempt, inherit, clearance]
 roles: []
 prerequisites: []
 mode: live

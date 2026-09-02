@@ -48,6 +48,10 @@ type ResolvedEntry struct {
 	// the content came from its replacement. The set still names the old id,
 	// so this is what tells a reader the link needs updating.
 	RedirectedTo string
+	// Unreviewed carries the set's review flag down to the section, because
+	// a reader sees sections, not sets. Same pattern as Drift: a caveat
+	// served with the text beats text withheld for lack of a signature.
+	Unreviewed bool
 }
 
 // Drifted reports whether any entry needs re-verification.
@@ -89,7 +93,7 @@ func (st *Store) Resolve(r Reader, setNames []string) Resolution {
 		blocks := r.Read(ids)
 
 		for i, e := range entries {
-			re := ResolvedEntry{Entry: e}
+			re := ResolvedEntry{Entry: e, Unreviewed: s.Unreviewed}
 			if ids[i] != e.NodeID {
 				re.RedirectedTo = ids[i]
 			}
@@ -169,6 +173,15 @@ func (st *Store) ResolveNodes(r Reader, nodeIDs []string) []ResolvedEntry {
 			re.Drift = DriftGone
 			out = append(out, re)
 			continue
+		}
+		// Any citing set an agent touched flags the section. The reader did
+		// not say which set they came from, and a caveat they did not need
+		// costs less than one they did. A separate pass, because the drift
+		// loop below stops at the first set that vouches for the node.
+		for _, s := range st.SetList() {
+			if s.Unreviewed && s.cites(id) {
+				re.Unreviewed = true
+			}
 		}
 		for _, s := range st.SetList() {
 			if _, pinned := st.Pins.Get(s.Name, id); !pinned {

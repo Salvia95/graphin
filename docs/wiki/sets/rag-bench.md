@@ -2,6 +2,7 @@
 type: knowledge_set
 description: graphin-rag 행동 벤치를 돌리거나 그 결과를 읽을 때 필요한 지식 — 층의 뜻, 판정 규칙, 세트를 고칠 때의 규칙.
 tags: [eval, rag, benchmark]
+aliases: [rag benchmark, behaviour bench, behavior bench, rubric, rescore, grading, golden set, transcript, smoke]
 roles: []
 prerequisites: []
 mode: live

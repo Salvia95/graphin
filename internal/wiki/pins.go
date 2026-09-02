@@ -94,6 +94,16 @@ func (p *Pins) Set(set, nodeID string, pin Pin) {
 	p.Pins[set][nodeID] = pin
 }
 
+// Delete forgets one entry's pin. A repointed entry leaves its old node
+// behind, and a pin for a node no set names would assert something no
+// document backs until the next full repin dropped it.
+func (p *Pins) Delete(set, nodeID string) {
+	delete(p.Pins[set], nodeID)
+	if len(p.Pins[set]) == 0 {
+		delete(p.Pins, set)
+	}
+}
+
 // FormatHash renders a subtree hash the way the lockfile stores it.
 func FormatHash(h [32]byte) string { return "b3:" + hex.EncodeToString(h[:]) }
 

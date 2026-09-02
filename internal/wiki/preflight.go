@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // minTaskMatches is how many distinct task words a set must contain before a
@@ -14,6 +15,11 @@ import (
 // The exception below — a direct hit on the set's own name — exists because
 // "how do I cut a release" naming the `release` set is not a coincidence.
 const minTaskMatches = 2
+
+// minSetsForCommonStop is how many sets a wiki needs before "many sets share
+// this key" is evidence of anything. Below it the sample is too small to tell
+// a common word from a coincidence.
+const minSetsForCommonStop = 4
 
 // Selection is the outcome of matching a task to the wiki.
 type Selection struct {
@@ -130,6 +136,28 @@ var grammarKeys = map[string]bool{
 	"되면": true, "려면": true,
 }
 
+// englishGrammar is grammarKeys for English: articles, prepositions,
+// conjunctions, pronouns and auxiliaries. The same licence — English grammar
+// does not move either, so the list never has to follow the vocabulary — and
+// the same failure. A set whose labels quote an English phrase carries "do"
+// and "and", and every English task carries both by its second sentence;
+// those two alone cleared a bar meant to require two shared subjects. Nothing
+// here can be a subject.
+var englishGrammar = []string{
+	"a", "an", "the", "this", "that", "these", "those", "it", "its",
+	"and", "or", "but", "nor", "so", "if", "than", "as", "not", "no",
+	"of", "to", "in", "on", "at", "by", "for", "from", "with", "into", "onto",
+	"over", "under", "about", "after", "before", "between", "without", "within",
+	"through", "up", "down", "out", "off",
+	"is", "are", "was", "were", "be", "been", "being", "am",
+	"do", "does", "did", "done", "has", "have", "had", "having",
+	"can", "could", "will", "would", "shall", "should", "may", "might", "must",
+	"we", "our", "us", "you", "your", "they", "their", "them", "he", "she",
+	"his", "her", "i", "me", "my", "who", "whom", "whose", "what", "which",
+	"when", "where", "why", "how", "there", "here", "then", "also", "only",
+	"any", "some", "each", "every", "all", "such", "very", "just",
+}
+
 // stopKeys are keys that cannot tell one set in this wiki from another, so
 // counting them toward the threshold only manufactures matches.
 //
@@ -139,12 +167,53 @@ var grammarKeys = map[string]bool{
 // with no discriminating power looks like. A set genuinely named after the
 // project still matches through the name path below, which does not read this.
 func (st *Store) stopKeys() map[string]bool {
-	out := make(map[string]bool, len(grammarKeys)+4)
+	out := make(map[string]bool, len(grammarKeys)+2*len(englishGrammar)+4)
 	for k := range grammarKeys {
 		out[k] = true
 	}
+	// Through wordKeys, so the stem goes in beside the word: a label's "does"
+	// also yields "doe", and a stop list that only knew the word would let
+	// the stem match.
+	for _, w := range englishGrammar {
+		for _, k := range wordKeys(w) {
+			out[k] = true
+		}
+	}
 	for _, k := range wordKeys(strings.ToLower(filepath.Base(st.Root))) {
 		out[k] = true
+	}
+
+	// 여러 세트의 라벨에 걸쳐 나타나는 키는 변별하지 못한다 — 문법어를 빼는 것과
+	// 같은 이유이고, 같은 규칙을 데이터에서 읽는 것뿐이다.
+	//
+	// 한국어 라벨은 2-gram으로도 쪼개지므로("게이트" → "게이"·"이트") 서로 다른
+	// 낱말이 같은 키를 공유하고, 엔트리가 많은 세트일수록 그런 키를 많이 갖는다.
+	// 그래서 minTaskMatches=2가 큰 세트에는 사실상 문턱이 아니게 된다 — 2026-09-02
+	// 통합 벤치에서 delegation-gate(18엔트리)와 console(14)이 릴리스 질문에도,
+	// 지표 질문에도 붙은 기제가 이것이다.
+	//
+	// 세트가 적으면 적용하지 않는다. 셋뿐인 위키에서 "둘 이상이 공유"는 흔한 일이라
+	// 규칙이 라벨을 통째로 지워 버린다.
+	sets := st.SetList()
+	if len(sets) >= minSetsForCommonStop {
+		count := map[string]int{}
+		for _, s := range sets {
+			for k := range keySet(setText(s)) {
+				count[k]++
+			}
+		}
+		// 내림이다. 올림이면 세트 하나를 더하는 것만으로 문턱이 1 올라가고,
+		// 걸러지던 키가 한꺼번에 되돌아온다 — 세트 7번째를 추가하자 여분이 3에서
+		// 8로 튄 것이 그 일이다. 내림은 6·7세트에서 같은 문턱(3)을 유지한다.
+		limit := len(sets) / 2
+		if limit < 2 {
+			limit = 2
+		}
+		for k, n := range count {
+			if n >= limit {
+				out[k] = true
+			}
+		}
 	}
 	return out
 }
@@ -159,11 +228,67 @@ func matchesTask(s *Set, task string, stop map[string]bool) bool {
 	if countMatchingWords(task, keySet(s.Name+" "+s.Title)) > 0 {
 		return true
 	}
+	// Aliases ride the name path, not the label path. They exist for the
+	// reader whose task is written in a language the labels are not — this
+	// wiki's labels are Korean, and in the 2026-09-02 combined bench an
+	// English task reached a set only when its filename slug happened to be
+	// the word used — and an alias is the author saying "this is what the
+	// subject is called in that vocabulary", which is exactly the claim the
+	// name makes. So it earns the same single hit, and the stop list is not
+	// applied: an alias is chosen, not accumulated. The difference from the
+	// name is that a multi-word alias is a phrase. "gate tier" means the pair,
+	// so a task that merely says "gate" does not pull a release set in.
+	if len(s.Aliases) > 0 {
+		taskKeys := keySet(task)
+		for _, a := range s.Aliases {
+			if aliasMatches(a, taskKeys) {
+				return true
+			}
+		}
+	}
 	keys := keySet(setText(s))
 	for k := range stop {
 		delete(keys, k)
 	}
 	return countMatchingWords(task, keys) >= minTaskMatches
+}
+
+// aliasMatches reports whether every word of one alias appears in the task.
+//
+// The direction is deliberate: alias words are looked up in the task's keys,
+// not the other way round. A task writes "discovery-failure" as one word and
+// an alias writes "discovery failure" as two; counting task words would score
+// that as one hit against a phrase that needs two, while looking each alias
+// word up in the task's expanded keys finds both. Words too short to carry a
+// key are skipped rather than made impossible to satisfy.
+//
+// A hyphen splits here even though splitWords keeps it. "re-score" as one
+// word expands to the fragment "re", and any key of a word counting as a hit
+// would let "re-run" satisfy it; as two words, both halves are required, which
+// is what the author who wrote a compound meant.
+func aliasMatches(alias string, taskKeys map[string]bool) bool {
+	matched := 0
+	words := strings.FieldsFunc(alias, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	for _, w := range words {
+		ks := aliasKeys(w)
+		if len(ks) == 0 {
+			continue
+		}
+		hit := false
+		for _, k := range ks {
+			if taskKeys[k] {
+				hit = true
+				break
+			}
+		}
+		if !hit {
+			return false
+		}
+		matched++
+	}
+	return matched > 0
 }
 
 // setText is the set's labels: its name, the paragraph saying what it is for,
@@ -243,6 +368,10 @@ type ManifestSet struct {
 	// Entries counts what resolving this set would bring in, so a reader can
 	// tell a two-line set from a thirty-line one before asking for it.
 	Entries int
+	// Unreviewed says an agent changed this set and nobody has checked. It
+	// is in the catalogue rather than only on the sections because the
+	// catalogue is where a reader decides whether to open a set at all.
+	Unreviewed bool
 }
 
 // ManifestGroup names one group and its size.
@@ -261,10 +390,11 @@ func (st *Store) Manifest(sel Selection, secret []byte) Manifest {
 	}
 	for _, s := range sel.Sets {
 		ms := ManifestSet{
-			Name:    s.Name,
-			NodeID:  s.RelPath,
-			Summary: firstSentence(s.Summary()),
-			Entries: len(s.Entries()),
+			Name:       s.Name,
+			NodeID:     s.RelPath,
+			Summary:    firstSentence(s.Summary()),
+			Entries:    len(s.Entries()),
+			Unreviewed: s.Unreviewed,
 		}
 		for _, g := range s.Groups {
 			if g.Title == "" {

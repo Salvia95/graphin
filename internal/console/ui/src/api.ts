@@ -12,6 +12,8 @@ export type DecisionKind =
   | "stale_skill"
   | "unread_set"
   | "uncovered"
+  /** An agent changed the set and no person has looked since. */
+  | "unreviewed"
 
 export type Decision = {
   kind: DecisionKind
@@ -54,6 +56,10 @@ export type SetView = {
   tags: string[]
   prerequisites: string[]
   mode: string
+  /** "agent" when an agent wrote the set; absent when a person did. */
+  origin?: string
+  /** `reviewed: false` in the frontmatter — agent changes nobody has checked. */
+  unreviewed: boolean
   entries: number
   offered: number
   opened: number

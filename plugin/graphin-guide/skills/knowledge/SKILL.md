@@ -38,6 +38,7 @@ there is no second place that declares it.
 ---
 roles: []                 # push targets; empty means pull-only
 prerequisites: []         # other set names, pulled in ahead of this one
+aliases: [versioning, gate tier]  # the subject's names in other vocabularies
 mode: live                # live | pinned
 ---
 
@@ -65,6 +66,13 @@ whether the notes need a prelude, and why the workflow looks the way it does.
 Rules that matter:
 
 - **One entry is one line**: `- [title](relative/path.md#anchor) — summary`.
+- **Aliases are matched like the set's name** — one hit is enough, no
+  threshold — so write the subject's names, not words that appear in it. A
+  multi-word alias is a phrase: `gate tier` needs both words in the task, and
+  a task that only says "gate" does not pull the set in (a hyphenated alias
+  such as `re-score` is a phrase in the same way). They exist because
+  preflight matches on labels only: a set whose labels are Korean is invisible
+  to an English task unless an alias says what the subject is called there.
 - **The node id is the link target resolved against the set file's directory.**
   `docs/wiki/sets/release.md` + `../../plugin-distribution.md#133-the-0x-rule`
   → `docs/plugin-distribution.md#133-the-0x-rule`. That resolved string is what
@@ -100,6 +108,9 @@ Read the attributes on each `<section>`; they are not decoration:
   is not being claimed.
 - `redirected_from="…"` — the heading was renamed. The content is right and the
   set's link is stale; fix the link when you are next in that file.
+- `reviewed="false"` — an agent changed the set this section came from and no
+  person has checked the change. The text is the document's own; what may be
+  off is which sections the set chose and how it summarised them.
 
 Do not re-read a document you already loaded a section of, and do not read the
 whole file "for context" — the set exists to make that unnecessary.
@@ -120,7 +131,7 @@ The wiki is grown from work that wanted knowledge and did not get it. There is
 no retroactive sweep, and writing entries nobody asked for is how a glossary
 becomes a dictionary.
 
-`graphin wiki queue` shows four things at once, because they are one decision:
+`graphin wiki queue` shows five things at once, because they are one decision:
 
 - **awaiting review** — candidates already filed.
 - **work the wiki had no answer for** — every `wiki_preflight` that matched
@@ -129,6 +140,8 @@ becomes a dictionary.
   never resolved. Demote or delete; they cost every delegation and return
   nothing.
 - **served with a stale pin** — entries to re-read and `repin`.
+- **agent changes awaiting review** — sets the maintainer agent repaired or
+  re-summarised. Read the diff, then set `reviewed: true` in the frontmatter.
 
 To add a term, call `wiki_propose`. It **files a candidate and never publishes**
 — approving is a person moving the file into `docs/wiki/glossary/`, which makes
@@ -143,6 +156,67 @@ the review an ordinary diff. Three rules reject before a human ever looks:
 
 The test for a set, not a term: **would this knowledge have made the session
 shorter?** If the answer needs a paragraph of hedging, it is not a set yet.
+
+## Maintaining a set without editing markdown
+
+Three kinds of decay make no new claim — a dangling entry, a drifted summary,
+a set nobody opens — and `wiki_edit_set` handles them so nobody types anchors
+by hand:
+
+| `op` | When | What it writes |
+|---|---|---|
+| `repoint` | the entry's section was renamed or moved | the link target (and title, if given) |
+| `summarize` | the section was rewritten and the summary no longer holds | the entry's one-line summary, then repins it |
+| `confirm` | the section was rewritten but the summary still holds | nothing in the set; repins the entry |
+| `describe` | the set is offered and never opened | the set's `description` |
+
+Every write is judged first and refused on **anchor** (no such heading),
+**structure** (the target is code — the index already answers it),
+**duplicate** (the set already lists it), **summary** (empty) or **format**
+(a title with `]`, a node id with a space — text the entry line cannot
+carry). Confirming a dangling entry is refused too: there is nothing to have
+re-read, so repoint it. Every write that lands marks the set `reviewed: false`
+and repins what it touched. It is surgical: one entry's lines change, nothing
+else is reformatted, and the review is an ordinary diff.
+
+The `wiki-maintainer` subagent works this loop from `graphin wiki check` and
+`graphin wiki queue`. It never writes a set from nothing, and it is exempt
+from the knowledge gate because it works on the wiki rather than with it.
+
+## Writing a set at the end of a task
+
+A set is written by the agent that just did the work, at wrap-up, and only
+when that work's `wiki_preflight` came back empty. That is the whole trigger.
+"Extracting knowledge" from a task nobody asked about writes a set per task,
+and a wiki grown that way is a sweep of the documents dressed as curation.
+
+`wiki_write_set` takes the set whole — name, title, one-line description,
+aliases, groups of entries — plus `task`: the sentence you gave
+`wiki_preflight`, verbatim. It refuses before anything lands when:
+
+- **unasked** — no preflight in this workspace missed for that task;
+- **unreachable** — a preflight for that task would not select the set. Name
+  it, or alias it, the way the task names the subject; the check runs with the
+  set in place, so it is the real matcher's answer;
+- **anchor / structure / duplicate / summary** — the same rules as an edit:
+  every entry is a documentation heading that exists, listed once, with a
+  title and a sentence; and a set whose every section an existing set already
+  lists is that set under a new name;
+- **cap** — the wiki holds 30 sets. Displacing one is a person's call;
+- **format** — an alias or tag with a comma or bracket, a title on two lines.
+
+It also refuses outright in a workspace with no `docs/wiki`: creating that
+directory is how a project opts in, and a set is never the thing that does it.
+
+What lands carries `origin: agent` and `reviewed: false`, is pinned, and is
+served at once with the flag on every section. There are no roles: pushing a
+set into every delegation of a role is a standing decision the wiki's authors
+make, not something to decide at the end of one task.
+
+What to put in it: **the sections you actually had to find and read**, and for
+each, **what it claims** — "minor means the user has to fix something", not
+"the versioning rules". The reader is deciding whether to open it. If the
+honest set is one entry, it is not a set yet; say so in your report instead.
 
 ## Writing a glossary entry
 

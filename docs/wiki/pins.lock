@@ -113,8 +113,8 @@
         "r": "b3:ee935917193377bc476e152989344f647adf2ab5c4665ef58465a06fac94b18a"
       },
       "docs/console-spec.md#14-open-링크--왜-엔드포인트가-아니라-링크인가-2026-08-23": {
-        "h": "b3:02f07a03c7360ea0f567de67c2617290f25cf3841ac5fa2b5c5db61821cb5fab",
-        "r": "b3:eb8eaba4fb646040c889622d166fdea57a13f0c5254537326670b573a53a3a4f"
+        "h": "b3:7cecd0e31637e0c66bb378142d2022e5561cf00adc9342446de6117647fb259d",
+        "r": "b3:c51857f3b144404dfbba74f9a01a938a08c53dfddaba6f1c0063d521724f34e1"
       },
       "docs/console-spec.md#2-다시-볼-조건": {
         "h": "b3:abcc36cb064481ae79585692c0ab347d6e83a854b2dec211b74818a4106ec178",
@@ -203,8 +203,8 @@
         "r": "b3:cbedc5c2a23ecc72782e72969804d13ca490c700ef68628345838da55d0fb7bc"
       },
       "docs/delegation-gate.md#장면-5--세션-도중-위키가-바뀐다": {
-        "h": "b3:f5838a63d8b6522677d4a6c2d7cbb1dabd10ca1f18022e659b5b4293bf5a7bea",
-        "r": "b3:d338dd09e9d38af31c618b1037ba6aed01b7dd3eb74ce127fe72197cf4dfed58"
+        "h": "b3:881a391cf0472328b0aa858c28a8d82757c7283b9c25960f9fa3ff335efbd34f",
+        "r": "b3:7a65cfa21b9a7d686d01b937fca9aa3b2f60444c21b218d8960461bbfa3a68c2"
       },
       "docs/delegation-gate.md#장면-6--면제된-에이전트": {
         "h": "b3:313abe14e7ee57d6ad94521f411626c6215b4b130dc3ed135f4bbfc51abe3a52",
@@ -367,6 +367,52 @@
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
         "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",
         "r": "b3:352d16d8a2113850dc53a10040af6953e12e856a0c53d5235ede5adcc948a3c4"
+      }
+    },
+    "wiki-work": {
+      "docs/combined-bench-spec.md#1-팔은-둘이고-두-변수가-함께-움직인다": {
+        "h": "b3:f07ef66297984114c045e974e6fd20a95bc4e3dcbf62730af5dc31a85ba6a129",
+        "r": "b3:ef44eaf1726e8d891a7ce8d60d24073a2bc93fa77ec36c273f5a6a6eade8d9eb"
+      },
+      "docs/combined-bench-spec.md#2-네-영역--그리고-통찰을-결정론으로-재는-법": {
+        "h": "b3:5fab91909c3e94e22dc8d4a17f985ba29abf69e9a3d9d643270a8bf45f8eec72",
+        "r": "b3:4b8c2891bf09a5382e0c7e4b968f1a26dd0e36c5edd8b0a3a30047aaed352022"
+      },
+      "docs/delegation-gate.md#2-무대가-서는-조건": {
+        "h": "b3:cd74acf81f5d37f40bc26fa9de0078a305e7604b77c589e7fec32cf4b71b4f2e",
+        "r": "b3:819c5ae362e1bddead59ce7efd327adb6793f981f6c7a4462ad14b61a01ccb6a"
+      },
+      "docs/delegation-gate.md#장면-5--세션-도중-위키가-바뀐다": {
+        "h": "b3:881a391cf0472328b0aa858c28a8d82757c7283b9c25960f9fa3ff335efbd34f",
+        "r": "b3:7a65cfa21b9a7d686d01b937fca9aa3b2f60444c21b218d8960461bbfa3a68c2"
+      },
+      "docs/wiki-plan.md#1-확립된-것-넷": {
+        "h": "b3:ba44b0cd8cf97ea86e42f4330a11b1734d993c4559e4a12d1b90bf27886d9f1e",
+        "r": "b3:fa9e63d353f7d8ef554df35c67c71c5baa5ba943b832b88ab10e9e0ec70f5d99"
+      },
+      "docs/wiki-plan.md#2-확립되지-않은-것-셋": {
+        "h": "b3:115c258509dcc9c245c82487b464f1f3ed8e462b3fbcc494933a1765bc32cb92",
+        "r": "b3:f24146a58bc5dabe6993e1b3ba8f8923c86ef7ac9fb1ade8fca23e90c2ca1da5"
+      },
+      "docs/wiki-plan.md#3-함정--반드시-먼저-읽을-것": {
+        "h": "b3:9ca0b398b81eafb0a91ce2e8518e55c432aa40cb8b4728eedb997ff416596b98",
+        "r": "b3:c858b3e5fdfcb567db32e8008d4782c54cde78a197154e3dc52d2cbe071d8cf2"
+      },
+      "docs/wiki-plan.md#5-측정-장치-넷--무엇을-언제-쓰나": {
+        "h": "b3:5d0d7fb254e9ce9461421ffe59abe9470d3cab80e9e06080bd9da9d0f3636c68",
+        "r": "b3:be83dd309801721a0adb15211ade4212d0ecb77fc23c18bced329df094e3f7b1"
+      },
+      "docs/wiki-plan.md#p1--교차-언어-재현율": {
+        "h": "b3:a07f9846fdfa4e073591ed30a040077c255e45ccc3a236388c30bd0ce9b5023e",
+        "r": "b3:312bfc7ff0ca0848b5a0eae6ec9c62908e2b0a83d1c096fb7bfac3cf24f1f4b6"
+      },
+      "docs/wiki-plan.md#p2--세트-유지보수를-에이전트에게": {
+        "h": "b3:8023010c99ea2dcbe9e4d26adb2340963a6c58cd77c8230bbf20a395ff52e19c",
+        "r": "b3:834fc06714b1a011702a57f8e6b9bbf9307e931fd3ae7ff44df3450df1f4ffce"
+      },
+      "docs/wiki-plan.md#p3--세트-생성-위임": {
+        "h": "b3:8b29943212d180924e16a51853c973791aacc1a915c21ddba765e7cf4a01fe21",
+        "r": "b3:391cc01681ba808b6c735ea6f7f9d5c67603f30192b22e08f26bcd6b4b4e7361"
       }
     }
   }

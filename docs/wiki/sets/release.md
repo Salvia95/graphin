@@ -2,6 +2,7 @@
 type: knowledge_set
 description: 릴리스를 낼 때 필요한 지식 — 버전 자리, 노트 프렐류드, 워크플로가 그렇게 생긴 이유.
 tags: [release, versioning, distribution]
+aliases: [versioning, version digit, version bump, release gate, gate tier, release notes, dispatch, publish]
 roles: []
 prerequisites: []
 mode: live

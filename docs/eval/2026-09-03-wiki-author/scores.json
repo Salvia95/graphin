@@ -1,0 +1,80 @@
+{
+ "meta": {
+  "rubric_version": "0.1.0",
+  "era": "2026-07-28 (stateless)",
+  "corpus_files": 424,
+  "model": "sonnet",
+  "runs": 1,
+  "task": "wiki-rescore-compat",
+  "set": "rag-bench",
+  "graphin_commit": "2e2123c",
+  "started": "2026-09-03T00:03:23"
+ },
+ "rows": [
+  {
+   "run": 0,
+   "transcript": "author_r0.jsonl",
+   "wall_s": 175.2,
+   "error": null,
+   "miss_recorded": true,
+   "catalogue_before": [],
+   "result": {
+    "created": true,
+    "origin_agent": true,
+    "unreviewed": true,
+    "entries": 5,
+    "recall_nodes": 0.23,
+    "precision_nodes": 0.6,
+    "recall_files": 0.33,
+    "reachable": true,
+    "check_after": "ok: 7 sets, 92 entries, all pinned and current",
+    "collateral": [],
+    "description": "rag 벤치(graphin-rag 행동 골든셋)에서 루브릭 채점 규칙만 바꾼 버전과 러너 거동을 바꾼 버전이 RUN_COMPAT을 통해 옛 런의 재채점 가능 여부를 어떻게 가르는지.",
+    "nodes": [
+     "docs/eval/2026-09-01-rag-baseline/manifest.md#재현-좌표--rag-베이스라인-2026-09-01",
+     "docs/eval/2026-09-01-rag-merged-agent/manifest.md#재현-좌표--통합-에이전트-재베이스라인-2026-09-01",
+     "docs/rag-bench-spec.md#3-루브릭--세-축과-판정",
+     "docs/rag-bench-spec.md#4-러너가-격리하는-것-못-하는-것",
+     "docs/rag-bench-spec.md#6-환경-핀"
+    ],
+    "catalogue": [
+     "rag-bench"
+    ],
+    "human_nodes": [
+     ".claude/skills/rag-golden-set/SKILL.md#절대-규칙-이-작업에-graphin을-쓰지-않는다",
+     ".claude/skills/rag-golden-set/SKILL.md#절차",
+     "docs/eval/gate-log.md#관찰-중--게이트가-5분을-넘기는-이유",
+     "docs/rag-bench-spec.md#0-무엇을-재나",
+     "docs/rag-bench-spec.md#1-층은-에이전트의-종료-상태다",
+     "docs/rag-bench-spec.md#3-루브릭--세-축과-판정",
+     "docs/rag-bench-spec.md#4-러너가-격리하는-것-못-하는-것",
+     "docs/rag-bench-spec.md#5-판정-절차",
+     "docs/rag-bench-spec.md#6-환경-핀",
+     "docs/rag-bench-spec.md#7-모니터링-중--지어낸-노드-id",
+     "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정",
+     "docs/rag-bench-spec.md#8-유지-결정--스킬이-답을-서술하는-태스크-2026-09-01-소유자-결정",
+     "docs/rag-bench-spec.md#9-알려진-한계와-다음-축"
+    ]
+   },
+   "rejections": [],
+   "answer": {
+    "correct": true,
+    "must_cite_miss": [],
+    "evidence_miss": [],
+    "evidence_any_hit": true
+   },
+   "tokens_in": 791450,
+   "turns": 27,
+   "calls": 26,
+   "tools": [
+    "Bash",
+    "ToolSearch",
+    "mcp__graphin__bootstrap_workspace",
+    "mcp__graphin__read_code",
+    "mcp__graphin__search_hybrid",
+    "mcp__graphin__wiki_preflight",
+    "mcp__graphin__wiki_write_set"
+   ]
+  }
+ ]
+}

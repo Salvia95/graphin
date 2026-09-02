@@ -2,6 +2,7 @@
 type: agents
 agents:
   - release — exempt
+  - wiki-maintainer — exempt
 ---
 
 # 에이전트 표
@@ -44,6 +45,12 @@ graphin이 배포하는 에이전트(`graphin-rag`, `release`)와, 지식을 원
 이 파일은 그 위에 프로젝트별로 덧씌운다. 여기 `release`를 다시 적은 것은
 중복이 아니라, 이 저장소의 `.claude/agents/release.md`가 내장 이름과 같은
 이름을 쓴다는 사실을 눈에 보이게 두려는 것이다.
+
+`wiki-maintainer`도 내장이고 같은 이유로 다시 적는다. 면제인 근거는 남과
+다르다 — 지식이 필요 없어서가 아니라 **위키 자체를 고치는 에이전트**라서다.
+쓰기는 전부 `wiki_edit_set`을 거치고 그 도구가 판정하며, 저장소 파일은
+건드리지 않는다(`disallowedTools`). `graphin wiki check`를 돌리는 Bash를
+지식 게이트가 막으면, 지식을 참되게 유지하는 일이 지식 때문에 막힌다.
 
 ## 이름은 네임스페이스를 달고 온다
 

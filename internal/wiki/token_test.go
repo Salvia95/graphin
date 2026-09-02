@@ -167,3 +167,34 @@ func fingerprintOf(t *testing.T, root string) string {
 	}
 	return st.Fingerprint()
 }
+
+func TestFingerprintCoversSetAliases(t *testing.T) {
+	root := t.TempDir()
+	set := filepath.Join(root, DirName, setsSubdir, "release.md")
+	mustWrite(t, set, "---\naliases: [versioning]\n---\n\n# 릴리스\n")
+
+	before := fingerprintOf(t, root)
+
+	// An alias decides which tasks reach the set, so editing one changes
+	// what a preflight would have answered. A token minted before must not
+	// keep verifying.
+	mustWrite(t, set, "---\naliases: [versioning, dispatch]\n---\n\n# 릴리스\n")
+	if after := fingerprintOf(t, root); after == before {
+		t.Fatal("an edited alias list left the fingerprint unchanged")
+	}
+}
+
+func TestFingerprintCoversTheReviewFlag(t *testing.T) {
+	root := t.TempDir()
+	set := filepath.Join(root, DirName, setsSubdir, "ops.md")
+	mustWrite(t, set, "---\nreviewed: false\n---\n\n# 운영\n")
+
+	before := fingerprintOf(t, root)
+
+	// A person clearing the flag changes what every served section says,
+	// so a catalogue minted while it was set must stop verifying.
+	mustWrite(t, set, "---\nreviewed: true\n---\n\n# 운영\n")
+	if after := fingerprintOf(t, root); after == before {
+		t.Fatal("flipping reviewed left the fingerprint unchanged")
+	}
+}

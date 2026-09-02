@@ -93,6 +93,13 @@ func (st *Store) Fingerprint() string {
 		field(s.Roles...)
 		field(s.Prerequisites...)
 		field(s.Tags...)
+		// Aliases decide which tasks reach the set, so an edit to them changes
+		// what a preflight would have answered. Tags are signed without being
+		// delivered; aliases at least do work.
+		field(s.Aliases...)
+		// Provenance and the review flag: both travel with what is served,
+		// so flipping either changes what a reader was told.
+		field(s.Origin, reviewedField(s))
 		// Summary, not Intro: a declared description overrides the opening
 		// prose in the catalogue, so hashing Intro alone would let an edit
 		// change what a delegate sees while its token still verified.
@@ -129,6 +136,14 @@ func (st *Store) Fingerprint() string {
 		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// reviewedField renders the review state the way the frontmatter says it.
+func reviewedField(s *Set) string {
+	if s.Unreviewed {
+		return "false"
+	}
+	return ""
 }
 
 // MintToken signs the wiki's current state so a gate can tell a real

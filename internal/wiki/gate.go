@@ -144,9 +144,13 @@ func gateChange(root string, in hookInput, stderr io.Writer) int {
 	case found:
 		// The spawn hook ran and declined to clear: the delegation arrived
 		// without a manifest.
+		// 빈 손으로 나가는 길을 여기서도 말한다. 다른 두 메시지는 말하는데 이
+		// 경로만 빠져 있었고, 그 침묵은 "무언가는 읽어야 넘어간다"로 읽힌다 —
+		// 그러면 에이전트가 관련 없는 세트라도 집어넣는 쪽으로 기운다.
 		fmt.Fprint(stderr, "This agent started without a knowledge manifest.\n\n"+
 			"Call wiki_resolve for the sets your task needs, then retry. If the\n"+
-			"delegation prompt names no sets, call wiki_preflight first.\n")
+			"delegation prompt names no sets, call wiki_preflight first — and if\n"+
+			"nothing applies, wiki_resolve with an empty catalogue still clears this.\n")
 	case in.AgentID != "":
 		// A subagent with no breadcrumb at all: SubagentStart never ran.
 		// Saying so is the whole reason the breadcrumb exists — otherwise a

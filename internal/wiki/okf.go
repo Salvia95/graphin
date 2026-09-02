@@ -240,6 +240,11 @@ func (st *Store) setConcept(s *Set, usage FrictionReport) string {
 	}
 	yamlList(&b, "graphin_roles", s.Roles)
 	yamlList(&b, "graphin_prerequisites", s.Prerequisites)
+	yamlList(&b, "graphin_aliases", s.Aliases)
+	yamlField(&b, "graphin_origin", s.Origin)
+	if s.Unreviewed {
+		b.WriteString("graphin_reviewed: false\n")
+	}
 	b.WriteString("---\n\n")
 
 	fmt.Fprintf(&b, "# %s\n\n", setTitle(s))

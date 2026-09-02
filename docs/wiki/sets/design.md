@@ -2,6 +2,7 @@
 type: knowledge_set
 description: 콘솔 화면을 만들거나 고칠 때 필요한 디자인 지식 — 토큰이 어디 사는지, 무엇을 참조에서 빌리고 무엇을 의도적으로 어겼는지.
 tags: [design, console, ui, frontend]
+aliases: [design system, design tokens, colour, color, palette, typography, spacing, styling, css, theme]
 roles: []
 prerequisites: []
 mode: live

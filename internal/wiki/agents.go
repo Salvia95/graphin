@@ -57,8 +57,14 @@ var builtinAgents = map[string]string{
 	// agent must not start failing a gate it passed yesterday.
 	"graphin-explorer": RoleExempt,
 	"release":          RoleExempt,
-	"Explore":          RoleExempt,
-	"Plan":             RoleExempt,
+	// Works ON the wiki, not with it: it repairs sets through wiki_edit_set,
+	// which judges every write, and never edits a project file. Its Bash
+	// runs `graphin wiki check` and `graphin wiki queue`, and a gate that
+	// stopped those for project knowledge would stop the maintenance the
+	// wiki depends on to stay true.
+	"wiki-maintainer": RoleExempt,
+	"Explore":         RoleExempt,
+	"Plan":            RoleExempt,
 	// Only ever edits a settings file of the user's own.
 	"statusline-setup": RoleExempt,
 	// Deliberately not exempt. A fork begins with its caller's context, so

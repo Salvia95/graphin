@@ -63,3 +63,18 @@ func TestSelectMatchesKoreanTask(t *testing.T) {
 		t.Fatalf("unrelated task matched %v", names(sel.Sets))
 	}
 }
+
+// Counting concepts must not depend on the order the query says them in: the
+// same task worded two ways must pull the same sets.
+func TestCountMatchingWordsIsOrderIndependent(t *testing.T) {
+	keys := keySet("에이전트 이전 버전 호환")
+	a := countMatchingWords("에이전트 이전", keys)
+	b := countMatchingWords("이전 에이전트", keys)
+	if a != b {
+		t.Fatalf("order changed the count: %d vs %d", a, b)
+	}
+	// And two words that are one concept still count once.
+	if n := countMatchingWords("서브에이전트를 에이전트", keySet("에이전트 표")); n != 1 {
+		t.Fatalf("one concept counted %d times", n)
+	}
+}

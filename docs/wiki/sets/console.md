@@ -2,6 +2,7 @@
 type: knowledge_set
 description: graphin console(P7)을 이어받을 때 필요한 지식 — 왜 보류였고 무엇이 그 판단을 뒤집었는지, 쓰기 경계가 어디인지, 짓는 동안 계속 걸리는 제약.
 tags: [console, frontend, wiki]
+aliases: [dashboard, web ui, screen, decision queue, drawer, http api]
 roles: []
 prerequisites: []
 mode: live

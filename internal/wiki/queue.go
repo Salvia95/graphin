@@ -27,6 +27,19 @@ type QueueReport struct {
 	Unread []UnreadSet `json:"unread_sets"`
 	// Drifted are sections served while their pin no longer matched.
 	Drifted []DriftedNode `json:"drifted"`
+	// Unreviewed are sets an agent changed that no person has looked at.
+	// Agent maintenance is applied first and controlled after; this list is
+	// the control, and it empties only when someone sets reviewed: true.
+	Unreviewed []UnreviewedSet `json:"unreviewed"`
+}
+
+// UnreviewedSet is one set carrying agent changes nobody has checked.
+type UnreviewedSet struct {
+	Set string `json:"set"`
+	// Origin is "agent" when the agent wrote the whole set, empty when it
+	// only edited one a person wrote. The reading load differs.
+	Origin string `json:"origin,omitempty"`
+	File   string `json:"file"`
 }
 
 // GlossaryUsage is how full the glossary is. The cap is a decision point
@@ -85,11 +98,17 @@ func BuildQueueReport(root string) (QueueReport, error) {
 	// turns an ordinary `.map()` over an empty queue into a crash, and an
 	// empty queue is the state the console spends most of its life in.
 	q := QueueReport{
-		Glossary: GlossaryUsage{Count: len(store.Terms), Cap: GlossaryCap},
-		Awaiting: []QueuedProposal{},
-		Misses:   []FrictionEvent{},
-		Unread:   []UnreadSet{},
-		Drifted:  []DriftedNode{},
+		Glossary:   GlossaryUsage{Count: len(store.Terms), Cap: GlossaryCap},
+		Awaiting:   []QueuedProposal{},
+		Misses:     []FrictionEvent{},
+		Unread:     []UnreadSet{},
+		Drifted:    []DriftedNode{},
+		Unreviewed: []UnreviewedSet{},
+	}
+	for _, s := range store.SetList() {
+		if s.Unreviewed {
+			q.Unreviewed = append(q.Unreviewed, UnreviewedSet{Set: s.Name, Origin: s.Origin, File: s.RelPath})
+		}
 	}
 	if friction.Misses != nil {
 		q.Misses = friction.Misses
@@ -155,6 +174,18 @@ func RenderQueue(w io.Writer, q QueueReport, misses int) {
 		for _, s := range q.Unread {
 			fmt.Fprintf(w, "  %-24s offered %d times, resolved 0\n", s.Set, s.Offered)
 		}
+	}
+
+	if len(q.Unreviewed) > 0 {
+		fmt.Fprintf(w, "\nagent changes awaiting review (%d)\n", len(q.Unreviewed))
+		for _, u := range q.Unreviewed {
+			what := "edited"
+			if u.Origin == OriginAgent {
+				what = "written"
+			}
+			fmt.Fprintf(w, "  %-24s %s by an agent — %s\n", u.Set, what, u.File)
+		}
+		fmt.Fprintln(w, "  read the diff, then set `reviewed: true` in the frontmatter")
 	}
 
 	if len(q.Drifted) > 0 {

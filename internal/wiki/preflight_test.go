@@ -170,3 +170,97 @@ func TestSelectIgnoresTheProjectName(t *testing.T) {
 		t.Errorf("the project name carried a match: %v", sel.Matched)
 	}
 }
+
+// aliasWiki builds a workspace whose labels are all Korean, the way this
+// repository's are, with one set carrying English aliases.
+func aliasWiki(t *testing.T) *Store {
+	t.Helper()
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "docs", "target.md"), targetDoc)
+
+	mustWrite(t, filepath.Join(root, DirName, setsSubdir, "baepo.md"),
+		"---\nroles: []\naliases: [deployment, gate tier, discovery failure, re-index]\n---\n\n# 배포\n\n"+
+			"배포를 낼 때 필요한 지식.\n\n"+
+			"## 버전 자리\n\n"+
+			"- [규칙](../../target.md#section-one) — 0.x에서는 마이너가 곧 사용자가 고칠 일이다.\n")
+
+	mustWrite(t, filepath.Join(root, DirName, setsSubdir, "gwallye.md"),
+		"---\nroles: []\n---\n\n# 관례\n\n"+
+			"아무도 빠진 줄 모르는 계층 규칙.\n\n"+
+			"## 계층\n\n"+
+			"- [계층](../../target.md#section-one) — 핸들러는 저장소를 직접 만지지 않는다.\n")
+
+	store, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
+}
+
+func TestSelectMatchesOnAlias(t *testing.T) {
+	store := aliasWiki(t)
+	// The labels are Korean, so an English task has nothing to meet in them.
+	// The alias is the author saying what the subject is called in that
+	// vocabulary — the same claim the name makes, and the same direct hit.
+	sel := store.Select("", "how do I ship a deployment")
+	if len(sel.Matched) != 1 || sel.Matched[0] != "baepo" {
+		t.Fatalf("Matched = %v", sel.Matched)
+	}
+}
+
+// An alias matches on its whole word, never on a bigram of it: "릴리스" must
+// not meet "리스트" on the shared piece "리스", while the task's own particle
+// is still bridged by the stem on the task side.
+func TestAliasDoesNotMatchOnAFragment(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "docs", "target.md"), targetDoc)
+	mustWrite(t, filepath.Join(root, DirName, setsSubdir, "baepo.md"),
+		"---\nroles: []\naliases: [릴리스]\n---\n\n# 배포\n\n배포를 낼 때.\n\n## 규칙\n\n- [규칙](../../target.md#section-one) — 요약.\n")
+	store, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel := store.Select("", "이슈 리스트를 정리한다"); !sel.Empty() {
+		t.Fatalf("a bigram of the alias matched: %v", sel.Matched)
+	}
+	if sel := store.Select("", "릴리스를 낸다"); len(sel.Matched) != 1 {
+		t.Fatalf("the alias did not meet its own inflection: %v", sel.Matched)
+	}
+}
+
+func TestAliasPhraseNeedsEveryWord(t *testing.T) {
+	store := aliasWiki(t)
+	// "gate tier" is a pair. A task that only says "gate" is about something
+	// else more often than not, and a single-word hit on it would pull the
+	// release set into every question about the delegation gate.
+	if sel := store.Select("", "what does the gate block"); !sel.Empty() {
+		t.Fatalf("half a phrase matched: %v", sel.Matched)
+	}
+	if sel := store.Select("", "which gate tier has to run"); len(sel.Matched) != 1 {
+		t.Fatalf("whole phrase did not match: %v", sel.Matched)
+	}
+	// A task writes the pair as one hyphenated word. Alias words are looked
+	// up in the task's expanded keys, which is what lets the two shapes meet.
+	if sel := store.Select("", "how does the discovery-failure number move"); len(sel.Matched) != 1 {
+		t.Fatalf("hyphenated task word did not meet the two-word alias: %v", sel.Matched)
+	}
+	// And a hyphenated alias is a phrase too. "re-index" must not be
+	// satisfied by the fragment "re" that every "re-something" task carries.
+	if sel := store.Select("", "re-run the job"); !sel.Empty() {
+		t.Fatalf("a fragment of a hyphenated alias matched: %v", sel.Matched)
+	}
+	if sel := store.Select("", "we re-indexed the tree"); len(sel.Matched) != 1 {
+		t.Fatalf("hyphenated alias did not meet its own inflection: %v", sel.Matched)
+	}
+}
+
+func TestSelectMeetsInflectedLatinWords(t *testing.T) {
+	store := richWiki(t)
+	// The index stems Latin terms, and matching has to meet a task the way
+	// search would: "releasing" is the release set's subject, not a
+	// different word.
+	sel := store.Select("", "we are releasing tomorrow")
+	if len(sel.Matched) != 1 || sel.Matched[0] != "release" {
+		t.Fatalf("Matched = %v", sel.Matched)
+	}
+}

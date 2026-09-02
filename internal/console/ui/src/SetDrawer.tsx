@@ -36,6 +36,13 @@ export function SetDrawer({ s, onClose }: { s: SetView | null; onClose: () => vo
                   expired
                 </span>
               )}
+              {s.unreviewed && (
+                // Same watch tone as drift: an agent's change is being served
+                // and a person has not looked. Not an error, not a pass.
+                <span className="rounded-sm border border-status-watch/40 px-1.5 py-0.5 text-tag tracking-tag text-status-watch uppercase">
+                  unreviewed
+                </span>
+              )}
             </div>
             <div className="mt-1.5 text-pretty text-body-sm text-muted-strong">{s.title}</div>
             <div className="mt-5 grid grid-cols-[repeat(3,max-content)] gap-8">

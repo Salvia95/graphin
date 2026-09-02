@@ -55,6 +55,10 @@ type SetFrontEdits struct {
 	// delegation of that role down to task matching, which is what "demote"
 	// means here.
 	Roles *[]string `json:"roles,omitempty"`
+	// Reviewed is the after-the-fact control on agent maintenance. An agent
+	// edit sets it false; a person who has read the diff sets it true, and
+	// that is the whole review — there is no other ceremony.
+	Reviewed *bool `json:"reviewed,omitempty"`
 }
 
 // EditSetFront rewrites those fields in place and touches nothing else.
@@ -97,6 +101,9 @@ func EditSetFront(root, name string, edits SetFrontEdits) (string, error) {
 	}
 	if edits.Roles != nil {
 		lines = setList(lines, "roles", *edits.Roles)
+	}
+	if edits.Reviewed != nil {
+		lines = setScalar(lines, "reviewed", fmt.Sprintf("%t", *edits.Reviewed))
 	}
 
 	var out bytes.Buffer

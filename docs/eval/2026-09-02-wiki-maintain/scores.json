@@ -1,0 +1,133 @@
+{
+ "meta": {
+  "rubric_version": "0.1.0",
+  "era": "2026-07-28 (stateless)",
+  "corpus_files": 420,
+  "model": "sonnet",
+  "runs": 1,
+  "seed": 1,
+  "broke": {
+   "dangling": 3,
+   "drift": 2,
+   "unread": 1
+  },
+  "graphin_commit": "2e2123c",
+  "started": "2026-09-02T23:48:21"
+ },
+ "rows": [
+  {
+   "run": 0,
+   "transcript": "maint_r0.jsonl",
+   "wall_s": 137.5,
+   "error": null,
+   "truth": {
+    "dangling": [
+     {
+      "set": "delegation-gate",
+      "title": "§7 마찰 로그",
+      "original": "docs/delegation-gate.md#7-마찰-로그",
+      "broken": "docs/delegation-gate.md#7-마찰-로그-old"
+     },
+     {
+      "set": "delegation-gate",
+      "title": "§2 무장 조건",
+      "original": "docs/delegation-gate.md#2-무대가-서는-조건",
+      "broken": "docs/delegation-gate.md#2-무대가-서는-조건-old"
+     },
+     {
+      "set": "design",
+      "title": "Do's and Don'ts",
+      "original": "docs/design-system.md#dos-and-donts",
+      "broken": "docs/design-system.md#dos-and-donts-old"
+     }
+    ],
+    "drift": [
+     {
+      "set": "delegation-gate",
+      "node": "docs/delegation-gate.md#장면-14--비상구",
+      "original_hash": "b3:3adf156eddff4e81b6b95af71d90cf569ed99af60e7b4ccbc2766b7982d52c10"
+     },
+     {
+      "set": "adoption",
+      "node": "docs/usage-spec.md#43-부가-지표",
+      "original_hash": "b3:4a8e3907d12b757c2ed6412dd2947400b2638b318058ffeb6f30306b1a095c6d"
+     }
+    ],
+    "unread": [
+     {
+      "set": "wiki-work",
+      "original_description": "위키 자체를 고칠 때 필요한 지식 — 2026-09-02 측정이 확립한 것, 다시 밟으면 안 되는 함정, 다음 세 단계."
+     }
+    ]
+   },
+   "result": {
+    "dangling": [
+     {
+      "set": "delegation-gate",
+      "title": "§7 마찰 로그",
+      "original": "docs/delegation-gate.md#7-마찰-로그",
+      "broken": "docs/delegation-gate.md#7-마찰-로그-old",
+      "verdict": "correct"
+     },
+     {
+      "set": "delegation-gate",
+      "title": "§2 무장 조건",
+      "original": "docs/delegation-gate.md#2-무대가-서는-조건",
+      "broken": "docs/delegation-gate.md#2-무대가-서는-조건-old",
+      "verdict": "correct"
+     },
+     {
+      "set": "design",
+      "title": "Do's and Don'ts",
+      "original": "docs/design-system.md#dos-and-donts",
+      "broken": "docs/design-system.md#dos-and-donts-old",
+      "verdict": "correct"
+     }
+    ],
+    "drift": [
+     {
+      "set": "delegation-gate",
+      "node": "docs/delegation-gate.md#장면-14--비상구",
+      "original_hash": "b3:3adf156eddff4e81b6b95af71d90cf569ed99af60e7b4ccbc2766b7982d52c10",
+      "verdict": "repinned"
+     },
+     {
+      "set": "adoption",
+      "node": "docs/usage-spec.md#43-부가-지표",
+      "original_hash": "b3:4a8e3907d12b757c2ed6412dd2947400b2638b318058ffeb6f30306b1a095c6d",
+      "verdict": "repinned"
+     }
+    ],
+    "unread": [
+     {
+      "set": "wiki-work",
+      "original_description": "위키 자체를 고칠 때 필요한 지식 — 2026-09-02 측정이 확립한 것, 다시 밟으면 안 되는 함정, 다음 세 단계.",
+      "description": "위키의 매칭·주입·유지보수를 고칠 때 필요한 지식 — 주입은 정답률이 아니라 비용을 10~25배 줄인다는 것, 병목은 카탈로그 정밀도가 아니라 재현율(빈 카탈로그가 가장 비싼 실패)이라는 것, 교차 언어 재현율이 아직 안 풀렸다는 것, 그리고 dangling/drift/unread 세트 수선이 새 주장을 만들지 않아 P2로 먼저 열린 이유를 담는다.",
+      "verdict": "described"
+     }
+    ],
+    "collateral": [],
+    "unmarked": [],
+    "check_after": "ok: 7 sets, 100 entries, all pinned and current",
+    "check_rc": 0,
+    "touched": [
+     "adoption",
+     "delegation-gate",
+     "design",
+     "wiki-work"
+    ]
+   },
+   "check_before": "drift       adoption:37  docs/usage-spec.md#43-부가-지표 — content changed since registration\ndangling    delegation-gate:28  docs/delegation-gate.md#2-무대가-서는-조건-old — no such node — heading renamed or file moved\ndrift       delegation-gate:94  docs/delegation-gate.md#장면-14--비상구 — content changed since registration\ndangling    delegation-gate:105  docs/delegation-gate.md#7-마찰-로그-old — no such node — heading renamed or file moved\ndangling    design:68  docs/design-system.md#dos-and-donts-old — no such node — heading renamed or file moved\n\n5 problem(s) across 7 sets, 100 entries\nrun `graphin wiki repin` after confirming each summary still matches its section",
+   "tokens_in": 585197,
+   "turns": 24,
+   "calls": 23,
+   "tools": [
+    "Bash",
+    "ToolSearch",
+    "mcp__graphin__bootstrap_workspace",
+    "mcp__graphin__read_code",
+    "mcp__graphin__wiki_edit_set"
+   ]
+  }
+ ]
+}

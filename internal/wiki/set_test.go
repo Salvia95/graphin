@@ -5,6 +5,7 @@ import "testing"
 const sampleSet = "---\n" +
 	"roles: [backend]\n" +
 	"prerequisites: [basics]\n" +
+	"aliases: [versioning, gate tier]\n" +
 	"mode: pinned\n" +
 	"---\n" +
 	"\n" +
@@ -40,6 +41,10 @@ func TestParseSet(t *testing.T) {
 	if len(s.Roles) != 1 || s.Roles[0] != "backend" {
 		t.Errorf("Roles = %v", s.Roles)
 	}
+	// A multi-word alias stays one item: it is a phrase, not two words.
+	if len(s.Aliases) != 2 || s.Aliases[1] != "gate tier" {
+		t.Errorf("Aliases = %v", s.Aliases)
+	}
 	if len(s.Groups) != 2 {
 		t.Fatalf("Groups = %d, want 2", len(s.Groups))
 	}
@@ -69,6 +74,11 @@ func TestParseSet(t *testing.T) {
 	}
 	if s.Intro != "Intro prose that is not an entry." {
 		t.Errorf("Intro = %q", s.Intro)
+	}
+	// Line is the file line, header included: six header lines then the
+	// body, so the first entry sits on line 14 of the file.
+	if e.Line != 14 {
+		t.Errorf("Line = %d, want 14", e.Line)
 	}
 }
 

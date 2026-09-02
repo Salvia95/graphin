@@ -38,6 +38,9 @@ func ParseSet(relPath string, src []byte) (*Set, error) {
 		Title:         front.Get("title"),
 		Description:   front.Get("description"),
 		Tags:          front.List("tags"),
+		Aliases:       front.List("aliases"),
+		Origin:        front.Get("origin"),
+		Unreviewed:    strings.EqualFold(front.Get("reviewed"), "false"),
 		StaleAfter:    front.Get("stale_after"),
 		Roles:         front.List("roles"),
 		Prerequisites: front.List("prerequisites"),
@@ -51,6 +54,10 @@ func ParseSet(relPath string, src []byte) (*Set, error) {
 	// the offset the frontmatter ended on rather than at zero.
 	bodyStart := len(src) - len(body)
 	dir := pathpkg.Dir(relPath)
+	// Entry lines are reported against the FILE, not the body. A diagnostic
+	// that says "wiki-work:19" for line 27 sends a reader to the wrong line,
+	// and the entry editor below needs the real one to cut the right span.
+	fmLines := strings.Count(string(src[:bodyStart]), "\n")
 
 	sections := sectionIDsByOffset(relPath, src)
 
@@ -123,7 +130,7 @@ func ParseSet(relPath string, src []byte) (*Set, error) {
 				Title:   strings.TrimSpace(m[1]),
 				NodeID:  id,
 				Summary: trimSummary(m[3]),
-				Line:    lineNo + 1,
+				Line:    lineNo + 1 + fmLines,
 			})
 			sb := &strings.Builder{}
 			sb.WriteString(cur.Entries[len(cur.Entries)-1].Summary)

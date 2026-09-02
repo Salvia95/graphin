@@ -122,9 +122,31 @@ type Set struct {
 	Description string
 	Tags        []string
 	StaleAfter  string
-	Intro       string // body above the first group
-	Groups      []Group
+	// Aliases are the subject's other names — what a reader calls it in a
+	// language or vocabulary the labels are not written in. This
+	// repository's labels are Korean, and an English task reached a set only
+	// when the filename slug happened to be the word used. An alias is
+	// matched the way the name is, as a direct hit, so it should name the
+	// subject and not merely a word that appears somewhere in the set.
+	Aliases []string
+	// Origin says who wrote the set. Empty is a person; OriginAgent marks
+	// one an agent created. It is not trust — that is Unreviewed's job — it
+	// is provenance, and it stays after a review because a reviewed
+	// agent-written set is still an agent-written set.
+	Origin string
+	// Unreviewed is `reviewed: false` in the frontmatter: an agent changed
+	// the set and no person has looked since. The user's rule for agent
+	// maintenance is "apply now, control afterwards", and this flag is the
+	// afterwards — it travels with every section the set serves, it is a
+	// decision in the queue, and a person ends it by setting reviewed: true.
+	// Absent means not applicable: the set was never touched by an agent.
+	Unreviewed bool
+	Intro      string // body above the first group
+	Groups     []Group
 }
+
+// OriginAgent is the Origin of a set an agent wrote.
+const OriginAgent = "agent"
 
 // Stale reports whether the set has passed its own expiry date. See
 // Term.Stale for why this is a separate question from drift.
@@ -168,6 +190,16 @@ func (s *Set) Entries() []Entry {
 		out = append(out, g.Entries...)
 	}
 	return out
+}
+
+// cites reports whether the set lists the node.
+func (s *Set) cites(nodeID string) bool {
+	for _, e := range s.Entries() {
+		if e.NodeID == nodeID {
+			return true
+		}
+	}
+	return false
 }
 
 // NodeIDs returns every node the set points at, in document order, without

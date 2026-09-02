@@ -357,6 +357,27 @@ diff는 아무도 못 보는 재작성이다. **저자가 쓴 리스트 표기(`
 이 링크를 고쳐라, 이 요약을 확인해라, 이 날짜를 옮겨라, 이 세트를 강등해라.
 그리고 착지하는 엔트리 줄에서 문서는 ctrl-click 한 번이다.
 
+## 15. 아홉 번째 카드 — 에이전트가 고친 것 (2026-09-02)
+
+세트 유지보수의 세 종류(dangling·drift·unread_set)를 에이전트에게 넘겼다
+(`wiki_edit_set`, `docs/wiki-plan.md` P2). 사용자의 규칙은 **즉시 반영 + 사후
+통제**이고, 콘솔에서 사후 통제는 카드 하나다: `unreviewed` — 에이전트가 고쳤고
+아직 아무도 안 본 세트. 세트 frontmatter의 `reviewed: false`에서 파생되므로
+§11의 규칙을 그대로 따른다 — 고치면(사람이 `reviewed: true`로 바꾸면) 사라진다.
+
+순서는 drift 다음, approve 앞이다. 후보는 승인 전까지 서빙되지 않지만 에이전트의
+수정은 **이미 서빙되고 있다** — `wiki_resolve`의 모든 절과 `wiki_preflight`의
+카탈로그 줄이 `reviewed="false"`를 단다.
+
+집행은 이미 있던 엔드포인트다. `POST /api/sets/{name}/edit`가 `reviewed`를
+받는다(`SetFrontEdits.Reviewed`) — §5의 규칙대로 CLI·에이전트·콘솔이 같은
+함수 하나(`EditSetFront`)를 부른다. 화면은 세트 드로어의 배지까지만 두었고 카드의
+버튼은 안 달았다: 리뷰는 **diff를 읽는 일**이고 그건 에디터에서 일어난다. 버튼이
+있으면 안 읽고 누른다.
+
+`Set.Origin`(`origin: agent`)은 여기서 아직 쓰이지 않는다. P3(세트 생성 위임)이
+쓸 자리를 미리 판 것이고, 리뷰가 끝나도 남는다 — 신뢰가 아니라 출처다.
+
 ---
 
 **관련**: `docs/plugin-distribution.md` §13(버저닝) · §5.2(릴리스 워크플로) ·

@@ -1,0 +1,148 @@
+{
+ "meta": {
+  "rubric_version": "0.1.0",
+  "era": "2026-07-28 (stateless)",
+  "corpus_files": 422,
+  "model": "sonnet",
+  "runs": 1,
+  "seed": 2,
+  "rename": "heading",
+  "broke": {
+   "dangling": 3,
+   "drift": 2,
+   "unread": 1
+  },
+  "graphin_commit": "2e2123c",
+  "started": "2026-09-03T00:02:16"
+ },
+ "rows": [
+  {
+   "run": 0,
+   "transcript": "maint_r0.jsonl",
+   "wall_s": 372.3,
+   "error": null,
+   "truth": {
+    "dangling": [
+     {
+      "set": "adoption",
+      "title": "§0 목표와 지표 철학",
+      "original": "docs/usage-spec.md#0-목표와-척도의-원리",
+      "broken": "docs/usage-spec.md#0-목표와-지표-철학",
+      "old_heading": "0. 목표와 지표 철학",
+      "new_heading": "0. 목표와 척도의 원리"
+     },
+     {
+      "set": "rag-bench",
+      "title": "절대 규칙",
+      "original": ".claude/skills/rag-golden-set/SKILL.md#마크다운-제목이-보이지-않습니다-다시-써달라고-하실-제목을-제시해-주세요",
+      "broken": ".claude/skills/rag-golden-set/SKILL.md#절대-규칙-이-작업에-graphin을-쓰지-않는다",
+      "old_heading": "절대 규칙: 이 작업에 graphin을 쓰지 않는다",
+      "new_heading": "마크다운 제목이 보이지 않습니다. 다시 써달라고 하실 제목을 제시해 주세요."
+     },
+     {
+      "set": "design",
+      "title": "Typography",
+      "original": "docs/design-system.md#활자술",
+      "broken": "docs/design-system.md#typography",
+      "old_heading": "Typography",
+      "new_heading": "활자술"
+     }
+    ],
+    "drift": [
+     {
+      "set": "design",
+      "node": "docs/design-system.md#layout",
+      "original_hash": "b3:ddf962c3589509caaeb19c7baedaf20f83dcf0453712db7a586789d46edea477"
+     },
+     {
+      "set": "adoption",
+      "node": "docs/usage-spec.md#41-스트림윈도우-구성",
+      "original_hash": "b3:b2966700655f5320f213bc171f1a849e28fce50cec763a013cc12e6b8509e6ae"
+     }
+    ],
+    "unread": [
+     {
+      "set": "release",
+      "original_description": "릴리스를 낼 때 필요한 지식 — 버전 자리, 노트 프렐류드, 워크플로가 그렇게 생긴 이유."
+     }
+    ]
+   },
+   "result": {
+    "dangling": [
+     {
+      "set": "adoption",
+      "title": "§0 목표와 지표 철학",
+      "original": "docs/usage-spec.md#0-목표와-척도의-원리",
+      "broken": "docs/usage-spec.md#0-목표와-지표-철학",
+      "old_heading": "0. 목표와 지표 철학",
+      "new_heading": "0. 목표와 척도의 원리",
+      "verdict": "correct"
+     },
+     {
+      "set": "rag-bench",
+      "title": "절대 규칙",
+      "original": ".claude/skills/rag-golden-set/SKILL.md#마크다운-제목이-보이지-않습니다-다시-써달라고-하실-제목을-제시해-주세요",
+      "broken": ".claude/skills/rag-golden-set/SKILL.md#절대-규칙-이-작업에-graphin을-쓰지-않는다",
+      "old_heading": "절대 규칙: 이 작업에 graphin을 쓰지 않는다",
+      "new_heading": "마크다운 제목이 보이지 않습니다. 다시 써달라고 하실 제목을 제시해 주세요.",
+      "verdict": "correct"
+     },
+     {
+      "set": "design",
+      "title": "Typography",
+      "original": "docs/design-system.md#활자술",
+      "broken": "docs/design-system.md#typography",
+      "old_heading": "Typography",
+      "new_heading": "활자술",
+      "verdict": "removed"
+     }
+    ],
+    "drift": [
+     {
+      "set": "design",
+      "node": "docs/design-system.md#layout",
+      "original_hash": "b3:ddf962c3589509caaeb19c7baedaf20f83dcf0453712db7a586789d46edea477",
+      "verdict": "repinned"
+     },
+     {
+      "set": "adoption",
+      "node": "docs/usage-spec.md#41-스트림윈도우-구성",
+      "original_hash": "b3:b2966700655f5320f213bc171f1a849e28fce50cec763a013cc12e6b8509e6ae",
+      "verdict": "repinned"
+     }
+    ],
+    "unread": [
+     {
+      "set": "release",
+      "original_description": "릴리스를 낼 때 필요한 지식 — 버전 자리, 노트 프렐류드, 워크플로가 그렇게 생긴 이유.",
+      "description": "릴리스를 낼 때 필요한 지식 하나로 정리: 0.x에서 minor/patch를 가르는 규칙, 노트에 프렐류드가 반드시 필요한 변경 목록, 릴리스가 태그가 아니라 workflow_dispatch로 도는 이유 — 읽고 나면 다음 릴리스의 버전 자리와 노트 여부를 스스로 판단할 수 있다.",
+      "verdict": "described"
+     }
+    ],
+    "collateral": [],
+    "unmarked": [],
+    "check_after": "ok: 7 sets, 100 entries, all pinned and current",
+    "check_rc": 0,
+    "touched": [
+     "adoption",
+     "design",
+     "rag-bench",
+     "release"
+    ]
+   },
+   "check_before": "dangling    adoption:22  docs/usage-spec.md#0-목표와-지표-철학 — no such node — heading renamed or file moved\ndrift       adoption:26  docs/usage-spec.md#41-스트림윈도우-구성 — content changed since registration\ndangling    design:51  docs/design-system.md#typography — no such node — heading renamed or file moved\ndrift       design:60  docs/design-system.md#layout — content changed since registration\ndangling    rag-bench:67  .claude/skills/rag-golden-set/SKILL.md#절대-규칙-이-작업에-graphin을-쓰지-않는다 — no such node — heading renamed or file moved\n\n5 problem(s) across 7 sets, 100 entries\nrun `graphin wiki repin` after confirming each summary still matches its section",
+   "tokens_in": 921040,
+   "turns": 38,
+   "calls": 37,
+   "tools": [
+    "Bash",
+    "Read",
+    "ToolSearch",
+    "mcp__graphin__bootstrap_workspace",
+    "mcp__graphin__diagnose_index",
+    "mcp__graphin__read_code",
+    "mcp__graphin__wiki_edit_set"
+   ]
+  }
+ ]
+}

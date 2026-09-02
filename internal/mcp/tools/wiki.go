@@ -96,7 +96,8 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 			"Each section carries a drift verdict: absent means it is byte-for-byte what it was when " +
 			"the set was written, \"changed-since-registration\" means the section was rewritten and the " +
 			"set's one-line summary may no longer hold, \"unpinned\" means nothing was recorded to compare " +
-			"against. Running this is also what clears the knowledge gate for the caller.",
+			"against. reviewed=\"false\" means an agent changed the set that serves it and no person has " +
+			"checked. Running this is also what clears the knowledge gate for the caller.",
 		InputSchema: objSchema(map[string]any{
 			"sets": map[string]any{
 				"type":        "array",
@@ -110,6 +111,75 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 			},
 		}, nil),
 		Handler: wikiResolveHandler(ws),
+	})
+
+	reg.Register(&mcp.Tool{
+		Name: "wiki_edit_set",
+		Description: "Maintain one knowledge set without editing markdown by hand: repoint an entry whose " +
+			"section moved (op=repoint), rewrite an entry's one-line summary after re-reading the section " +
+			"(op=summarize), record that a drifted entry was re-read and its summary still holds (op=confirm), " +
+			"or rewrite the set's catalogue line (op=describe). Every write is judged first — the target must be " +
+			"a documentation section that exists and is not already listed — and is applied to the working tree " +
+			"at once, marking the set reviewed: false for a person to check afterwards. It never creates a set " +
+			"and never writes a document.",
+		InputSchema: objSchema(map[string]any{
+			"set": map[string]any{"type": "string", "description": "Set name (the filename stem)."},
+			"op": map[string]any{
+				"type": "string", "enum": []string{"repoint", "summarize", "confirm", "describe"},
+				"description": "What to do.",
+			},
+			"node_id":     map[string]any{"type": "string", "description": "The entry's current node id, as the set lists it (repoint, summarize, confirm)."},
+			"new_node_id": map[string]any{"type": "string", "description": "Where the entry should point instead (repoint). A markdown section id: path.md#anchor."},
+			"title":       map[string]any{"type": "string", "description": "New link text, if the heading's wording changed (repoint, summarize). Optional."},
+			"summary":     map[string]any{"type": "string", "description": "The one line the catalogue offers the section by: what it claims, not what it is about (summarize; optional on repoint)."},
+			"description": map[string]any{"type": "string", "description": "The set's new catalogue line (describe). One sentence."},
+		}, []string{"set", "op"}),
+		Handler: wikiEditSetHandler(ws),
+	})
+
+	entrySchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"title":   map[string]any{"type": "string", "description": "Link text — usually the heading's wording."},
+			"node_id": map[string]any{"type": "string", "description": "A markdown section id you actually read: path.md#anchor."},
+			"summary": map[string]any{"type": "string", "description": "One line saying what the section CLAIMS, not what it is about."},
+		},
+		"required": []string{"title", "node_id", "summary"},
+	}
+	reg.Register(&mcp.Tool{
+		Name: "wiki_write_set",
+		Description: "Write a new knowledge set at the end of a task whose wiki_preflight returned an empty " +
+			"catalogue — the sections you had to find and read to do the work, with one line each saying " +
+			"what they claim. Judged before it lands: the task must have missed in this workspace (pass the " +
+			"preflight sentence verbatim), a preflight for that task must select the new set (name or alias " +
+			"it the way the task names the subject), every section must be a documentation heading that " +
+			"exists, and the wiki must be under its cap. Written at once with origin: agent and " +
+			"reviewed: false for a person to check; nothing is committed. Never for knowledge a task " +
+			"did not ask for.",
+		InputSchema: objSchema(map[string]any{
+			"name":        map[string]any{"type": "string", "description": "Filename stem: letters, digits, - and _."},
+			"title":       map[string]any{"type": "string", "description": "The set's heading, in the project's language."},
+			"description": map[string]any{"type": "string", "description": "One sentence: what work this is for and what a reader will know after."},
+			"task":        map[string]any{"type": "string", "description": "The sentence given to wiki_preflight, verbatim."},
+			"aliases": map[string]any{
+				"type": "array", "items": map[string]any{"type": "string"},
+				"description": "The subject's names in other vocabularies or languages; a multi-word alias is a phrase.",
+			},
+			"tags":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"intro": map[string]any{"type": "string", "description": "Optional paragraph under the title: when to read this set."},
+			"groups": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"title":   map[string]any{"type": "string", "description": "Group heading; the first is usually \"먼저: …\" / \"First: …\"."},
+						"entries": map[string]any{"type": "array", "items": entrySchema},
+					},
+					"required": []string{"entries"},
+				},
+			},
+		}, []string{"name", "title", "description", "task", "groups"}),
+		Handler: wikiWriteSetHandler(ws),
 	})
 }
 
@@ -192,8 +262,12 @@ func wikiPreflightHandler(ws *workspace.Workspace) mcp.ToolHandler {
 				"Include the token in the delegation prompt and proceed.</none>\n")
 		}
 		for _, s := range man.Sets {
-			fmt.Fprintf(&sb, "  <set name=\"%s\" node_id=\"%s\" entries=\"%d\">\n",
+			fmt.Fprintf(&sb, "  <set name=\"%s\" node_id=\"%s\" entries=\"%d\"",
 				mcp.EscapeAttr(s.Name), mcp.EscapeAttr(s.NodeID), s.Entries)
+			if s.Unreviewed {
+				sb.WriteString(" reviewed=\"false\"")
+			}
+			sb.WriteString(">\n")
 			if s.Summary != "" {
 				fmt.Fprintf(&sb, "    <summary>%s</summary>\n", mcp.EscapeText(s.Summary))
 			}
@@ -324,6 +398,10 @@ func renderResolved(ws *workspace.Workspace, entries []wiki.ResolvedEntry, missi
 		}
 		if e.Drift != wiki.DriftNone {
 			fmt.Fprintf(&b, " drift=\"%s\"", e.Drift)
+		}
+		if e.Unreviewed {
+			// Same shape as drift: a caveat on the text, not text withheld.
+			b.WriteString(" reviewed=\"false\"")
 		}
 		b.WriteString(">\n")
 		mcp.WriteCDATA(&b, e.Block.Text)
@@ -458,6 +536,132 @@ func wikiProposeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			verdict.Contexts, p.Seen, mcp.EscapeAttr(p.File))
 		sb.WriteString("  <note>Queued for review. It is not in the glossary until a person moves it there.</note>\n")
 		sb.WriteString("</proposal>")
+		return sb.String(), false
+	}
+}
+
+func wikiEditSetHandler(ws *workspace.Workspace) mcp.ToolHandler {
+	type args struct {
+		Set         string `json:"set"`
+		Op          string `json:"op"`
+		NodeID      string `json:"node_id"`
+		NewNodeID   string `json:"new_node_id"`
+		Title       string `json:"title"`
+		Summary     string `json:"summary"`
+		Description string `json:"description"`
+	}
+	return func(_ context.Context, raw json.RawMessage) (string, bool) {
+		var a args
+		_ = json.Unmarshal(raw, &a)
+		st := ws.FSM.Status()
+		fail := func(msg string) (string, bool) {
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
+		}
+
+		// Index-free on purpose, like every other wiki write: the judge
+		// reads the documents, so a set can be repaired before the
+		// workspace has indexed and from a process that never will.
+		var (
+			res     wiki.EditResult
+			verdict wiki.Verdict
+			err     error
+		)
+		switch a.Op {
+		case "repoint":
+			if a.NodeID == "" || a.NewNodeID == "" {
+				return fail("repoint needs node_id and new_node_id")
+			}
+			res, verdict, err = wiki.EditSetEntry(ws.Root, a.Set, a.NodeID,
+				wiki.EntryEdit{NodeID: a.NewNodeID, Title: a.Title, Summary: a.Summary})
+		case "summarize":
+			if a.NodeID == "" || strings.TrimSpace(a.Summary) == "" {
+				return fail("summarize needs node_id and summary")
+			}
+			res, verdict, err = wiki.EditSetEntry(ws.Root, a.Set, a.NodeID,
+				wiki.EntryEdit{Title: a.Title, Summary: a.Summary})
+		case "confirm":
+			if a.NodeID == "" {
+				return fail("confirm needs node_id")
+			}
+			res, verdict, err = wiki.ConfirmEntry(ws.Root, a.Set, a.NodeID)
+		case "describe":
+			res, verdict, err = wiki.DescribeSet(ws.Root, a.Set, a.Description)
+		default:
+			return fail("op must be one of repoint, summarize, confirm, describe")
+		}
+		if err != nil {
+			return fail(err.Error())
+		}
+
+		var sb strings.Builder
+		writeStatusPrefix(&sb, ws)
+		if verdict.Blocked() {
+			// Nothing was written. The findings are the answer, and each
+			// names what would have to be true for the write to land.
+			fmt.Fprintf(&sb, "<edit set=\"%s\" op=\"%s\" applied=\"false\">\n",
+				mcp.EscapeAttr(a.Set), mcp.EscapeAttr(a.Op))
+			for _, f := range verdict.Findings {
+				fmt.Fprintf(&sb, "  <rejected rule=\"%s\">%s</rejected>\n",
+					mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
+			}
+			sb.WriteString("</edit>")
+			return sb.String(), false
+		}
+		fmt.Fprintf(&sb, "<edit set=\"%s\" op=\"%s\" applied=\"true\" file=\"%s\"",
+			mcp.EscapeAttr(a.Set), mcp.EscapeAttr(a.Op), mcp.EscapeAttr(res.File))
+		if res.NodeID != "" {
+			fmt.Fprintf(&sb, " node_id=\"%s\"", mcp.EscapeAttr(res.NodeID))
+		}
+		if res.Line > 0 {
+			fmt.Fprintf(&sb, " line=\"%d\"", res.Line)
+		}
+		if a.Op != "describe" {
+			fmt.Fprintf(&sb, " repinned=\"%t\"", res.Repinned)
+		}
+		sb.WriteString(">\n")
+		for _, other := range res.AlsoIn {
+			fmt.Fprintf(&sb, "  <also_in set=\"%s\" />\n", mcp.EscapeAttr(other))
+		}
+		sb.WriteString("  <note>Written to the working tree and marked reviewed: false. " +
+			"A person reads the diff and sets reviewed: true; nothing is committed.</note>\n")
+		sb.WriteString("</edit>")
+		return sb.String(), false
+	}
+}
+
+func wikiWriteSetHandler(ws *workspace.Workspace) mcp.ToolHandler {
+	return func(_ context.Context, raw json.RawMessage) (string, bool) {
+		var d wiki.SetDraft
+		st := ws.FSM.Status()
+		if err := json.Unmarshal(raw, &d); err != nil {
+			return mcp.ErrorXML(mcp.ErrInternal, "invalid arguments: "+err.Error(), &st), true
+		}
+		// Index-free, like the other wiki writes: the rules read files and
+		// the friction log, so a set can be written from any process.
+		res, verdict, err := wiki.CreateSet(ws.Root, &d)
+		if err != nil {
+			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+		}
+		var sb strings.Builder
+		writeStatusPrefix(&sb, ws)
+		if verdict.Blocked() {
+			fmt.Fprintf(&sb, "<edit set=\"%s\" op=\"create\" applied=\"false\">\n", mcp.EscapeAttr(res.Set))
+			for _, f := range verdict.Findings {
+				fmt.Fprintf(&sb, "  <rejected rule=\"%s\">%s</rejected>\n",
+					mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
+			}
+			sb.WriteString("</edit>")
+			return sb.String(), false
+		}
+		n := 0
+		for _, g := range d.Groups {
+			n += len(g.Entries)
+		}
+		fmt.Fprintf(&sb, "<edit set=\"%s\" op=\"create\" applied=\"true\" file=\"%s\" entries=\"%d\" repinned=\"%t\">\n",
+			mcp.EscapeAttr(res.Set), mcp.EscapeAttr(res.File), n, res.Repinned)
+		sb.WriteString("  <note>Written with origin: agent and reviewed: false. A preflight for the task now " +
+			"selects it. A person reads the file and sets reviewed: true; nothing is committed.</note>\n")
+		sb.WriteString("</edit>")
 		return sb.String(), false
 	}
 }
