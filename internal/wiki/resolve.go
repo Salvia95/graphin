@@ -93,7 +93,7 @@ func (st *Store) Resolve(r Reader, setNames []string) Resolution {
 		blocks := r.Read(ids)
 
 		for i, e := range entries {
-			re := ResolvedEntry{Entry: e, Unreviewed: s.Unreviewed}
+			re := ResolvedEntry{Entry: e, Unreviewed: s.Unreviewed || st.unreviewedFor(e.NodeID)}
 			if ids[i] != e.NodeID {
 				re.RedirectedTo = ids[i]
 			}
@@ -113,6 +113,22 @@ func (st *Store) Resolve(r Reader, setNames []string) Resolution {
 		res.Sets = append(res.Sets, rs)
 	}
 	return res
+}
+
+// unreviewedFor reports whether any set that lists the node carries agent
+// changes nobody has checked.
+//
+// One rule for both ways of asking. A section fetched by set and the same
+// section fetched by id must carry the same caveat, and "any citing set" is
+// the honest one: the reader did not say which set they trust, and a caveat
+// they did not need costs less than one they did.
+func (st *Store) unreviewedFor(nodeID string) bool {
+	for _, s := range st.SetList() {
+		if s.Unreviewed && s.cites(nodeID) {
+			return true
+		}
+	}
+	return false
 }
 
 // driftOf compares one entry against its recorded pin, following a redirect
@@ -174,15 +190,7 @@ func (st *Store) ResolveNodes(r Reader, nodeIDs []string) []ResolvedEntry {
 			out = append(out, re)
 			continue
 		}
-		// Any citing set an agent touched flags the section. The reader did
-		// not say which set they came from, and a caveat they did not need
-		// costs less than one they did. A separate pass, because the drift
-		// loop below stops at the first set that vouches for the node.
-		for _, s := range st.SetList() {
-			if s.Unreviewed && s.cites(id) {
-				re.Unreviewed = true
-			}
-		}
+		re.Unreviewed = st.unreviewedFor(id)
 		for _, s := range st.SetList() {
 			if _, pinned := st.Pins.Get(s.Name, id); !pinned {
 				continue

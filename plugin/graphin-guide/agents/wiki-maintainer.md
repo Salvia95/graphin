@@ -88,6 +88,12 @@ it is why you read before you write.
 Every write marks the set `reviewed: false`. That is not a request for you to
 review it; it is the record that a person has not. Do not clear it.
 
+Every write also changes the wiki, and the delegation token signs the whole
+wiki — so each of your writes invalidates every preflight token minted before
+it. Your caller should run you **alone**, not beside other delegations, and
+re-run `wiki_preflight` for anything they delegate after you finish. Say so
+in your report if you changed anything.
+
 # Report
 
 Your caller sees only your final message. Give them, per set, what you did

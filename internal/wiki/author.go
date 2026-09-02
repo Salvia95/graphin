@@ -125,28 +125,21 @@ func (st *Store) JudgeSet(d *SetDraft) Verdict {
 	h := NewHasher(st.Root)
 	seen := map[string]bool{}
 	for _, e := range entries {
-		rel, _, _ := strings.Cut(e.NodeID, "#")
-		if !strings.HasSuffix(strings.ToLower(rel), ".md") {
-			v.Findings = append(v.Findings, Finding{RuleStructure,
-				fmt.Sprintf("%s is code, not documentation — the index already answers it", e.NodeID)})
-			continue
+		findings := judgeNode(h, e.NodeID, e.Title, e.Summary)
+		v.Findings = append(v.Findings, findings...)
+		structural := false
+		for _, f := range findings {
+			if f.Rule == RuleStructure {
+				structural = true
+			}
 		}
-		if _, ok := h.Pin(e.NodeID); !ok {
-			v.Findings = append(v.Findings, Finding{RuleAnchor,
-				fmt.Sprintf("%s does not resolve — no such heading in that file", e.NodeID)})
+		if structural {
+			continue
 		}
 		if seen[e.NodeID] {
 			v.Findings = append(v.Findings, Finding{RuleDuplicate, e.NodeID + " is listed twice"})
 		}
 		seen[e.NodeID] = true
-		if strings.TrimSpace(e.Summary) == "" || strings.TrimSpace(e.Title) == "" {
-			v.Findings = append(v.Findings, Finding{RuleSummary,
-				e.NodeID + " has no title or no summary — a row without a sentence is a table of contents"})
-		}
-		if strings.ContainsAny(e.Title, "]\n\r") || strings.ContainsAny(e.NodeID, " \t\n\r)") {
-			v.Findings = append(v.Findings, Finding{RuleFormat,
-				e.NodeID + ": a title cannot contain ']' and a node id cannot contain whitespace or ')'"})
-		}
 	}
 	// A set whose every section an existing set already lists is that set
 	// with a new name. Partial overlap is fine — sections belong to several
@@ -223,8 +216,10 @@ func (st *Store) wouldSelect(d *SetDraft, task string) bool {
 	if err != nil {
 		return false
 	}
-	trial := &Store{Root: st.Root, Dir: st.Dir, Sets: map[string]*Set{}, Terms: st.Terms,
-		Pins: st.Pins, Agents: st.Agents, Present: true}
+	// A copy of the whole store, so a field added later is carried without
+	// anyone remembering this line. Only the set map is replaced.
+	trial := *st
+	trial.Sets = make(map[string]*Set, len(st.Sets)+1)
 	for k, v := range st.Sets {
 		trial.Sets[k] = v
 	}

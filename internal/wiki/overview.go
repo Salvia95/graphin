@@ -384,8 +384,9 @@ func BuildOverview(root, skillDir string) (Overview, error) {
 		first[m.Task] = m.TS
 		seen[m.Task]++
 	}
+	stop := store.stopKeys()
 	for _, m := range order {
-		if !store.Select(m.Role, m.Task).Empty() {
+		if !store.selectWith(m.Role, m.Task, stop).Empty() {
 			o.Health.Answered++
 			continue
 		}

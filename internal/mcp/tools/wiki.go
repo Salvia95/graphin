@@ -518,10 +518,7 @@ func wikiProposeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			var sb strings.Builder
 			writeStatusPrefix(&sb, ws)
 			sb.WriteString("<proposal accepted=\"false\">\n")
-			for _, f := range verdict.Findings {
-				fmt.Fprintf(&sb, "  <rejected rule=\"%s\">%s</rejected>\n",
-					mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
-			}
+			writeRejected(&sb, verdict.Findings)
 			sb.WriteString("</proposal>")
 			return sb.String(), false
 		}
@@ -600,10 +597,7 @@ func wikiEditSetHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			// names what would have to be true for the write to land.
 			fmt.Fprintf(&sb, "<edit set=\"%s\" op=\"%s\" applied=\"false\">\n",
 				mcp.EscapeAttr(a.Set), mcp.EscapeAttr(a.Op))
-			for _, f := range verdict.Findings {
-				fmt.Fprintf(&sb, "  <rejected rule=\"%s\">%s</rejected>\n",
-					mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
-			}
+			writeRejected(&sb, verdict.Findings)
 			sb.WriteString("</edit>")
 			return sb.String(), false
 		}
@@ -646,10 +640,7 @@ func wikiWriteSetHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		writeStatusPrefix(&sb, ws)
 		if verdict.Blocked() {
 			fmt.Fprintf(&sb, "<edit set=\"%s\" op=\"create\" applied=\"false\">\n", mcp.EscapeAttr(res.Set))
-			for _, f := range verdict.Findings {
-				fmt.Fprintf(&sb, "  <rejected rule=\"%s\">%s</rejected>\n",
-					mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
-			}
+			writeRejected(&sb, verdict.Findings)
 			sb.WriteString("</edit>")
 			return sb.String(), false
 		}
@@ -663,5 +654,15 @@ func wikiWriteSetHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			"selects it. A person reads the file and sets reviewed: true; nothing is committed.</note>\n")
 		sb.WriteString("</edit>")
 		return sb.String(), false
+	}
+}
+
+// writeRejected renders a verdict's findings, one element per rule, the same
+// way for every wiki write: an agent reading one tool's refusal has learned
+// to read them all.
+func writeRejected(sb *strings.Builder, findings []wiki.Finding) {
+	for _, f := range findings {
+		fmt.Fprintf(sb, "  <rejected rule=\"%s\">%s</rejected>\n",
+			mcp.EscapeAttr(string(f.Rule)), mcp.EscapeText(f.Detail))
 	}
 }

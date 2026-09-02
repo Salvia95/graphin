@@ -54,9 +54,15 @@ func (s Selection) Empty() bool { return len(s.Sets) == 0 && len(s.Terms) == 0 }
 // guess about this particular job, and it has to be conservative because a
 // wrong guess costs the reader attention on every delegation.
 func (st *Store) Select(role, task string) Selection {
+	return st.selectWith(role, task, st.stopKeys())
+}
+
+// selectWith is Select with the stop list supplied, for a caller that asks
+// many questions of one unchanged wiki — the overview re-asks every recorded
+// miss — and should not rebuild the list per question.
+func (st *Store) selectWith(role, task string, stop map[string]bool) Selection {
 	var sel Selection
 	wanted := map[string]bool{}
-	stop := st.stopKeys()
 
 	for _, s := range st.ForRole(role) {
 		if !wanted[s.Name] {

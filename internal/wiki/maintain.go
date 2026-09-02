@@ -49,30 +49,38 @@ const (
 // flagged as a duplicate of itself; it is "" for an entry being added.
 func JudgeEntry(root string, s *Set, current, nodeID, title, summary string) Verdict {
 	var v Verdict
-	if strings.ContainsAny(title, "]\n\r") || strings.TrimSpace(title) == "" {
-		v.Findings = append(v.Findings, Finding{RuleFormat, "a title is one line and cannot contain ']'"})
-	}
-	if strings.ContainsAny(nodeID, " \t\n\r)") {
-		v.Findings = append(v.Findings, Finding{RuleFormat, "a node id cannot contain whitespace or ')'"})
-	}
-	rel, _, _ := strings.Cut(nodeID, "#")
-	if !strings.HasSuffix(strings.ToLower(rel), ".md") {
-		v.Findings = append(v.Findings, Finding{RuleStructure,
-			fmt.Sprintf("%s is code, not documentation — the index already answers it", nodeID)})
-	}
-	if _, ok := NewHasher(root).Pin(nodeID); !ok {
-		v.Findings = append(v.Findings, Finding{RuleAnchor,
-			fmt.Sprintf("%s does not resolve — no such heading in that file", nodeID)})
-	}
+	v.Findings = append(v.Findings, judgeNode(NewHasher(root), nodeID, title, summary)...)
 	if nodeID != current && s.cites(nodeID) {
 		v.Findings = append(v.Findings, Finding{RuleDuplicate,
 			fmt.Sprintf("%s already lists %s", s.Name, nodeID)})
 	}
-	if strings.TrimSpace(summary) == "" {
-		v.Findings = append(v.Findings, Finding{RuleSummary,
-			"an entry without a sentence is a table-of-contents row"})
-	}
 	return v
+}
+
+// judgeNode is the entry contract, stated once: what one line of a set may
+// point at and what it must carry. JudgeEntry and JudgeSet both call it, so
+// an edit and a new set cannot come to accept different entries.
+func judgeNode(h *Hasher, nodeID, title, summary string) []Finding {
+	var out []Finding
+	if strings.ContainsAny(title, "]\n\r") || strings.TrimSpace(title) == "" {
+		out = append(out, Finding{RuleFormat, nodeID + ": a title is one line and cannot contain ']'"})
+	}
+	if strings.ContainsAny(nodeID, " \t\n\r)") {
+		out = append(out, Finding{RuleFormat, nodeID + ": a node id cannot contain whitespace or ')'"})
+	}
+	rel, _, _ := strings.Cut(nodeID, "#")
+	if !strings.HasSuffix(strings.ToLower(rel), ".md") {
+		out = append(out, Finding{RuleStructure,
+			fmt.Sprintf("%s is code, not documentation — the index already answers it", nodeID)})
+	} else if _, ok := h.Pin(nodeID); !ok {
+		out = append(out, Finding{RuleAnchor,
+			fmt.Sprintf("%s does not resolve — no such heading in that file", nodeID)})
+	}
+	if strings.TrimSpace(summary) == "" {
+		out = append(out, Finding{RuleSummary,
+			nodeID + ": an entry without a sentence is a table-of-contents row"})
+	}
+	return out
 }
 
 // EntryEdit is what may change on one entry. An empty field keeps what the
