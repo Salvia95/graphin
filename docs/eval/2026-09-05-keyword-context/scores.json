@@ -1,0 +1,559 @@
+{
+ "recall": {
+  "corpus": "eae65b6",
+  "semantic": false,
+  "tiers": [
+   {
+    "tier": "base",
+    "sets": 10,
+    "mean_recall": 0.5,
+    "mean_delivery": 0.25,
+    "graphin_bytes": 47378,
+    "grep_literal_recall": 1.0,
+    "grep_literal_bytes": 51074659,
+    "grep_symbol_recall": 1.0,
+    "grep_symbol_bytes": 861717,
+    "keyword": null,
+    "hints": {
+     "broad": 8
+    },
+    "literal_hint_on_prose": [],
+    "contaminated": [],
+    "queries": [
+     {
+      "id": "truncate-cap",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 2479,
+      "hint": null,
+      "keyword": null
+     },
+     {
+      "id": "inflight-wait",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 3031,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "workspace-lock",
+      "recall": 0.0,
+      "delivery": 0.5,
+      "graphin_bytes": 3869,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "embed-crash-recovery",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 6675,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "versioning-rules",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 10173,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "graphindb-contract",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 3951,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "launcher-reinstall",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 1651,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "wordpiece",
+      "recall": 1.0,
+      "delivery": 0.0,
+      "graphin_bytes": 2629,
+      "hint": null,
+      "keyword": null
+     },
+     {
+      "id": "watch-debounce",
+      "recall": 1.0,
+      "delivery": 0.0,
+      "graphin_bytes": 4309,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "rank-definition-vs-callers",
+      "recall": 1.0,
+      "delivery": 0.0,
+      "graphin_bytes": 8611,
+      "hint": "broad",
+      "keyword": null
+     }
+    ]
+   },
+   {
+    "tier": "variants",
+    "sets": 4,
+    "mean_recall": 0.25,
+    "mean_delivery": 0.125,
+    "graphin_bytes": 18880,
+    "grep_literal_recall": 1.0,
+    "grep_literal_bytes": 26240498,
+    "grep_symbol_recall": null,
+    "grep_symbol_bytes": 0,
+    "keyword": null,
+    "hints": {
+     "broad": 4
+    },
+    "literal_hint_on_prose": [],
+    "contaminated": [],
+    "queries": [
+     {
+      "id": "workspace-lock-target",
+      "recall": 0.0,
+      "delivery": 0.5,
+      "graphin_bytes": 3820,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "embed-crash-recovery-target",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 3964,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "versioning-rules-target",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 9260,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "graphindb-contract-target",
+      "recall": 1.0,
+      "delivery": 0.0,
+      "graphin_bytes": 1836,
+      "hint": "broad",
+      "keyword": null
+     }
+    ]
+   },
+   {
+    "tier": "hop",
+    "sets": 3,
+    "mean_recall": 0.3333333333333333,
+    "mean_delivery": 0.3333333333333333,
+    "graphin_bytes": 16929,
+    "grep_literal_recall": 1.0,
+    "grep_literal_bytes": 2330674,
+    "grep_symbol_recall": 1.0,
+    "grep_symbol_bytes": 1690194,
+    "keyword": null,
+    "hints": {},
+    "literal_hint_on_prose": [],
+    "contaminated": [],
+    "queries": [
+     {
+      "id": "hop-truncate-callers",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 6674,
+      "hint": null,
+      "keyword": null
+     },
+     {
+      "id": "hop-bootstrap-background",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 7252,
+      "hint": null,
+      "keyword": null
+     },
+     {
+      "id": "hop-tokenize-callers",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 3003,
+      "hint": null,
+      "keyword": null
+     }
+    ]
+   },
+   {
+    "tier": "tests",
+    "sets": 6,
+    "mean_recall": 0.6666666666666666,
+    "mean_delivery": 0.6666666666666666,
+    "graphin_bytes": 35090,
+    "grep_literal_recall": 1.0,
+    "grep_literal_bytes": 38832878,
+    "grep_symbol_recall": 1.0,
+    "grep_symbol_bytes": 24715,
+    "keyword": {
+     "0": {
+      "mean_recall": 1.0,
+      "mean_delivery": 1.0,
+      "bytes": 1815,
+      "folded": 0,
+      "idless": 0
+     },
+     "2": {
+      "mean_recall": 1.0,
+      "mean_delivery": 1.0,
+      "bytes": 2836,
+      "folded": 0,
+      "idless": 0
+     },
+     "4": {
+      "mean_recall": 1.0,
+      "mean_delivery": 1.0,
+      "bytes": 3992,
+      "folded": 0,
+      "idless": 0
+     }
+    },
+    "hints": {
+     "broad": 5
+    },
+    "literal_hint_on_prose": [],
+    "contaminated": [],
+    "queries": [
+     {
+      "id": "test-drop-assert",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 5564,
+      "hint": null,
+      "keyword": {
+       "0": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 719,
+        "folded": 0,
+        "idless": 0
+       },
+       "2": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 1201,
+        "folded": 0,
+        "idless": 0
+       },
+       "4": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 1678,
+        "folded": 0,
+        "idless": 0
+       }
+      }
+     },
+     {
+      "id": "test-breadcrumb-assert",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 3706,
+      "hint": "broad",
+      "keyword": {
+       "0": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 457,
+        "folded": 0,
+        "idless": 0
+       },
+       "2": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 575,
+        "folded": 0,
+        "idless": 0
+       },
+       "4": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 790,
+        "folded": 0,
+        "idless": 0
+       }
+      }
+     },
+     {
+      "id": "test-rename-drift-assert",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 5157,
+      "hint": "broad",
+      "keyword": {
+       "0": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 639,
+        "folded": 0,
+        "idless": 0
+       },
+       "2": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 1060,
+        "folded": 0,
+        "idless": 0
+       },
+       "4": {
+        "recall": 1.0,
+        "found": 1,
+        "delivery": 1.0,
+        "context_bytes": 1524,
+        "folded": 0,
+        "idless": 0
+       }
+      }
+     },
+     {
+      "id": "test-tier0-guard",
+      "recall": 1.0,
+      "delivery": 1.0,
+      "graphin_bytes": 3431,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "test-scan-edit-guard",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 9017,
+      "hint": "broad",
+      "keyword": null
+     },
+     {
+      "id": "test-definition-rank-guard",
+      "recall": 0.0,
+      "delivery": 0.0,
+      "graphin_bytes": 8215,
+      "hint": "broad",
+      "keyword": null
+     }
+    ]
+   }
+  ]
+ },
+ "smoke_rescore": {
+  "gate-smoke2": {
+   "rubric": "1.3.1",
+   "runs": 6,
+   "keyword_calls": 21,
+   "keyword_empty": 7,
+   "keyword_idless": 1,
+   "keyword_next": {
+    "keyword": 7,
+    "hybrid": 6,
+    "read_code": 5,
+    "read_code_other": 1,
+    "explore": 0,
+    "Read": 0,
+    "grep": 0,
+    "bash_read": 0,
+    "none": 2
+   },
+   "first_retriever": {
+    "keyword": 2,
+    "hybrid": 3,
+    "none": 1
+   }
+  },
+  "gate-smoke3": {
+   "rubric": "1.3.1",
+   "runs": 6,
+   "keyword_calls": 17,
+   "keyword_empty": 2,
+   "keyword_idless": 1,
+   "keyword_next": {
+    "keyword": 6,
+    "hybrid": 6,
+    "read_code": 3,
+    "read_code_other": 0,
+    "explore": 2,
+    "Read": 0,
+    "grep": 0,
+    "bash_read": 0,
+    "none": 0
+   },
+   "first_retriever": {
+    "keyword": 2,
+    "hybrid": 3,
+    "none": 1
+   }
+  },
+  "gate-smoke4": {
+   "rubric": "1.3.1",
+   "runs": 6,
+   "keyword_calls": 20,
+   "keyword_empty": 2,
+   "keyword_idless": 0,
+   "keyword_next": {
+    "keyword": 9,
+    "hybrid": 3,
+    "read_code": 3,
+    "read_code_other": 3,
+    "explore": 0,
+    "Read": 0,
+    "grep": 0,
+    "bash_read": 0,
+    "none": 2
+   },
+   "first_retriever": {
+    "keyword": 1,
+    "hybrid": 4,
+    "none": 1
+   }
+  }
+ },
+ "grep_baseline_invariance": {
+  "instances": 451,
+  "identical": 451,
+  "different": 0,
+  "md5_original": "492471da5626cdfd5098c3456fa8d4c2",
+  "md5_rebuilt": "492471da5626cdfd5098c3456fa8d4c2",
+  "pieces": [
+   "grep-451-p1 (355)",
+   "grep-96 (96)"
+  ]
+ },
+ "rag_baseline_partial_attempt": {
+  "note": "429-aborted first attempt, 77 valid of 81; observation metrics only, not a scored run",
+  "pass_by_tier": {
+   "answered": {
+    "pass": 20,
+    "total": 24
+   },
+   "multi-hop": {
+    "pass": 10,
+    "total": 12
+   },
+   "not-here": {
+    "pass": 6,
+    "total": 9
+   },
+   "out-of-reach": {
+    "pass": 6,
+    "total": 6
+   },
+   "budget-pressure": {
+    "pass": 3,
+    "total": 6
+   },
+   "db-nav": {
+    "pass": 19,
+    "total": 20
+   }
+  },
+  "keyword_calls": 263,
+  "keyword_empty": 51,
+  "keyword_idless": 22,
+  "keyword_next": {
+   "keyword": 108,
+   "hybrid": 49,
+   "read_code": 46,
+   "read_code_other": 26,
+   "explore": 4,
+   "Read": 8,
+   "grep": 0,
+   "bash_read": 3,
+   "none": 19
+  },
+  "first_retriever": {
+   "none": 4,
+   "hybrid": 60,
+   "keyword": 13
+  },
+  "hints_seen": 85,
+  "hints_followed": 53,
+  "skill_sha": "e7b2b89cae31 (HEAD)",
+  "context_calls": 0
+ },
+ "rag_rerun_skilltext": {
+  "note": "81 runs, pre-P1 binary but SKILL.md already carried the P1 context line (skill sha 5d8a9a59fe08 vs HEAD e7b2b89cae31); 226/317 keyword calls passed context, which the old binary ignored",
+  "tiers": {
+   "answered": {
+    "pass": 21,
+    "total": 24
+   },
+   "multi-hop": {
+    "pass": 11,
+    "total": 12
+   },
+   "not-here": {
+    "pass": 6,
+    "total": 9
+   },
+   "out-of-reach": {
+    "pass": 6,
+    "total": 6
+   },
+   "budget-pressure": {
+    "pass": 5,
+    "total": 6
+   },
+   "db-nav": {
+    "pass": 20,
+    "total": 24
+   }
+  },
+  "keyword_calls": 317,
+  "keyword_empty": 67,
+  "keyword_idless": 32,
+  "keyword_next": {
+   "keyword": 138,
+   "hybrid": 55,
+   "read_code": 47,
+   "read_code_other": 26,
+   "explore": 10,
+   "Read": 8,
+   "grep": 4,
+   "bash_read": 4,
+   "none": 25
+  },
+  "first_retriever": {
+   "none": 5,
+   "keyword": 11,
+   "hybrid": 65
+  },
+  "hints_seen": 98,
+  "hints_followed": 56,
+  "invented_id_runs": 2,
+  "fake_citation_runs": 5,
+  "cost_usd": 11.81,
+  "context_calls": 226,
+  "meta": {
+   "agent_sha": "f67281fc2db3274aeb013271497138f49c49259804f432be6a66189ff5c09574",
+   "skill_sha": "5d8a9a59fe08410d4dd4fdd8d0a7245e2caccef1487a82d7c28a44a72d51a1b2",
+   "taskset_sha": "5ca2a37b2b926f754b64366280dd9e91fbf018dcba651c9e0c35b24260250060",
+   "graphin_commit": "eae65b6",
+   "cli_version": "2.1.261 (Claude Code)",
+   "model": "sonnet"
+  }
+ }
+}
