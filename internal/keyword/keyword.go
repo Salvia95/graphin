@@ -26,10 +26,20 @@ import (
 )
 
 // Line is one matching line: where it is and what it says.
+//
+// Window and Context are filled only when Options.ContextLines > 0 and the
+// line was kept under MaxLines: the ±context lines around the match, so a hit
+// and its surroundings arrive in one call (docs/keyword-plan.md P1). They are
+// additive — Matches, which lines are kept, the ranking and Regions do not
+// change when they are requested, which is what keeps the SWE-Explore grep
+// baseline (GrepRegions) byte-identical.
 type Line struct {
 	No   int    // 1-based
 	Byte int    // offset of the line start, for resolving the hit to a node
 	Text string // trimmed; callers truncate for display
+
+	Window  Region   // 1-based inclusive; zero when no context was requested or the previous kept line's window already covers it
+	Context []string // raw lines of Window, in order; nil when Window is zero
 }
 
 // Region is a merged ±context window, in 1-based inclusive lines.
@@ -111,6 +121,12 @@ func searchFile(rel, src string, o Options) (Hit, bool) {
 	include := make([]bool, len(lines))
 	h := Hit{RelPath: rel}
 	offset := 0
+	// A file ending in a newline splits into a phantom empty last element;
+	// a context window must not reach into it.
+	last := len(lines) - 1
+	if last > 0 && lines[last] == "" {
+		last--
+	}
 	for i, line := range lines {
 		lineStart := offset
 		offset += len(line) + 1 // +\n; the last line's phantom byte is never read
@@ -119,7 +135,22 @@ func searchFile(rel, src string, o Options) (Hit, bool) {
 		}
 		h.Matches++
 		if o.MaxLines > 0 && len(h.Lines) < o.MaxLines {
-			h.Lines = append(h.Lines, Line{No: i + 1, Byte: lineStart, Text: strings.TrimSpace(line)})
+			ln := Line{No: i + 1, Byte: lineStart, Text: strings.TrimSpace(line)}
+			if o.ContextLines > 0 {
+				lo, hi := max(0, i-o.ContextLines), min(last, i+o.ContextLines)
+				// Consecutive kept lines share their surroundings; the later
+				// window starts after the earlier one ends so no line is sent
+				// twice. A match fully inside the previous window keeps its
+				// own <node> line but carries no window of its own.
+				if n := len(h.Lines); n > 0 && h.Lines[n-1].Window.End > 0 && lo < h.Lines[n-1].Window.End {
+					lo = h.Lines[n-1].Window.End // 1-based End == 0-based index of the next line
+				}
+				if lo <= hi {
+					ln.Window = Region{Start: lo + 1, End: hi + 1}
+					ln.Context = append([]string(nil), lines[lo:hi+1]...)
+				}
+			}
+			h.Lines = append(h.Lines, ln)
 		}
 		if o.ContextLines > 0 {
 			lo, hi := max(0, i-o.ContextLines), min(len(lines)-1, i+o.ContextLines)

@@ -62,7 +62,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			"explore_graph and read_code. Reach for it when you know the exact text — an error message, a config " +
 			"key, a magic constant, a string built at runtime that no parser can see as a call — and when a symbol " +
 			"you are certain exists did not come back from search_hybrid. It also works before the index is warm, " +
-			"which is when the ranked retrievers are least useful.",
+			"which is when the ranked retrievers are least useful. Pass context=N to get the N lines around each " +
+			"match in the same call — the grep -C shape, still tied to a node id — instead of reading the file. " +
+			"Data files (json, jsonl, lock, sum, csv) rank after source and prose and come back folded=\"data\" " +
+			"with only their path and match count; pass path= to open one.",
 		InputSchema: objSchema(map[string]any{
 			"pattern": map[string]any{"type": "string", "description": "Text to find. Case-insensitive."},
 			"regex": map[string]any{
@@ -74,6 +77,11 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 				"type": "string", "description": "Only search files whose path contains this substring.",
 			},
 			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max files."},
+			"context": map[string]any{
+				"type": "integer", "default": 0, "minimum": 0, "maximum": keywordMaxContext,
+				"description": "Lines of context around each matched line (0–5). Files that would push the " +
+					"response past its budget come back as one omitted line; narrow with path to read them.",
+			},
 		}, []string{"pattern"}),
 		Handler: keywordHandler(ws),
 	})
@@ -191,7 +199,7 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		TopK   int    `json:"top_k"`
 		Target string `json:"target"`
 	}
-	return func(_ context.Context, raw json.RawMessage) (string, bool) {
+	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		if !ws.Bootstrapped() {
 			return notBootstrapped(ws), true
 		}
@@ -220,6 +228,14 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			filter = func(id string) bool { return nodeid.Target(ws.NodeKind(id), id) == target }
 		}
 
+		// Ready means the model is loaded AND the embedding queue has
+		// drained: a loaded model over a half-filled vector index would
+		// still answer as if it were hybrid (docs/eval H1 재검증의 선행 조건).
+		if d := ws.SemanticWait(); d > 0 && ws.SemanticPending() {
+			waitSemantic(ctx, d,
+				func() bool { return ws.Router.SemanticReady() && ws.SemanticDrained() },
+				func() bool { return !ws.SemanticPending() })
+		}
 		results, stats := ws.Router.SearchFilteredStats(a.Query, a.TopK, filter)
 		semReady := ws.Router.SemanticReady()
 
@@ -275,6 +291,13 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 // about which retriever to try next, and a full list drawn from a third of the
 // repository looks exactly like a full list drawn from four nodes.
 func searchHint(stats search.Stats, returned, indexed int, target string) string {
+	// A quoted query is an instruction, not a question: the caller wants the
+	// text, and the ranking can only ever match its words. Said first, whatever
+	// came back — a full list of word-matches is the misleading case.
+	if stats.Quoted {
+		return "the query is a quoted string, and the ranking matched its words, not the text. " +
+			"search_keyword finds the exact string; unquote it if you meant the words"
+	}
 	// Checked before the empty case, because it is the one that actually
 	// fires. A query naming a symbol that is not here still comes back full:
 	// the tokenizer keeps the common words and the ranking obliges.
@@ -288,6 +311,16 @@ func searchHint(stats search.Stats, returned, indexed int, target string) string
 		return fmt.Sprintf("no indexed symbol spells %s. search_keyword still finds it as text "+
 			"(a string built at runtime, a config key, a file the parser skipped); if that is empty too, "+
 			"it is not in this workspace", strings.Join(quoteAll(stats.AbsentIdents), ", "))
+	}
+	// Most of the query's words are in no indexed document: the list was
+	// built from whatever remained. An error message pasted from a log is the
+	// usual shape — its words live in a string literal past the body-token
+	// cap, or in a file the parser skipped — and a file search still finds
+	// it. Two content words is the floor so a one-word query cannot trip it.
+	if n := len(stats.AbsentTerms); n > 0 && stats.ContentTerms >= 2 && n*2 >= stats.ContentTerms {
+		return fmt.Sprintf("%d of the query's %d words are in no indexed document (%s), so the ranking "+
+			"matched the rest. search_keyword reads the files the index skipped; otherwise rephrase "+
+			"with the words the code uses", n, stats.ContentTerms, strings.Join(quoteAll(stats.AbsentTerms), ", "))
 	}
 	if returned == 0 {
 		h := "no ranked result. search_keyword finds an exact string the ranking cannot; " +
@@ -347,7 +380,64 @@ func costLine(bodyLen int) string {
 const (
 	keywordMaxLines = 3
 	keywordMaxText  = 160
+
+	// keywordMaxContext bounds ±context. Five lines each side of three
+	// matches in five files is already past the response cap, which is why
+	// the handler budgets per file rather than trusting the arithmetic.
+	keywordMaxContext = 5
+	// keywordBudget is what one keyword response may spend before it starts
+	// folding files. Below MaxResponseBytes so the server's Truncate never
+	// fires on this path — a truncated window is worse than an omitted file,
+	// because the caller cannot tell which lines it lost.
+	keywordBudget = mcp.MaxResponseBytes - 512
 )
+
+// keywordEmptyHint is the next move when nothing matched. search_hybrid says
+// where to go when a query names nothing; the keyword retriever owed the same
+// courtesy and, measured over 97 calls, was silent one time in five.
+// isDataPath names the file shapes that dominate a match-count ranking by
+// repetition: serialized data and lockfiles. Extension only — whether a
+// particular file is indexed data the workspace knows (IsDBSource).
+func isDataPath(rel string) bool {
+	low := strings.ToLower(rel)
+	for _, ext := range [...]string{".json", ".jsonl", ".ndjson", ".lock", ".sum", ".csv", ".tsv"} {
+		if strings.HasSuffix(low, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// waitSemantic blocks until ready() holds, stop() says it never will, the
+// context ends, or d elapses; it reports whether ready() held. The rag bench
+// spawns a fresh server per run and the model takes 8–15s to load, so without
+// this a --semantic arm is hybrid only for the calls that happen to come
+// late (docs/eval/2026-09-06-p1-hybrid). Production leaves the wait at 0.
+func waitSemantic(ctx context.Context, d time.Duration, ready, stop func() bool) bool {
+	deadline := time.Now().Add(d)
+	for {
+		if ready() {
+			return true
+		}
+		if stop() || !time.Now().Before(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func keywordEmptyHint(regex bool) string {
+	h := "no line contains this text. If it is a name, search_hybrid finds the symbol; if it is a " +
+		"message, try a shorter fragment that is unlikely to change"
+	if !regex {
+		h += "; if part of it varies at runtime, regex=true matches around the variable part"
+	}
+	return h
+}
 
 func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
@@ -355,6 +445,7 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Regex   bool   `json:"regex"`
 		Path    string `json:"path"`
 		TopK    int    `json:"top_k"`
+		Context int    `json:"context"`
 	}
 	return func(_ context.Context, raw json.RawMessage) (string, bool) {
 		var a args
@@ -368,6 +459,14 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		if a.TopK > 20 {
 			a.TopK = 20
 		}
+		// Out of range is refused, not clamped: a caller who asked for ten
+		// lines and silently got five would read the window as the whole
+		// neighbourhood — the same rule that rejects an unknown target.
+		if a.Context < 0 || a.Context > keywordMaxContext {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal,
+				fmt.Sprintf("context must be between 0 and %d", keywordMaxContext), &st), true
+		}
 		opts, err := keyword.Compile(a.Pattern, a.Regex)
 		if err != nil {
 			st := ws.FSM.Status()
@@ -375,6 +474,7 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		opts.PathContains = strings.TrimSpace(a.Path)
 		opts.MaxLines, opts.MaxFiles = keywordMaxLines, a.TopK
+		opts.ContextLines = a.Context
 
 		// Deliberately not gated on bootstrap. This retriever reads the tree,
 		// not the index, so it is the one search that still answers while the
@@ -408,25 +508,89 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		// Echo the mode and whether ids could be resolved at all. A response
 		// with no ids means the index is not up yet, not that the hits are
 		// outside the graph — those read the same otherwise.
-		fmt.Fprintf(&sb, `<results retriever="keyword" mode="%s" files="%d" node_ids="%t">`,
+		fmt.Fprintf(&sb, `<results retriever="keyword" mode="%s" files="%d" node_ids="%t"`,
 			mode, len(hits), ws.Bootstrapped())
-		for i, h := range hits {
-			fmt.Fprintf(&sb, "\n  <file path=\"%s\" matches=\"%d\" rank=\"%d\">",
+		if a.Context > 0 {
+			// Only when asked: the default response stays byte-for-byte what
+			// it was, which is what the e2e tests pin.
+			fmt.Fprintf(&sb, ` context="%d"`, a.Context)
+		}
+		sb.WriteString(">")
+		const footer = "\n</results>"
+		// Data files win a match-count ranking by repetition, not relevance:
+		// a scores.json that names a task forty times outranks the function
+		// that implements it (rag D arm, 2026-09-06: a data file sat at rank 1
+		// in 20% of keyword responses and took 21% of their bytes, and the
+		// agent's next move was to search again with path=). Unless the
+		// caller pointed at them with path=, they go after source and prose
+		// and come back folded — path and count, no lines — one path= call
+		// away. Snapshots and manifest-declared schema sources are indexed
+		// data and keep their rank.
+		ordered := hits
+		folded := map[string]bool{}
+		if a.Path == "" {
+			var code, data []keyword.Hit
+			for _, h := range hits {
+				if isDataPath(h.RelPath) && !ws.IsDBSource(h.RelPath) {
+					data = append(data, h)
+					folded[h.RelPath] = true
+					continue
+				}
+				code = append(code, h)
+			}
+			ordered = append(code, data...)
+		}
+		for i, h := range ordered {
+			if folded[h.RelPath] {
+				fmt.Fprintf(&sb, "\n  <file path=\"%s\" matches=\"%d\" rank=\"%d\" folded=\"data\" />",
+					mcp.EscapeAttr(h.RelPath), h.Matches, i+1)
+				continue
+			}
+			var fb strings.Builder
+			fmt.Fprintf(&fb, "\n  <file path=\"%s\" matches=\"%d\" rank=\"%d\">",
 				mcp.EscapeAttr(h.RelPath), h.Matches, i+1)
 			for _, ln := range h.Lines {
 				id, _ := workspace.NodeAtOffset(byFile[h.RelPath], uint32(ln.Byte))
-				sb.WriteString("\n    ")
+				fb.WriteString("\n    ")
 				if id != "" {
-					fmt.Fprintf(&sb, `<node id="%s" line="%d" match_type="keyword">`, mcp.EscapeAttr(id), ln.No)
+					fmt.Fprintf(&fb, `<node id="%s" line="%d" match_type="keyword"`, mcp.EscapeAttr(id), ln.No)
 				} else {
-					fmt.Fprintf(&sb, `<node line="%d" match_type="keyword">`, ln.No)
+					fmt.Fprintf(&fb, `<node line="%d" match_type="keyword"`, ln.No)
 				}
-				sb.WriteString(mcp.EscapeText(truncRunes(ln.Text, keywordMaxText)))
-				sb.WriteString("</node>")
+				if ln.Context == nil {
+					fb.WriteString(">")
+					fb.WriteString(mcp.EscapeText(truncRunes(ln.Text, keywordMaxText)))
+					fb.WriteString("</node>")
+					continue
+				}
+				// Numbered so a line can be cited as file:line straight from
+				// the response; the match itself is marked with '>'.
+				fmt.Fprintf(&fb, ` window="%d-%d">`, ln.Window.Start, ln.Window.End)
+				for j, raw := range ln.Context {
+					no := ln.Window.Start + j
+					mark := ' '
+					if no == ln.No {
+						mark = '>'
+					}
+					fmt.Fprintf(&fb, "\n%d%c %s", no, mark, mcp.EscapeText(truncRunes(raw, keywordMaxText)))
+				}
+				fb.WriteString("\n    </node>")
 			}
-			sb.WriteString("\n  </file>")
+			fb.WriteString("\n  </file>")
+			// Fold rather than cut: a file that does not fit is listed with
+			// its rank and match count so the caller can come back for it
+			// with path=, and never receives half a window.
+			if sb.Len()+fb.Len()+len(footer) > keywordBudget {
+				fmt.Fprintf(&sb, "\n  <file path=\"%s\" matches=\"%d\" rank=\"%d\" omitted=\"budget\" />",
+					mcp.EscapeAttr(h.RelPath), h.Matches, i+1)
+				continue
+			}
+			sb.WriteString(fb.String())
 		}
-		body := sb.String() + "\n</results>"
+		if len(hits) == 0 {
+			fmt.Fprintf(&sb, "\n  <hint>%s</hint>", mcp.EscapeText(keywordEmptyHint(a.Regex)))
+		}
+		body := sb.String() + footer
 		return body + costLine(len(body)), false
 	}
 }
@@ -501,7 +665,8 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			fmt.Fprintf(&sb, "\n  <next_cursor>%s</next_cursor>", mcp.EscapeText(page.NextCursor))
 		}
 		sb.WriteString("\n</graph_context>")
-		return sb.String(), false
+		body := sb.String()
+		return body + costLine(len(body)), false
 	}
 }
 
@@ -568,7 +733,8 @@ func readOne(ws *workspace.Workspace, id string) (string, bool) {
 	var sb strings.Builder
 	writeStatusPrefix(&sb, ws)
 	writeCodeBlock(&sb, cb)
-	return sb.String(), false
+	body := sb.String()
+	return body + costLine(len(body)), false
 }
 
 // readMany returns whole nodes in the order asked for, stopping at the first
@@ -656,7 +822,8 @@ func readMany(ws *workspace.Workspace, ids []string) (string, bool) {
 		writeOmitted(&sb, it.id, reason)
 	}
 	sb.WriteString("</code_blocks>")
-	return sb.String(), false
+	body := sb.String()
+	return body + costLine(len(body)), false
 }
 
 func writeStatusPrefix(sb *strings.Builder, ws *workspace.Workspace) {

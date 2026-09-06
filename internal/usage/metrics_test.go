@@ -388,3 +388,121 @@ func TestTargetOfClassification(t *testing.T) {
 		}
 	}
 }
+
+// --- retriever split (spec §4.3, 2026-09-05) -------------------------------
+
+func gkeyword(session, prompt, use, pattern string, ids ...any) Event {
+	p := map[string]any{"pattern": pattern}
+	if len(ids) > 0 {
+		p["result_ids"] = ids
+		p["result_count"] = float64(len(ids))
+	}
+	return ev(session, "", prompt, use, "mcp__k__search_keyword", false, p)
+}
+
+// A window that only ever used the keyword retriever used to be invisible:
+// search_keyword classed as `other`, so there was no run to judge. It is a
+// graphin nav call like any other search.
+func TestMetricsKeywordOnlyRunIsJudged(t *testing.T) {
+	rep := compute(
+		gkeyword("s1", "p1", "u1", "database is locked", "a.Lock"),
+		ev("s1", "", "p1", "u2", "Read", false, map[string]any{"file_path": "a.go"}),
+	)
+	g := rep.Groups["all"]
+	if g.Adoptions != 1 || g.WindowsWithGraphin != 1 {
+		t.Fatalf("group = %+v", g)
+	}
+	kw, hy := rep.Retrievers[RetrieverKeyword], rep.Retrievers[RetrieverHybrid]
+	if kw.Calls != 1 || kw.Runs != 1 || kw.Adoptions != 1 {
+		t.Fatalf("keyword = %+v", kw)
+	}
+	if hy.Calls != 0 || hy.Runs != 0 {
+		t.Fatalf("hybrid must stay empty, got %+v", hy)
+	}
+}
+
+// same-intent needs a query to compare against, and a keyword search logs a
+// pattern rather than a query. Without SearchQuery the pair below would be
+// nil and the fallback silently lose its retriever.
+func TestMetricsKeywordFallbackPairUsesPattern(t *testing.T) {
+	rep := compute(
+		gkeyword("s1", "p1", "u1", "lock steal"),
+		ev("s1", "", "p1", "u2", "Grep", false, map[string]any{"pattern": "lockSteal"}),
+	)
+	kw := rep.Retrievers[RetrieverKeyword]
+	if kw.Fallbacks != 1 || kw.SameIntentFallbacks != 1 {
+		t.Fatalf("keyword = %+v", kw)
+	}
+	if len(rep.FallbackPairs) != 1 || !rep.FallbackPairs[0].SameIntent ||
+		rep.FallbackPairs[0].Retriever != RetrieverKeyword {
+		t.Fatalf("pairs = %+v", rep.FallbackPairs)
+	}
+}
+
+// Overlapping populations, like targets: a run that asked both engines is a
+// data point for both, and the group headline still counts one run.
+func TestMetricsRunUsingBothRetrieversCountsInBoth(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "order cancel"),
+		gkeyword("s1", "p1", "u2", "cancelOrder"),
+		ev("s1", "", "p1", "u3", "Edit", false, map[string]any{"file_path": "a.go"}),
+	)
+	if g := rep.Groups["all"]; g.Adoptions != 1 {
+		t.Fatalf("group = %+v", g)
+	}
+	for _, name := range []string{RetrieverHybrid, RetrieverKeyword} {
+		m := rep.Retrievers[name]
+		if m.Calls != 1 || m.Runs != 1 || m.Adoptions != 1 {
+			t.Fatalf("%s = %+v", name, m)
+		}
+	}
+}
+
+// The funnel is attributed to the engine whose ids were handed on.
+func TestMetricsFunnelSplitsByRetriever(t *testing.T) {
+	rep := compute(
+		gsearch("s1", "p1", "u1", "order cancel", "h1", "h2"),
+		gkeyword("s1", "p1", "u2", "RETRY_BUDGET", "k1"),
+		ev("s1", "", "p1", "u3", "mcp__k__read_code", false, map[string]any{"node_id": "k1"}),
+	)
+	kw, hy := rep.Retrievers[RetrieverKeyword], rep.Retrievers[RetrieverHybrid]
+	if kw.FunnelSearches != 1 || kw.FunnelAdherent != 1 {
+		t.Fatalf("keyword funnel = %+v", kw)
+	}
+	if hy.FunnelSearches != 1 || hy.FunnelAdherent != 0 {
+		t.Fatalf("hybrid funnel = %+v", hy)
+	}
+	if g := rep.Groups["all"]; g.FunnelSearches != 2 || g.FunnelAdherent != 1 {
+		t.Fatalf("group funnel = %+v", g)
+	}
+}
+
+// The section renders only once keyword has been called: a permanent row of
+// zeros would read as "never adopted" in a workspace that predates it.
+func TestMarkdownRetrieverSectionOnlyWithKeywordCalls(t *testing.T) {
+	without := Markdown(compute(
+		gsearch("s1", "p1", "u1", "order cancel"),
+		ev("s1", "", "p1", "u2", "Read", false, map[string]any{"file_path": "a.go"}),
+	))
+	if contains(without, "## Retriever") {
+		t.Fatal("retriever section rendered with no keyword calls")
+	}
+	with := Markdown(compute(
+		gkeyword("s1", "p1", "u1", "database is locked"),
+		ev("s1", "", "p1", "u2", "Read", false, map[string]any{"file_path": "a.go"}),
+	))
+	if !contains(with, "## Retriever") || !contains(with, "| keyword | 1 | 1 |") {
+		t.Fatalf("retriever section missing or wrong:\n%s", with)
+	}
+}
+
+func contains(s, sub string) bool { return len(s) >= len(sub) && indexOf(s, sub) >= 0 }
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
+}

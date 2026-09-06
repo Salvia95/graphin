@@ -255,3 +255,40 @@ func TestNilFilterMatchesUnfilteredSearch(t *testing.T) {
 		}
 	}
 }
+
+// The literal-shaped signals (docs/keyword-plan.md P3a): a quoted query, and
+// a query most of whose content words no document holds.
+func TestTermStatesAndQuotedQuery(t *testing.T) {
+	r := fixtureRouter()
+	absent, content := r.termStates("cancel payment refund")
+	if content != 3 || len(absent) != 0 {
+		t.Fatalf("all present: absent=%v content=%d", absent, content)
+	}
+	absent, content = r.termStates("kubernetes ingress annotations for the payment")
+	if content != 4 || len(absent) != 3 {
+		t.Fatalf("three absent of four: absent=%v content=%d", absent, content)
+	}
+	// Stopwords and short words are not content, so they can neither trip the
+	// rule nor pad the denominator.
+	if _, content := r.termStates("how does it do that"); content != 0 {
+		t.Fatalf("function words counted as content: %d", content)
+	}
+	for q, want := range map[string]bool{
+		`"database is locked"`:       true,
+		"'database is locked'":       true,
+		"`RETRY_BUDGET`":             true,
+		`say "hello" to the payment`: false,
+		`"mismatched'`:               false,
+		`""`:                         false,
+		`cancel payment`:             false,
+		`"a" or "b"`:                 false,
+	} {
+		if got := quotedQuery(q); got != want {
+			t.Errorf("quotedQuery(%q) = %t, want %t", q, got, want)
+		}
+	}
+	_, st := r.SearchStats(`"cancel payment"`, 5, rrfK, nil)
+	if !st.Quoted || st.ContentTerms != 2 {
+		t.Fatalf("stats = %+v, want Quoted with 2 content terms", st)
+	}
+}

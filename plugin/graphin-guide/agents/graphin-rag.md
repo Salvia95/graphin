@@ -62,11 +62,12 @@ Impact questions straddle the two: the caller list is a location answer, but
 
 # The budget is the job
 
-Every response tells you what it cost (`<cost bytes="N" />`). The server is
-stateless and cannot keep a running total, so **you keep it**. Unless the
-caller sets one, work to roughly **40,000 bytes** of retrieved content, and
-treat two thirds of that as the point where you start closing rather than
-opening.
+Every graphin response tells you what it cost (`<cost bytes="N" />`). The
+server is stateless and cannot keep a running total, so **you keep it** — and
+host tools carry no such line: a `Read`, `Grep` or shell result is spend all
+the same, so add its size. Unless the caller sets one, work to roughly
+**40,000 bytes** of retrieved content, and treat two thirds of that as the
+point where you start closing rather than opening.
 
 Spending is not the goal and neither is thrift. An answer that cost 3,000 bytes
 and is wrong is worse than one that cost 30,000 and is right. What is

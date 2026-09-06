@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -52,7 +53,12 @@ type Config struct {
 	// SemanticMaxNodes disables semantic search above this node count
 	// (cold-start cost is ~linear in nodes; see docs/eval). 0 = no limit.
 	SemanticMaxNodes int
-	Log              *obs.Logger
+	// SemanticWait makes search_hybrid wait up to this long for the model to
+	// finish loading instead of answering lexically meanwhile. 0 (production)
+	// never waits; measurement harnesses that spawn a server per run set it
+	// so a "hybrid" arm is hybrid from its first call.
+	SemanticWait time.Duration
+	Log          *obs.Logger
 }
 
 // Workspace holds all engines for one indexed source tree.
@@ -443,6 +449,28 @@ func (w *Workspace) SemanticEmbedDropped() int64 {
 		return 0
 	}
 	return w.sem.Dropped()
+}
+
+// SemanticWait is Config.SemanticWait (see there).
+func (w *Workspace) SemanticWait() time.Duration { return w.cfg.SemanticWait }
+
+// SemanticPending reports that a semantic engine exists and has not been
+// ruled out — not permanently failed, not gated by the node ceiling — so
+// waiting for it to become ready and drain its queue is meaningful. It stays
+// true once the engine is ready; callers check readiness separately.
+func (w *Workspace) SemanticPending() bool {
+	return w.sem != nil && w.SemUnavailable() == "" && !w.semGated.Load()
+}
+
+// IsDBSource reports whether rel is indexed as database schema — a
+// *.graphindb.json snapshot or a source the graphindb manifest routes — so a
+// caller ranking files by kind can keep it with code rather than with data.
+func (w *Workspace) IsDBSource(rel string) bool {
+	// Covers *.graphindb.json snapshots and the graphindb.json manifest itself;
+	// sources a manifest routes are recognised through the route table. A
+	// manifest below the root is not loaded, so its sources read as plain data
+	// (the rag corpus's testdata fixtures — 8 of 101 folds in the D′ arm).
+	return strings.HasSuffix(rel, "graphindb.json") || w.routeFor(rel) != nil
 }
 
 // SemUnavailable reports a permanent semantic warmup failure ("" if none):

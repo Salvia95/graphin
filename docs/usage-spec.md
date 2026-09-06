@@ -159,9 +159,14 @@ config key라 신뢰할 수 없다.
    연속 두 배치는 병합될 수 있으나 무순서 집합 의미론에선 수용.
 4. `prompt_id`로 **프롬프트 윈도우** 분할 — 헤드라인 지표의 단위.
 
-클래스: `g_search`(search_hybrid) / `g_explore` / `g_read` / `g_boot` /
-`g_bench` / `search`(Grep·Glob·search-Bash) / `read`(Read) /
+클래스: `g_search`(search_hybrid **·search_keyword**) / `g_explore` / `g_read` /
+`g_boot` / `g_bench` / `search`(Grep·Glob·search-Bash) / `read`(Read) /
 `action`(Edit·Write) / `other`. **graphin 내비 콜** = g_search|g_explore|g_read.
+
+`search_keyword`는 2026-09-05까지 `other`였다. 그 사이 키워드만 쓴 윈도우는
+채택에도 폴백에도 잡히지 않았고, 발견 실패의 분모에서는 graphin 콜이 없는
+윈도우로 읽혔다. 분류는 리포트 시점에 일어나므로 소급 적용된다 — 같은 로그를
+다시 돌리면 그 윈도우들이 나타난다.
 
 ### 4.2 헤드라인 4종
 
@@ -173,9 +178,10 @@ config key라 신뢰할 수 없다.
    채택으로 센다.) 후속이 배치면: `search` 포함 → 폴백(비관적 타이브레이크 —
    read 옆의 병렬 grep도 미충족 수요 신호다), 아니면 `read`/`action` 포함 → 채택.
 2. **폴백**: 후속이 `search`. **same-intent 판별**: 런의 마지막 `g_search`
-   쿼리와 폴백 pattern을 토크나이즈(소문자, 비영숫자 분리, 3자 미만·불용어
-   제거)해 겹침 ≥1 → same-intent 폴백. 리포트에 (query, pattern) 실쌍
-   top-N 출력. 겹침 0 → 신규 의도.
+   쿼리(search_hybrid의 `query`, search_keyword의 `pattern`)와 폴백 pattern을
+   토크나이즈(소문자, 비영숫자 분리, 3자 미만·불용어 제거)해 겹침 ≥1 →
+   same-intent 폴백. 리포트에 (retriever, query, pattern) 실쌍 top-N 출력.
+   겹침 0 → 신규 의도.
 3. **늦은 전환**: 첫 graphin 내비 콜 **이전에** `search` ≥2인 윈도우.
    분모 = graphin 내비 콜이 있는 윈도우.
 4. **발견 실패**: **심볼형** `search` ≥3이고 graphin 내비 콜 0인 윈도우.
@@ -222,6 +228,13 @@ config key라 신뢰할 수 없다.
 
 - **퍼널 준수율**: `g_search`의 result_ids ∈ 후속 explore/read node_id —
   progressive disclosure의 ID 핸드오프가 실제로 일어나는지.
+- **검색기별 분리(hybrid / keyword)**: `g_search`를 엔진별로 갈라 콜 수·런·
+  채택/폴백/same-intent·퍼널을 따로 낸다. 두 검색기는 다른 형태의 질문에
+  답하므로(심볼·문장은 hybrid, 정확한 문자열은 keyword) "채택되는가"의 답도
+  각각 다르고, 합산 채택률은 둘 중 실패하는 쪽을 가린다. 단위는 런이고 타깃
+  분리처럼 **겹치는 모집단**이다. keyword 콜이 0이면 이 절은 리포트에 나오지
+  않는다 — 검색기 배포 전의 로그나 한 번도 안 부른 워크스페이스에서 0으로 찍힌
+  행은 "채택 안 됨"으로 오독된다.
 - **세션 레벨 채택**: graphin 내비 콜 ≥1 세션 / 전체 세션. 0회 세션 수.
 - **최초 graphin까지 이벤트 수** (중앙값).
 - **검색 형태별 수** (`search_shapes`): symbol / regex / literal / none.

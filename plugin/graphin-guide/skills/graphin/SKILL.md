@@ -57,7 +57,7 @@ background:
 | `bootstrap_workspace` | Starts indexing + live file watching. | `model_type`: `english_optimal` \| `multilingual_cjk` (pick by the language of code/comments). `offline`: for air-gapped setups. |
 | `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). `target`: `code` \| `docs` \| `db` — see below. |
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
-| `search_keyword` | Literal or regex matches over the same tree the index walks, ranked by match count, each matching line carrying the **node id** that owns it. | `pattern` (required). `regex` (default false). `path` (rel-path substring). `top_k` (files, default 5). |
+| `search_keyword` | Literal or regex matches over the same tree the index walks, ranked by match count, each matching line carrying the **node id** that owns it. Data files (json, jsonl, lock, sum, csv) rank after source and prose and come back `folded="data"` with path and count only; `path=` opens one. | `pattern` (required). `regex` (default false). `path` (rel-path substring). `top_k` (files, default 5). `context` (0–5 lines around each match, default 0). |
 | `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
 
 `diagnose_index` reports the index's own health — counts, edges whose target is
@@ -249,6 +249,12 @@ it reflects the schema as checked in, not the current production state.
 - **"Where is this exact string?"** (an error message, a config key) →
   `search_keyword("the string")` — the answer is the `file`/`line`, and the
   `id` lets you keep going without searching again.
+- **"Where is this string, and what is around it?"** →
+  `search_keyword("the string", context=3)` — the lines around each match come
+  numbered in the same response, so you do not need a Read to see the
+  neighbourhood. A file folded as `omitted="budget"` or `folded="data"` is one
+  `path=` call away.
+  If nothing matches, the response's `<hint>` says which retriever to try next.
 - **"Where is feature X?"** → `search_hybrid("X in plain words", target="code")` —
   the answer is the `file`/`line` on the top result. `read_code` only if you need
   the body.

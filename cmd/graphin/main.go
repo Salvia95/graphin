@@ -86,6 +86,10 @@ func main() {
 		semMaxNodes = flag.Int("semantic-max-nodes", def.SemanticMaxNodes,
 			"disable semantic search above this node count; lexical stays on (0 = no limit). "+
 				"Default from docs/eval cold-start: ~1.4GB peak / ~4.6min warmup at 40k on 8GB.")
+		semWait = flag.Duration("semantic-wait", def.SemanticWait,
+			"make search_hybrid wait up to this long for the embedding model to finish loading "+
+				"instead of answering lexically meanwhile (0 = never wait). For measurement harnesses "+
+				"that spawn a fresh server per run; production leaves it at 0.")
 		verbose = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
 	)
 	flag.Parse()
@@ -123,6 +127,7 @@ func main() {
 		ModelDir:         *modelDir,
 		OrtLib:           *ortLib,
 		SemanticMaxNodes: *semMaxNodes,
+		SemanticWait:     *semWait,
 		Log:              lg,
 	})
 	defer ws.Close()

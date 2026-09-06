@@ -53,13 +53,32 @@ type TargetMetrics struct {
 	Inconclusive        int `json:"inconclusive"`
 }
 
+// RetrieverMetrics splits g_search activity by engine (spec §4.3). Like
+// TargetMetrics the unit is the run and the populations overlap: a run that
+// searched with both engines counts in both, because each population asks its
+// own question — "when the keyword retriever is used, is it adopted?" is not
+// answered by a rate that pools it with hybrid.
+type RetrieverMetrics struct {
+	Calls               int `json:"calls"`
+	Runs                int `json:"runs"`
+	Adoptions           int `json:"adoptions"`
+	Fallbacks           int `json:"fallbacks"`
+	SameIntentFallbacks int `json:"same_intent_fallbacks"`
+	Inconclusive        int `json:"inconclusive"`
+	FunnelSearches      int `json:"funnel_searches"`
+	FunnelAdherent      int `json:"funnel_adherent"`
+}
+
 // FallbackPair is one graphin-query → grep-pattern instance; same-intent
 // pairs are the literal repro cases for index/ranking work (spec §0).
+// Retriever says which engine asked: a keyword pattern the agent then grepped
+// anyway is a different repro case from a hybrid query that missed.
 type FallbackPair struct {
 	TS         string `json:"ts"`
 	Query      string `json:"query"`
 	Pattern    string `json:"pattern"`
 	SameIntent bool   `json:"same_intent"`
+	Retriever  string `json:"retriever,omitempty"`
 }
 
 // DayTrend is one UTC day's adoption/fallback counts.
@@ -72,17 +91,18 @@ type DayTrend struct {
 // Report is the full computation result; Markdown renders it, --json emits it
 // verbatim.
 type Report struct {
-	Events                int                       `json:"events"`
-	Sessions              int                       `json:"sessions"`
-	SessionsWithGraphin   int                       `json:"sessions_with_graphin"`
-	MedianCallsToFirstNav int                       `json:"median_calls_to_first_nav"` // -1: no session used graphin
-	Groups                map[string]GroupMetrics   `json:"groups"`                    // keys: all, main, subagent
-	Targets               map[string]TargetMetrics  `json:"targets"`                   // keys: code, db, docs
-	FallbackPairs         []FallbackPair            `json:"fallback_pairs"`
-	SearchShapes          map[string]int            `json:"search_shapes"` // keys: symbol, regex, literal, none
-	Bigrams               map[string]map[string]int `json:"bigrams"`
-	Daily                 []DayTrend                `json:"daily"`
-	Problems              []string                  `json:"problems,omitempty"`
+	Events                int                         `json:"events"`
+	Sessions              int                         `json:"sessions"`
+	SessionsWithGraphin   int                         `json:"sessions_with_graphin"`
+	MedianCallsToFirstNav int                         `json:"median_calls_to_first_nav"` // -1: no session used graphin
+	Groups                map[string]GroupMetrics     `json:"groups"`                    // keys: all, main, subagent
+	Targets               map[string]TargetMetrics    `json:"targets"`                   // keys: code, db, docs
+	Retrievers            map[string]RetrieverMetrics `json:"retrievers"`                // keys: hybrid, keyword
+	FallbackPairs         []FallbackPair              `json:"fallback_pairs"`
+	SearchShapes          map[string]int              `json:"search_shapes"` // keys: symbol, regex, literal, none
+	Bigrams               map[string]map[string]int   `json:"bigrams"`
+	Daily                 []DayTrend                  `json:"daily"`
+	Problems              []string                    `json:"problems,omitempty"`
 }
 
 // Options tunes Compute.
@@ -101,12 +121,14 @@ func Compute(events []Event, problems []string, opts Options) Report {
 		Events:       len(events),
 		Groups:       map[string]GroupMetrics{},
 		Targets:      map[string]TargetMetrics{},
+		Retrievers:   map[string]RetrieverMetrics{},
 		SearchShapes: map[string]int{},
 		Bigrams:      map[string]map[string]int{},
 		Problems:     problems,
 	}
 	groups := map[string]*GroupMetrics{"all": {}, "main": {}, "subagent": {}}
 	targets := map[string]*TargetMetrics{targetCode: {}, targetDB: {}, targetDocs: {}}
+	retrievers := map[string]*RetrieverMetrics{RetrieverHybrid: {}, RetrieverKeyword: {}}
 	daily := map[string]*DayTrend{}
 	var pairs []FallbackPair
 
@@ -119,6 +141,9 @@ func Compute(events []Event, problems []string, opts Options) Report {
 		s := ev.SessionID
 		sessions[s] = true
 		sessionCalls[s]++
+		if r := ev.Retriever(); r != "" {
+			retrievers[r].Calls++
+		}
 		if Classify(ev.Tool, ev.P).IsGraphinNav() && !sessionNav[s] {
 			sessionNav[s] = true
 			sessionFirstNav[s] = sessionCalls[s] - 1
@@ -135,7 +160,7 @@ func Compute(events []Event, problems []string, opts Options) Report {
 		}
 		addBigrams(rep.Bigrams, st.Elems)
 		for _, w := range st.Windows() {
-			analyzeWindow(w, []*GroupMetrics{groups["all"], groups[grp]}, targets, daily, &pairs, rep.SearchShapes)
+			analyzeWindow(w, []*GroupMetrics{groups["all"], groups[grp]}, targets, retrievers, daily, &pairs, rep.SearchShapes)
 		}
 	}
 
@@ -144,6 +169,9 @@ func Compute(events []Event, problems []string, opts Options) Report {
 	}
 	for k, t := range targets {
 		rep.Targets[k] = *t
+	}
+	for k, m := range retrievers {
+		rep.Retrievers[k] = *m
 	}
 	sort.Slice(pairs, func(i, j int) bool { return pairs[i].TS > pairs[j].TS })
 	if len(pairs) > opts.TopPairs {
@@ -160,7 +188,7 @@ func Compute(events []Event, problems []string, opts Options) Report {
 // analyzeWindow applies the §4.2 definitions to one prompt window, adding
 // counts to every metric group in gs (the "all" group plus main/subagent) and
 // tallying search shapes into shapes.
-func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetrics, daily map[string]*DayTrend, pairs *[]FallbackPair, shapes map[string]int) {
+func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetrics, retrievers map[string]*RetrieverMetrics, daily map[string]*DayTrend, pairs *[]FallbackPair, shapes map[string]int) {
 	searchElems, symbolElems, hasNav := 0, 0, false
 	searchBeforeNav := 0
 	for _, el := range w.Elems {
@@ -216,6 +244,7 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 		}
 		out, pair := judgeRun(w.Elems[i:j], w.Elems[j:])
 		ts := runTargets(w.Elems[i:j], targets)
+		rs := runRetrievers(w.Elems[i:j], retrievers)
 		day := w.Elems[i].Events[0].TS
 		if len(day) >= 10 {
 			day = day[:10]
@@ -232,6 +261,9 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 			for _, t := range ts {
 				t.Runs++
 			}
+			for _, r := range rs {
+				r.Runs++
+			}
 		}
 		switch out {
 		case outAdoption:
@@ -241,6 +273,9 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 			}
 			for _, t := range ts {
 				t.Adoptions++
+			}
+			for _, r := range rs {
+				r.Adoptions++
 			}
 		case outFallback:
 			d.Fallbacks++
@@ -256,6 +291,12 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 					t.SameIntentFallbacks++
 				}
 			}
+			for _, r := range rs {
+				r.Fallbacks++
+				if pair != nil && pair.SameIntent {
+					r.SameIntentFallbacks++
+				}
+			}
 			if pair != nil {
 				*pairs = append(*pairs, *pair)
 			}
@@ -266,13 +307,37 @@ func analyzeWindow(w Window, gs []*GroupMetrics, targets map[string]*TargetMetri
 			for _, t := range ts {
 				t.Inconclusive++
 			}
+			for _, r := range rs {
+				r.Inconclusive++
+			}
 		case outMerged:
 			// judged by the following run
 		}
 		i = j
 	}
 
-	funnel(w, gs)
+	funnel(w, gs, retrievers)
+}
+
+// runRetrievers reports which search engines a run used, as accumulator
+// pointers. Overlapping like runTargets: a run that asked both engines is a
+// data point for both.
+func runRetrievers(run []Elem, acc map[string]*RetrieverMetrics) []*RetrieverMetrics {
+	hit := map[string]bool{}
+	for _, el := range run {
+		for _, ev := range el.Events {
+			if r := ev.Retriever(); r != "" {
+				hit[r] = true
+			}
+		}
+	}
+	var out []*RetrieverMetrics
+	for _, r := range []string{RetrieverHybrid, RetrieverKeyword} {
+		if hit[r] {
+			out = append(out, acc[r])
+		}
+	}
+	return out
 }
 
 const (
@@ -356,14 +421,14 @@ func runTargets(run []Elem, acc map[string]*TargetMetrics) []*TargetMetrics {
 // judgeRun decides one nav run's outcome from the first decisive follow-up
 // element (spec §4.2). rest starts right after the run.
 func judgeRun(run, rest []Elem) (outcome, *FallbackPair) {
-	lastQuery, queryTS := "", ""
+	lastQuery, queryTS, lastRetriever := "", "", ""
 	endsInRead := false
 	for _, el := range run {
 		for _, ev := range el.Events {
 			switch Classify(ev.Tool, ev.P) {
 			case ClassGSearch:
-				if q, ok := ev.P["query"].(string); ok && q != "" {
-					lastQuery, queryTS = q, ev.TS
+				if q := ev.SearchQuery(); q != "" {
+					lastQuery, queryTS, lastRetriever = q, ev.TS, ev.Retriever()
 				}
 				endsInRead = false
 			case ClassGExplore:
@@ -379,6 +444,9 @@ func judgeRun(run, rest []Elem) (outcome, *FallbackPair) {
 		// signals unmet need — search wins.
 		if el.Has(ClassSearch) {
 			pair := fallbackPair(lastQuery, queryTS, el)
+			if pair != nil {
+				pair.Retriever = lastRetriever
+			}
 			return outFallback, pair
 		}
 		if el.Has(ClassRead) || el.Has(ClassAction) {
@@ -399,7 +467,7 @@ func judgeRun(run, rest []Elem) (outcome, *FallbackPair) {
 
 func fallbackPair(query, ts string, el Elem) *FallbackPair {
 	if query == "" {
-		return nil // run had no search_hybrid: nothing to compare intent with
+		return nil // run had no search call with a query: nothing to compare intent with
 	}
 	qTok := Tokens(query)
 	var first string
@@ -423,8 +491,11 @@ func fallbackPair(query, ts string, el Elem) *FallbackPair {
 
 // funnel measures §4.3 handoff adherence: search_hybrid results whose node
 // ids feed a later explore/read in the same window.
-func funnel(w Window, gs []*GroupMetrics) {
-	type pending struct{ ids map[string]bool }
+func funnel(w Window, gs []*GroupMetrics, retrievers map[string]*RetrieverMetrics) {
+	type pending struct {
+		ids       map[string]bool
+		retriever string
+	}
 	var open []pending
 	adherent, total := 0, 0
 	for _, el := range w.Elems {
@@ -442,7 +513,10 @@ func funnel(w Window, gs []*GroupMetrics) {
 					}
 				}
 				total++
-				open = append(open, pending{ids: ids})
+				if r := retrievers[ev.Retriever()]; r != nil {
+					r.FunnelSearches++
+				}
+				open = append(open, pending{ids: ids, retriever: ev.Retriever()})
 			case ClassGExplore, ClassGRead:
 				id, _ := ev.P["node_id"].(string)
 				if id == "" {
@@ -451,6 +525,9 @@ func funnel(w Window, gs []*GroupMetrics) {
 				for k := len(open) - 1; k >= 0; k-- {
 					if open[k].ids[id] {
 						adherent++
+						if r := retrievers[open[k].retriever]; r != nil {
+							r.FunnelAdherent++
+						}
 						open = append(open[:k], open[k+1:]...)
 						break
 					}

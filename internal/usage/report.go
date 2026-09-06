@@ -89,14 +89,35 @@ func Markdown(r Report) string {
 			ratio(g.FunnelAdherent, g.FunnelSearches), g.FunnelAdherent, g.FunnelSearches)
 	}
 
+	// Only once the keyword retriever has actually been called. A permanent
+	// keyword row of zeros reads as "keyword is never adopted", when the
+	// workspace may simply predate the retriever (shipped 2026-08-31) or the
+	// agent never reached for it — which the calls column would then say.
+	if r.Retrievers[RetrieverKeyword].Calls > 0 {
+		md.WriteString("\n## Retriever (hybrid vs keyword)\n\n")
+		md.WriteString("| retriever | calls | runs | adoption | fallback | same-intent | inconclusive | funnel |\n")
+		md.WriteString("|---|---|---|---|---|---|---|---|\n")
+		for _, name := range []string{RetrieverHybrid, RetrieverKeyword} {
+			m := r.Retrievers[name]
+			fmt.Fprintf(&md, "| %s | %d | %d | %s | %d | %d | %d | %s |\n",
+				name, m.Calls, m.Runs,
+				ratio(m.Adoptions, m.Adoptions+m.Fallbacks),
+				m.Fallbacks, m.SameIntentFallbacks, m.Inconclusive,
+				ratio(m.FunnelAdherent, m.FunnelSearches))
+		}
+		md.WriteString("\n단위는 런이고 두 모집단은 겹친다(한 런이 두 검색기를 다 썼으면 양쪽에 센다). " +
+			"keyword의 same-intent 폴백은 정확한 텍스트를 넣고도 grep으로 간 경우다 — " +
+			"하이브리드 쪽과 다른 종류의 재현 케이스다.\n")
+	}
+
 	if len(r.FallbackPairs) > 0 {
 		fmt.Fprintf(&md, "\n## Fallback pairs — 금맥 (최근 %d)\n\n", len(r.FallbackPairs))
-		md.WriteString("| ts | graphin query | fallback pattern | same-intent |\n|---|---|---|---|\n")
+		md.WriteString("| ts | retriever | graphin query | fallback pattern | same-intent |\n|---|---|---|---|---|\n")
 		for _, p := range r.FallbackPairs {
-			fmt.Fprintf(&md, "| %s | %s | %s | %t |\n",
-				p.TS, cell(p.Query), cell(p.Pattern), p.SameIntent)
+			fmt.Fprintf(&md, "| %s | %s | %s | %s | %t |\n",
+				p.TS, p.Retriever, cell(p.Query), cell(p.Pattern), p.SameIntent)
 		}
-		md.WriteString("\nsame-intent 쌍은 search_hybrid가 놓친 리터럴 재현 케이스다 — 인덱스/랭킹 개선 입력으로 쓴다.\n")
+		md.WriteString("\nsame-intent 쌍은 graphin 검색이 놓친 리터럴 재현 케이스다 — 인덱스/랭킹 개선 입력으로 쓴다.\n")
 	}
 
 	if len(r.Bigrams) > 0 {

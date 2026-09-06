@@ -6,6 +6,7 @@ package workspace
 
 import (
 	"runtime"
+	"time"
 
 	"github.com/Salvia95/graphin/internal/graph"
 	"github.com/Salvia95/graphin/internal/semantic"
@@ -99,6 +100,7 @@ type ConfigView struct {
 	OrtLib           string
 	Workers          int
 	SemanticMaxNodes int
+	SemanticWait     time.Duration
 	Offline          bool
 }
 
@@ -123,6 +125,7 @@ func (w *Workspace) EffectiveConfig() ConfigView {
 		OrtLib:           w.cfg.OrtLib,
 		Workers:          w.cfg.Workers,
 		SemanticMaxNodes: w.cfg.SemanticMaxNodes,
+		SemanticWait:     w.cfg.SemanticWait,
 		Offline:          w.cfg.Offline,
 	}
 }

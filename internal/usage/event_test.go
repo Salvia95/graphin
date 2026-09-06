@@ -134,3 +134,20 @@ func TestOverlapsQueryVsPattern(t *testing.T) {
 		t.Fatal("expected no overlap for unrelated pattern")
 	}
 }
+
+func TestClassifyKeywordIsASearch(t *testing.T) {
+	if c := Classify("mcp__k__search_keyword", nil); c != ClassGSearch {
+		t.Fatalf("search_keyword: got %s, want g_search", c)
+	}
+	e := Event{Tool: "mcp__k__search_keyword", P: map[string]any{"pattern": "database is locked"}}
+	if e.Retriever() != RetrieverKeyword || e.SearchQuery() != "database is locked" {
+		t.Fatalf("retriever=%q query=%q", e.Retriever(), e.SearchQuery())
+	}
+	h := Event{Tool: "mcp__k__search_hybrid", P: map[string]any{"query": "order cancel"}}
+	if h.Retriever() != RetrieverHybrid || h.SearchQuery() != "order cancel" {
+		t.Fatalf("retriever=%q query=%q", h.Retriever(), h.SearchQuery())
+	}
+	if (Event{Tool: "Grep"}).Retriever() != "" {
+		t.Fatal("a grep is not a graphin retriever")
+	}
+}

@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -173,4 +174,35 @@ func TestSearchResultsCarryTheirLocation(t *testing.T) {
 	if lines == nil || lines[1] != m[1] {
 		t.Fatalf("search says line %s, read_code says %v", m[1], lines)
 	}
+}
+
+// The agent keeps the running budget by summing <cost> lines (graphin-rag.md
+// "The budget is the job"), and read_code and explore_graph are what it spends
+// most on. Until 2026-09-06 only the two search tools carried the line, so the
+// agent under-counted by the size of everything it actually read (rag D arm:
+// self-report median 0.84, two silent budget overruns).
+func TestReadCodeAndExploreReportCost(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, javaFixtures, root)
+	writeFile(t, root, "billing/retry.go", keywordFixture)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	costRe := regexp.MustCompile(`<cost bytes="(\d+)" />$`)
+	check := func(tool string, args map[string]any) {
+		text, isErr := c.tool(tool, args)
+		if isErr {
+			t.Fatalf("%s: %s", tool, text)
+		}
+		m := costRe.FindStringSubmatch(text)
+		if m == nil {
+			t.Fatalf("%s does not report its own cost:\n%s", tool, text)
+		}
+		if m[1] != fmt.Sprint(len(text)) {
+			t.Fatalf("%s: cost says %s, response is %d bytes", tool, m[1], len(text))
+		}
+	}
+	check("read_code", map[string]any{"node_id": "billing.chargeWithRetry"})
+	check("read_code", map[string]any{"node_ids": []string{"billing.chargeWithRetry", "billing.chargeOnce"}})
+	check("explore_graph", map[string]any{"node_id": "billing.chargeWithRetry"})
 }

@@ -43,10 +43,48 @@ const (
 )
 
 // IsGraphinNav reports whether c is a graphin navigation call
-// (search_hybrid/explore_graph/read_code) — the funnel the headline metrics
-// track. bootstrap/benchmark are graphin tools but not navigation.
+// (search_hybrid/search_keyword/explore_graph/read_code) — the funnel the
+// headline metrics track. bootstrap/benchmark are graphin tools but not
+// navigation.
 func (c Class) IsGraphinNav() bool {
 	return c == ClassGSearch || c == ClassGExplore || c == ClassGRead
+}
+
+// Retriever names for the g_search split (spec §4.3). The two engines answer
+// different question shapes — a symbol or a sentence goes to hybrid, an exact
+// string to keyword — so "is graphin adopted" has a different answer for each,
+// and a merged rate hides the one that is failing.
+const (
+	RetrieverHybrid  = "hybrid"
+	RetrieverKeyword = "keyword"
+)
+
+// Retriever reports which search engine a g_search event used, or "" for any
+// other event.
+func (e Event) Retriever() string {
+	name := e.Tool
+	if m := mcpSuffix.FindStringSubmatch(e.Tool); m != nil {
+		name = m[1]
+	}
+	switch name {
+	case "search_hybrid":
+		return RetrieverHybrid
+	case "search_keyword":
+		return RetrieverKeyword
+	}
+	return ""
+}
+
+// SearchQuery returns what a g_search event asked for. search_hybrid logs a
+// `query`, search_keyword a `pattern`; same-intent overlap and the fallback
+// pair table need one accessor for both, or a keyword run that ends in grep
+// would be judged with no query to compare against.
+func (e Event) SearchQuery() string {
+	if q, _ := e.P["query"].(string); q != "" {
+		return q
+	}
+	s, _ := e.P["pattern"].(string)
+	return s
 }
 
 // mcpSuffix extracts the tool segment of an mcp__<server>__<tool> name. The
@@ -61,7 +99,12 @@ func Classify(tool string, p map[string]any) Class {
 		name = m[1]
 	}
 	switch name {
-	case "search_hybrid":
+	// Both retrievers are the same class: a keyword search that ends in grep
+	// is a fallback like any other. Before 2026-09-05 search_keyword fell to
+	// `other`, so a window that only ever used it was invisible to every
+	// headline metric — neither adoption nor fallback, and not even a
+	// graphin call for the discovery-failure denominator.
+	case "search_hybrid", "search_keyword":
 		return ClassGSearch
 	case "explore_graph":
 		return ClassGExplore

@@ -189,6 +189,87 @@ type Stats struct {
 	// ever answer with its callers. Saying so sends the caller to the
 	// retriever that can point at the declaration itself.
 	UnnamedIdents []string
+
+	// The two signals below serve queries that are not identifier-shaped at
+	// all — an error message, a log line, a config value — the shape grep is
+	// best at and the one the identifier hints above are blind to
+	// (docs/keyword-plan.md P3a).
+	//
+	// Quoted is set when the whole query sits inside one pair of quotes or
+	// backticks: the caller pasted text they want found verbatim, and BM25
+	// matching its words is not what they asked for.
+	Quoted bool
+	// ContentTerms is how many content words the query had (3+ characters,
+	// not a stopword) and AbsentTerms lists those that no indexed document
+	// contains. When most of a query's words are absent, the ranking answered
+	// from the remainder — plausible hits built out of the common words —
+	// and a file search is the retriever that can still find the text.
+	ContentTerms int
+	AbsentTerms  []string
+}
+
+// quotedQuery reports whether q is one string in quotes or backticks, and
+// nothing else. A quote inside a sentence is punctuation, not an instruction.
+func quotedQuery(q string) bool {
+	q = strings.TrimSpace(q)
+	if len(q) < 3 {
+		return false
+	}
+	open, close := q[0], q[len(q)-1]
+	if open != close || (open != '"' && open != '\'' && open != '`') {
+		return false
+	}
+	inner := q[1 : len(q)-1]
+	return !strings.ContainsRune(inner, rune(open))
+}
+
+// hintStopwords are the function words a question is made of. They are in
+// every index and carry no intent, so they must not count as "present" when
+// deciding whether the query's vocabulary is in the corpus at all.
+var hintStopwords = map[string]bool{
+	"the": true, "and": true, "for": true, "are": true, "but": true, "not": true,
+	"you": true, "all": true, "can": true, "had": true, "her": true, "was": true,
+	"one": true, "our": true, "out": true, "has": true, "his": true, "how": true,
+	"its": true, "who": true, "why": true, "did": true, "get": true, "let": true,
+	"does": true, "this": true, "that": true, "with": true, "from": true, "into": true,
+	"when": true, "what": true, "where": true, "which": true, "while": true, "will": true,
+	"have": true, "here": true, "there": true, "then": true, "than": true, "they": true,
+	"them": true, "these": true, "those": true, "about": true, "after": true, "before": true,
+	"been": true, "being": true, "each": true, "over": true, "only": true, "same": true,
+	"some": true, "such": true, "very": true, "your": true, "should": true, "would": true,
+	"could": true, "also": true, "just": true, "like": true, "more": true, "most": true,
+	"any": true, "own": true, "off": true, "too": true, "via": true, "per": true,
+}
+
+// termStates counts the query's content words and lists the ones no indexed
+// document holds. Words, not BM25 tokens: Tokenize also emits the joined form
+// of a composite identifier, which would count one word twice.
+func (r *Router) termStates(query string) (absent []string, content int) {
+	seen := map[string]bool{}
+	for _, w := range strings.Fields(query) {
+		w = strings.ToLower(strings.Trim(w, ".,;:!?()[]{}\"'`"))
+		if len([]rune(w)) < 3 || hintStopwords[w] || seen[w] {
+			continue
+		}
+		if allDigits(w) {
+			continue
+		}
+		seen[w] = true
+		content++
+		if !r.Lex.HasTerm(w) {
+			absent = append(absent, w)
+		}
+	}
+	return absent, content
+}
+
+func allDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // codeShaped narrows identTokens for hint purposes: a bare acronym like HTTP
@@ -296,7 +377,9 @@ func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result
 			add(h.DocID, MatchLexical)
 		}
 		absent, unnamed := r.identStates(query)
-		return out, Stats{LexicalMatched: matched, AbsentIdents: absent, UnnamedIdents: unnamed}
+		terms, content := r.termStates(query)
+		return out, Stats{LexicalMatched: matched, AbsentIdents: absent, UnnamedIdents: unnamed,
+			Quoted: quotedQuery(query), ContentTerms: content, AbsentTerms: terms}
 	}
 
 	// RRF merge: Score(d) = Σ 1/(k + rank), rank 1-based per engine.
@@ -349,5 +432,7 @@ func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result
 		}
 	}
 	absent, unnamed := r.identStates(query)
-	return out, Stats{LexicalMatched: matched, SemanticReady: true, AbsentIdents: absent, UnnamedIdents: unnamed}
+	terms, content := r.termStates(query)
+	return out, Stats{LexicalMatched: matched, SemanticReady: true, AbsentIdents: absent, UnnamedIdents: unnamed,
+		Quoted: quotedQuery(query), ContentTerms: content, AbsentTerms: terms}
 }

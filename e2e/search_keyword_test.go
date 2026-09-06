@@ -141,3 +141,139 @@ func TestSearchResponseCarriesLoopSignals(t *testing.T) {
 		t.Fatalf("the retriever the hint pointed at did not find it:\n%s", kw)
 	}
 }
+
+// context=N brings the neighbourhood of each match in the same response,
+// numbered and marked, still under the owning node id (docs/keyword-plan.md P1).
+func TestSearchKeywordContextWindow(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "billing/retry.go", keywordFixture)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("search_keyword", map[string]any{"pattern": "chargeOnce()", "context": 1})
+	if isErr {
+		t.Fatalf("search_keyword: %s", text)
+	}
+	if !strings.Contains(text, `context="1"`) {
+		t.Fatalf("response must echo the context it applied:\n%s", text)
+	}
+	// The call inside chargeWithRetry: line 11, window 10-12, match marked.
+	if !strings.Contains(text, `window="10-12"`) || !strings.Contains(text, "11> ") ||
+		!strings.Contains(text, "10  ") || !strings.Contains(text, "12  ") {
+		t.Fatalf("expected a numbered 10-12 window with line 11 marked:\n%s", text)
+	}
+	if !strings.Contains(text, `id="`) {
+		t.Fatalf("a windowed hit must still carry its node id:\n%s", text)
+	}
+
+	// The default response is byte-for-byte the pre-context shape: no context
+	// attribute, no windows.
+	plain, _ := c.tool("search_keyword", map[string]any{"pattern": "chargeOnce()"})
+	if strings.Contains(plain, "context=") || strings.Contains(plain, "window=") {
+		t.Fatalf("default response grew a context shape:\n%s", plain)
+	}
+
+	if text, isErr := c.tool("search_keyword", map[string]any{"pattern": "chargeOnce", "context": 6}); !isErr ||
+		!strings.Contains(text, "between 0 and 5") {
+		t.Fatalf("context above the cap must be refused, not clamped:\n%s", text)
+	}
+}
+
+// Nothing matched: the response says which retriever to try instead of
+// leaving an empty list to interpret.
+func TestSearchKeywordEmptyCarriesHint(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "billing/retry.go", keywordFixture)
+	c := newClient(t, root)
+
+	text, isErr := c.tool("search_keyword", map[string]any{"pattern": "no such text anywhere"})
+	if isErr {
+		t.Fatalf("search_keyword: %s", text)
+	}
+	if !strings.Contains(text, `files="0"`) || !strings.Contains(text, "<hint>") ||
+		!strings.Contains(text, "search_hybrid") {
+		t.Fatalf("an empty keyword result must carry a redirecting hint:\n%s", text)
+	}
+}
+
+// Files that would push a windowed response past its budget are folded to one
+// line each, never cut mid-window, and the whole thing stays under the cap.
+func TestSearchKeywordFoldsFilesOverBudget(t *testing.T) {
+	root := t.TempDir()
+	long := strings.Repeat("x", 140)
+	for i := 0; i < 8; i++ {
+		var b strings.Builder
+		b.WriteString("package p\n\n")
+		for j := 0; j < 16; j++ {
+			fmt.Fprintf(&b, "// filler %s %d\n", long, j)
+			if j%5 == 0 {
+				fmt.Fprintf(&b, "const NEEDLE_%d_%d = %q\n", i, j, long)
+			}
+		}
+		writeFile(t, root, fmt.Sprintf("pkg/f%d.go", i), b.String())
+	}
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("search_keyword", map[string]any{"pattern": "NEEDLE_", "context": 5, "top_k": 8})
+	if isErr {
+		t.Fatalf("search_keyword: %s", text)
+	}
+	if len(text) > 12*1024 {
+		t.Fatalf("response is %d bytes, over the cap", len(text))
+	}
+	if !strings.Contains(text, `omitted="budget"`) {
+		t.Fatalf("expected at least one folded file:\n%s", text)
+	}
+	if !strings.Contains(text, `window="`) {
+		t.Fatalf("expected the first files to keep their windows:\n%s", text)
+	}
+	if strings.Contains(text, "...(truncated") || strings.Contains(text, "truncated") {
+		t.Fatalf("the server-level truncation must never fire on this path:\n%s", text)
+	}
+}
+
+// A data file that repeats the pattern would top a match-count ranking; the
+// caller wanted code. Data files go after source and prose and come back
+// folded, unless the caller pointed at them with path=.
+func TestSearchKeywordFoldsDataFilesAfterCode(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, javaFixtures, root)
+	writeFile(t, root, "billing/retry.go", keywordFixture)
+	var sb strings.Builder
+	sb.WriteString("[\n")
+	for i := 0; i < 40; i++ {
+		fmt.Fprintf(&sb, "  {\"task\": \"RETRY_BUDGET-%d\"},\n", i)
+	}
+	sb.WriteString("  {}\n]\n")
+	writeFile(t, root, "docs/eval/scores.json", sb.String())
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("search_keyword", map[string]any{"pattern": "RETRY_BUDGET"})
+	if isErr {
+		t.Fatalf("search_keyword: %s", text)
+	}
+	goAt, jsonAt := strings.Index(text, `<file path="billing/retry.go"`), strings.Index(text, `<file path="docs/eval/scores.json"`)
+	if goAt < 0 || jsonAt < 0 {
+		t.Fatalf("both files must be listed:\n%s", text)
+	}
+	if jsonAt < goAt {
+		t.Fatalf("the data file must rank after the source file:\n%s", text)
+	}
+	if !strings.Contains(text, `<file path="docs/eval/scores.json" matches="40" rank="2" folded="data" />`) {
+		t.Fatalf("the data file must come back folded with its count:\n%s", text)
+	}
+	if !strings.Contains(text, `<file path="billing/retry.go" matches="3" rank="1">`) {
+		t.Fatalf("the source file keeps rank 1 and its lines:\n%s", text)
+	}
+
+	// path= is the caller asking for it: opened, with lines.
+	text, isErr = c.tool("search_keyword", map[string]any{"pattern": "RETRY_BUDGET", "path": "scores.json"})
+	if isErr {
+		t.Fatalf("search_keyword with path: %s", text)
+	}
+	if strings.Contains(text, `folded="data"`) || !strings.Contains(text, ` line="2" match_type="keyword"`) {
+		t.Fatalf("a data file the caller pointed at must open:\n%s", text)
+	}
+}

@@ -79,3 +79,48 @@ func TestSearchHintSeparatesAbsentFromUnnamed(t *testing.T) {
 		t.Fatal("an identifier that is present as text must not be reported as missing")
 	}
 }
+
+// A quoted query is an instruction to find text, so it is said first — even
+// when the ranking returned a full list of word-matches.
+func TestSearchHintQuotedQueryWinsFirst(t *testing.T) {
+	st := search.Stats{Quoted: true, LexicalMatched: 900, UnnamedIdents: []string{"RETRY_BUDGET"}}
+	h := searchHint(st, 5, 1000, "")
+	if !strings.Contains(h, "quoted") || !strings.Contains(h, "search_keyword") {
+		t.Fatalf("hint = %q, want the quoted-string redirect", h)
+	}
+}
+
+// The vocabulary rule needs a majority of at least two content words, and it
+// yields to the identifier rules, which say something more specific.
+func TestSearchHintAbsentTermsMajority(t *testing.T) {
+	fires := searchHint(search.Stats{ContentTerms: 3, AbsentTerms: []string{"kubernetes", "ingress"}}, 5, 1000, "")
+	if !strings.Contains(fires, "2 of the query's 3 words") || !strings.Contains(fires, "search_keyword") {
+		t.Fatalf("2/3 absent must fire: %q", fires)
+	}
+	if h := searchHint(search.Stats{ContentTerms: 3, AbsentTerms: []string{"kubernetes"}}, 5, 1000, ""); h != "" {
+		t.Fatalf("1/3 absent must not fire: %q", h)
+	}
+	if h := searchHint(search.Stats{ContentTerms: 1, AbsentTerms: []string{"kubernetes"}}, 5, 1000, ""); h != "" {
+		t.Fatalf("a one-word query must not fire: %q", h)
+	}
+	ident := searchHint(search.Stats{ContentTerms: 2, AbsentTerms: []string{"zzz_nope", "thing"},
+		AbsentIdents: []string{"zzz_nope"}}, 5, 1000, "")
+	if !strings.Contains(ident, "no indexed symbol spells") {
+		t.Fatalf("identifier rule must win over the vocabulary rule: %q", ident)
+	}
+	// Empty result with a majority absent: the vocabulary hint is the more
+	// specific one and comes first.
+	empty := searchHint(search.Stats{ContentTerms: 2, AbsentTerms: []string{"kubernetes", "ingress"}}, 0, 1000, "")
+	if !strings.Contains(empty, "in no indexed document") {
+		t.Fatalf("vocabulary hint must precede the plain empty hint: %q", empty)
+	}
+}
+
+func TestKeywordEmptyHintMentionsRegexOnlyForLiterals(t *testing.T) {
+	if h := keywordEmptyHint(false); !strings.Contains(h, "regex=true") || !strings.Contains(h, "search_hybrid") {
+		t.Fatalf("literal miss: %q", h)
+	}
+	if h := keywordEmptyHint(true); strings.Contains(h, "regex=true") {
+		t.Fatalf("a regex miss must not suggest regex: %q", h)
+	}
+}
