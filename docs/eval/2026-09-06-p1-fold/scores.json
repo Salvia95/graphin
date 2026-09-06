@@ -1,0 +1,712 @@
+{
+ "meta": {
+  "rubric_version": "1.3.4",
+  "arm": "graphin",
+  "graphin_commit": "7bf8826",
+  "worktree_dirty": true,
+  "corpus": "eae65b6",
+  "model": "sonnet",
+  "cli_version": "2.1.263 (Claude Code)",
+  "semantic": false,
+  "runs": 3,
+  "semantic_wait": null,
+  "agent_sha": "c11b4614ad785b08184b237e8f919c6182f535c8f23d77f972f740e7c0461406",
+  "skill_sha": "1fa366d4142409a7d5a2a68c20c9e5229f031e7e23e59188c83e8eca2d709868",
+  "prompt_sha": "443e1cf489706fdd364e707f755144bbf8a5e0530366c8e68e9b9bd9a53678fb",
+  "taskset_sha": "5ca2a37b2b926f754b64366280dd9e91fbf018dcba651c9e0c35b24260250060",
+  "tasks": [
+   "rag-read-omission",
+   "rag-semantic-gate",
+   "rag-stem-rules",
+   "rag-usage-rotation",
+   "rag-hint-conditions",
+   "rag-lock-steal",
+   "rag-md-section-id",
+   "rag-fk-edges",
+   "rag-hop-truncate",
+   "rag-hop-stem-sides",
+   "rag-hop-grep-baseline",
+   "rag-hop-patternshape",
+   "rag-nh-redis",
+   "rag-nh-grpc",
+   "rag-nh-rankdef",
+   "rag-oor-latency",
+   "rag-oor-adoption",
+   "rag-bp-change-flow",
+   "rag-bp-hybrid-path",
+   "rag-db-dangling",
+   "rag-db-unenforced",
+   "rag-db-cross-ds",
+   "rag-db-rls-off",
+   "rag-db-trigger-fn",
+   "rag-db-impact",
+   "rag-db-nh-payments",
+   "rag-db-oor-rows"
+  ],
+  "subset": "all",
+  "jobs": 3,
+  "started": "2026-09-06T15:44:45"
+ },
+ "rubric_version": "1.3.5",
+ "tiers": {
+  "answered": {
+   "pass": 21,
+   "total": 24
+  },
+  "multi-hop": {
+   "pass": 11,
+   "total": 12
+  },
+  "not-here": {
+   "pass": 9,
+   "total": 9
+  },
+  "out-of-reach": {
+   "pass": 6,
+   "total": 6
+  },
+  "budget-pressure": {
+   "pass": 6,
+   "total": 6
+  },
+  "db-nav": {
+   "pass": 22,
+   "total": 24
+  }
+ },
+ "pass": {
+  "rag-pre-p1-partial": "70/77",
+  "rag-pre-p1": "74/81",
+  "rag-grep-v2": "77/81",
+  "rag-p1-hybrid": "76/81",
+  "rag-p1-fold": "75/81"
+ },
+ "sign_vs": {
+  "rag-pre-p1-partial": {
+   "wins": 6,
+   "losses": 1,
+   "ties": 20,
+   "p_two_sided": 0.125
+  },
+  "rag-pre-p1": {
+   "wins": 2,
+   "losses": 1,
+   "ties": 24,
+   "p_two_sided": 1.0
+  },
+  "rag-grep-v2": {
+   "wins": 2,
+   "losses": 2,
+   "ties": 23,
+   "p_two_sided": 1.0
+  },
+  "rag-p1-hybrid": {
+   "wins": 1,
+   "losses": 1,
+   "ties": 25,
+   "p_two_sided": 1.0
+  }
+ },
+ "per_task": {
+  "rag-read-omission": {
+   "rag-pre-p1-partial": "0/3",
+   "rag-pre-p1": "0/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "0/3",
+   "rag-p1-fold": "0/3",
+   "rag-p1-fold_bytes_med": 0,
+   "rag-p1-fold_verdicts": [
+    "fail",
+    "fail",
+    "fail"
+   ]
+  },
+  "rag-semantic-gate": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 17948,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-usage-rotation": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 30017,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-stem-rules": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 19385,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-hint-conditions": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 22839,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-lock-steal": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 9762,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-md-section-id": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 13365,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-hop-stem-sides": {
+   "rag-pre-p1-partial": "2/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 13009,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-fk-edges": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "1/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 23301,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-hop-truncate": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 14516,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-hop-grep-baseline": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "2/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 13616,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-hop-patternshape": {
+   "rag-pre-p1-partial": "2/3",
+   "rag-pre-p1": "2/3",
+   "rag-grep-v2": "1/3",
+   "rag-p1-hybrid": "2/3",
+   "rag-p1-fold": "2/3",
+   "rag-p1-fold_bytes_med": 11881,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "fail",
+    "pass"
+   ]
+  },
+  "rag-nh-redis": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "2/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 14545,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-nh-grpc": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 10775,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-nh-rankdef": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 7732,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-oor-adoption": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 0,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-oor-latency": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 2768,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-bp-change-flow": {
+   "rag-pre-p1-partial": "2/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 20301,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-dangling": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 16601,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-bp-hybrid-path": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 25583,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-rls-off": {
+   "rag-pre-p1-partial": "2/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 7211,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-cross-ds": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 6688,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-unenforced": {
+   "rag-pre-p1-partial": "3/3",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 13720,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-trigger-fn": {
+   "rag-pre-p1-partial": "2/2",
+   "rag-pre-p1": "2/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "1/3",
+   "rag-p1-fold_bytes_med": 12622,
+   "rag-p1-fold_verdicts": [
+    "fail",
+    "pass",
+    "fail"
+   ]
+  },
+  "rag-db-oor-rows": {
+   "rag-pre-p1-partial": "2/2",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 3416,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-nh-payments": {
+   "rag-pre-p1-partial": "2/2",
+   "rag-pre-p1": "3/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 18012,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  },
+  "rag-db-impact": {
+   "rag-pre-p1-partial": "2/2",
+   "rag-pre-p1": "2/3",
+   "rag-grep-v2": "3/3",
+   "rag-p1-hybrid": "3/3",
+   "rag-p1-fold": "3/3",
+   "rag-p1-fold_bytes_med": 16121,
+   "rag-p1-fold_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+   ]
+  }
+ },
+ "behavior": {
+  "rag-pre-p1-partial": {
+   "keyword_calls": 263,
+   "keyword_empty": 51,
+   "keyword_idless": 22,
+   "keyword_next": {
+    "keyword": 108,
+    "hybrid": 49,
+    "read_code": 46,
+    "read_code_other": 26,
+    "explore": 4,
+    "Read": 8,
+    "grep": 0,
+    "bash_read": 3,
+    "none": 19
+   },
+   "ctx_nonzero_calls": 0,
+   "windowed_responses": 0,
+   "budget_folded": 0,
+   "Read_calls": 19,
+   "hints_seen": 85,
+   "hints_followed": 53,
+   "invented_id_runs": 2,
+   "first_retriever": {
+    "none": 4,
+    "hybrid": 60,
+    "keyword": 13
+   },
+   "hybrid_results_semantic_true": 0,
+   "hybrid_results_semantic_false": 164,
+   "hybrid_calls": 164,
+   "runs_with_semantic": 0,
+   "bytes_median": 14778,
+   "wall_min": 76,
+   "cost_usd": 10.85
+  },
+  "rag-pre-p1": {
+   "keyword_calls": 317,
+   "keyword_empty": 67,
+   "keyword_idless": 32,
+   "keyword_next": {
+    "keyword": 138,
+    "hybrid": 55,
+    "read_code": 47,
+    "read_code_other": 26,
+    "explore": 10,
+    "Read": 8,
+    "grep": 4,
+    "bash_read": 4,
+    "none": 25
+   },
+   "ctx_nonzero_calls": 218,
+   "windowed_responses": 0,
+   "budget_folded": 0,
+   "Read_calls": 15,
+   "hints_seen": 98,
+   "hints_followed": 56,
+   "invented_id_runs": 2,
+   "first_retriever": {
+    "none": 5,
+    "keyword": 11,
+    "hybrid": 65
+   },
+   "hybrid_results_semantic_true": 0,
+   "hybrid_results_semantic_false": 188,
+   "hybrid_calls": 188,
+   "runs_with_semantic": 0,
+   "bytes_median": 13685,
+   "wall_min": 84,
+   "cost_usd": 11.81
+  },
+  "rag-grep-v2": {
+   "keyword_calls": 0,
+   "keyword_empty": 0,
+   "keyword_idless": 0,
+   "keyword_next": {
+    "keyword": 0,
+    "hybrid": 0,
+    "read_code": 0,
+    "read_code_other": 0,
+    "explore": 0,
+    "Read": 0,
+    "grep": 0,
+    "bash_read": 0,
+    "none": 0
+   },
+   "ctx_nonzero_calls": 0,
+   "windowed_responses": 0,
+   "budget_folded": 0,
+   "Read_calls": 251,
+   "hints_seen": 14,
+   "hints_followed": 0,
+   "invented_id_runs": 0,
+   "first_retriever": {
+    "none": 81
+   },
+   "hybrid_results_semantic_true": 0,
+   "hybrid_results_semantic_false": 0,
+   "hybrid_calls": 0,
+   "runs_with_semantic": 0,
+   "bytes_median": 17472,
+   "wall_min": 67,
+   "cost_usd": 10.39
+  },
+  "rag-p1-hybrid": {
+   "keyword_calls": 283,
+   "keyword_empty": 55,
+   "keyword_idless": 20,
+   "keyword_next": {
+    "keyword": 138,
+    "hybrid": 43,
+    "read_code": 22,
+    "read_code_other": 24,
+    "explore": 10,
+    "Read": 9,
+    "grep": 8,
+    "bash_read": 1,
+    "none": 28
+   },
+   "ctx_nonzero_calls": 209,
+   "windowed_responses": 171,
+   "budget_folded": 8,
+   "Read_calls": 18,
+   "hints_seen": 85,
+   "hints_followed": 54,
+   "invented_id_runs": 1,
+   "first_retriever": {
+    "none": 3,
+    "keyword": 19,
+    "hybrid": 59
+   },
+   "hybrid_results_semantic_true": 90,
+   "hybrid_results_semantic_false": 56,
+   "hybrid_calls": 146,
+   "runs_with_semantic": 47,
+   "bytes_median": 15742,
+   "wall_min": 72,
+   "cost_usd": 10.8
+  },
+  "rag-p1-fold": {
+   "keyword_calls": 296,
+   "keyword_empty": 54,
+   "keyword_idless": 28,
+   "keyword_next": {
+    "keyword": 147,
+    "hybrid": 48,
+    "read_code": 31,
+    "read_code_other": 17,
+    "explore": 10,
+    "Read": 3,
+    "grep": 0,
+    "bash_read": 1,
+    "none": 39
+   },
+   "ctx_nonzero_calls": 195,
+   "windowed_responses": 162,
+   "budget_folded": 5,
+   "Read_calls": 7,
+   "hints_seen": 79,
+   "hints_followed": 52,
+   "invented_id_runs": 4,
+   "first_retriever": {
+    "none": 6,
+    "hybrid": 62,
+    "keyword": 13
+   },
+   "hybrid_results_semantic_true": 0,
+   "hybrid_results_semantic_false": 147,
+   "hybrid_calls": 147,
+   "runs_with_semantic": 0,
+   "bytes_median": 13425,
+   "wall_min": 72,
+   "cost_usd": 10.29
+  }
+ },
+ "fails": [
+  {
+   "task": "rag-read-omission",
+   "run": 0,
+   "verdict": "fail",
+   "budget_state": "within",
+   "bytes_total": 0,
+   "must_cite_miss": [
+    "internal/mcp/tools/tools.go"
+   ],
+   "fake_citations": [],
+   "calls": 0
+  },
+  {
+   "task": "rag-db-trigger-fn",
+   "run": 0,
+   "verdict": "fail",
+   "budget_state": "within",
+   "bytes_total": 12622,
+   "must_cite_miss": [
+    "testdata/fixtures/dbschema/db/main.triggers.graphindb.json"
+   ],
+   "fake_citations": [],
+   "calls": 6
+  },
+  {
+   "task": "rag-read-omission",
+   "run": 1,
+   "verdict": "fail",
+   "budget_state": "within",
+   "bytes_total": 0,
+   "must_cite_miss": [
+    "internal/mcp/tools/tools.go"
+   ],
+   "fake_citations": [],
+   "calls": 0
+  },
+  {
+   "task": "rag-hop-patternshape",
+   "run": 1,
+   "verdict": "fail",
+   "budget_state": "within",
+   "bytes_total": 8311,
+   "must_cite_miss": [
+    "internal/usage/stream.go"
+   ],
+   "fake_citations": [],
+   "calls": 7
+  },
+  {
+   "task": "rag-read-omission",
+   "run": 2,
+   "verdict": "fail",
+   "budget_state": "within",
+   "bytes_total": 0,
+   "must_cite_miss": [
+    "internal/mcp/tools/tools.go"
+   ],
+   "fake_citations": [],
+   "calls": 0
+  },
+  {
+   "task": "rag-db-trigger-fn",
+   "run": 2,
+   "verdict": "fail",
+   "budget_state": "within",
+   "bytes_total": 9088,
+   "must_cite_miss": [
+    "testdata/fixtures/dbschema/db/main.triggers.graphindb.json"
+   ],
+   "fake_citations": [],
+   "calls": 6
+  }
+ ]
+}

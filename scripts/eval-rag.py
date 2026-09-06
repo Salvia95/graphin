@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.3.0"
+RUBRIC_VERSION = "1.3.5"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -55,7 +55,43 @@ RUBRIC_VERSION = "1.3.0"
 # Reset at 1.3.0: the runner now denies the delegation and skill tools, so
 # earlier transcripts were produced under a different tool roster and cannot
 # be re-scored as if they were comparable.
-RUN_COMPAT = ("1.3.0",)
+# 1.3.1 (2026-09-05, docs/keyword-plan.md M2): observation-only — what the
+# agent does right after a search_keyword call, how many keyword responses
+# came back empty or without a node id, and which retriever it reached for
+# first. No verdict changes, so 1.3.0 transcripts re-score as-is.
+# 1.3.2 (2026-09-06): the grep control arm (`run --arm grep`). The default
+# arm's command line, prompt and roster are byte-identical to 1.3.1, so its
+# transcripts stay comparable; grep-arm runs are a different population and
+# carry arm="grep" in meta so a report never mixes the two by accident.
+# 1.3.3 (2026-09-06, owner-approved verdict change, docs/handoff-2026-09-06.md
+# §7-1): two notation rules in grade(). (1) An elided path — one carrying
+# "..." or "…" as a segment, like docs/eval/.../scores.json — is the agent
+# shortening a directory it saw, not a claim that the path exists; it no
+# longer counts as a fake citation and is reported as elided_citations.
+# (2) A forbidden literal whose preceding 60 characters on the same line hold
+# a negation ("no Redis client library (e.g. `go-redis`)") stands inside the
+# denial even though the sentence splitter cut it off at the period in "e.g.".
+# Scoring-only: the runner is byte-identical, so 1.3.0–1.3.2 transcripts
+# re-score. In 1.3.2 these two shapes failed five B-arm runs and one grep-smoke
+# run that were correct refusals (docs/eval/2026-09-06-rescore-1.3.3).
+# 1.3.4 (2026-09-06, owner: "재검토할 부분을 다시 개선"): the --semantic arm passes
+# --semantic-wait to each per-run server so search_hybrid waits for the model
+# instead of answering lexically for the first 8–15s of every run — the D arm
+# (docs/eval/2026-09-06-p1-hybrid) was hybrid for only 62% of its hybrid calls.
+# The default arm's command line is byte-identical, so it appends; semantic-arm
+# runs before this version are a different population (meta.semantic_wait).
+# 1.3.5 (2026-09-06, owner-approved verdict change in the same re-examination
+# round): TRUNCATION_STATED also recognises an overrun stated as "5 KB over the
+# ~20,000-byte target", "overrun", "overage", "exceeded". Once read_code and
+# explore_graph reported their cost (D′ arm, self-report median 0.99), agents
+# stopped writing "budget" and started writing the number — three D′ runs that
+# named their overrun to the byte were scored over_silent. Scoring-only.
+RUN_COMPAT = ("1.3.0", "1.3.1", "1.3.2", "1.3.3", "1.3.4", "1.3.5")
+
+# What a --semantic arm's servers wait for the embedding model. Generous: the
+# model loads in 8–15s on this machine, and a call that hits the ceiling just
+# proceeds lexically (the response says semantic_ready="false").
+SEMANTIC_WAIT = "60s"
 
 # The patch-release smoke subset (docs/rag-bench-spec.md §8): one pulse per
 # tier from the tasks that passed 3/3 on the 2026-09-01 baseline, so a smoke
@@ -116,6 +152,142 @@ NAV_TOOLS = {"mcp__graphin__search_hybrid", "mcp__graphin__search_keyword",
              "mcp__graphin__explore_graph", "mcp__graphin__read_code"}
 SEARCH_TOOLS = {"mcp__graphin__search_hybrid", "mcp__graphin__search_keyword"}
 
+# ---------------------------------------------------------------- grep arm
+#
+# The control group (v2, docs/eval/2026-09-01-rag-baseline "다음에 볼 것"):
+# the same tasks, the same scorer, the same contract — and no graphin. The
+# agent gets the host's own Read/Grep/Glob/Bash, a prompt that states the
+# three end states, the citation rule and the budget rule in the same words,
+# and nothing about any retriever. What the scorer then measures is what
+# graphin adds over a competent grep loop, on questions graphin's own golden
+# set considers fair.
+ARMS = ("graphin", "grep")
+GREP_ARM_TOOLS = ["Read", "Grep", "Glob", "Bash"]
+GREP_ARM_DENIED = DENIED_TOOLS  # the MCP tools never load: no --mcp-config
+
+GREP_AGENT_PROMPT = """# Role
+
+You answer a question about a codebase by **retrieving just enough evidence and
+stopping**. Your caller does not see your tool output — only your final
+message. That message is the deliverable: the answer, what it rests on, and
+what you did not check.
+
+You are not a search engine wrapper. A search engine returns what matched; you
+return what is true, and you are accountable for the difference.
+
+# Tools
+
+You have `Grep`, `Glob`, `Read` and `Bash`. The current working directory is the
+whole corpus: everything you may consult is under it, and nothing outside it
+counts as evidence. Search with `Grep` (or `grep`/`rg` through `Bash`), narrow
+with `Glob`, and open files with `Read`. Prefer a specific pattern — an
+identifier, an exact string — over a broad one, and prefer reading the matched
+region over reading the whole file.
+
+# The budget is the job
+
+Unless the caller sets one, work to roughly **40,000 bytes** of retrieved
+content — the tool results you receive — and treat two thirds of that as the
+point where you start closing rather than opening. Nothing keeps that total for
+you; keep it yourself.
+
+Spending is not the goal and neither is thrift. An answer that cost 3,000 bytes
+and is wrong is worse than one that cost 30,000 and is right. What is
+unacceptable is spending the budget and *not saying* the answer is thin.
+
+# The loop
+
+1. **Name the evidence before you search.** Write down, for yourself, what
+   would settle the question — a function's body, a caller list, a constant's
+   declaration, a schema column.
+2. **Search by the shape of what you know.** Exact text you can quote: grep the
+   text. A symbol name: grep the identifier. A sentence about behavior: grep the
+   words the code itself would use, then read what matched.
+3. **Read last, and only what the matches point at.** A whole file is rarely the
+   evidence; the region around the match usually is.
+4. **Stop** when the evidence you named in step 1 is in hand — not when the
+   tools stop returning things. Leftover budget is not waste.
+
+Rephrasing has sharply diminishing returns. If a second pattern returns the
+same files, a third will too — change the kind of pattern, not its wording.
+
+# Three states end the search early, and each has its own report
+
+- *Answered.* You have the evidence. Stop and write it up.
+- *Not here.* You searched for the thing by name and by the words around it and
+  nothing in this corpus spells it. Say that plainly — it is a real answer, and
+  a far more useful one than five plausible near-misses.
+- *Out of reach.* The evidence needs something the corpus does not hold: runtime
+  values, execution order, a live database, logs, another repository. Say what
+  is missing and what you would need to answer it.
+
+# Check these against your draft before you report
+
+- **No match is not proof of absence.** Say what you searched for, in which
+  form, before concluding that something is not here.
+- **Don't report a test or a document as the implementation.** If the best
+  match is a test whose name restates the question, or a design note about
+  the code, say the implementation was not found rather than citing it as one.
+- **DB answers are snapshot-scoped.** Schema files in the corpus describe the
+  committed schema, not a live database. Say "as committed", never "in
+  production".
+
+# What you must not do
+
+- **Do not answer from what you already know.** Recognition tells you where to
+  look, and nothing more. Retrieve the lines that show it and cite them, or say
+  you did not verify it. An answer with no citation is not this agent's output.
+- **Do not leave the working directory.** Absolute paths and `~` are outside
+  the corpus and are not evidence.
+- **Do not silently truncate.** If you stopped because the budget ran out, the
+  report says so.
+
+# Report
+
+Structure the final message as:
+
+1. **The answer**, in prose, first.
+2. **What it rests on** — repository-relative `path:line` per claim.
+3. **What you did not verify** — the file you did not open, the pattern you did
+   not try, the call the text cannot show. This section is not optional.
+4. **Cost** — roughly how many bytes of tool output you received and how many
+   calls it took.
+
+A pile of file paths is not an answer. Neither is a summary with no citations.
+"""
+
+# The grep arm is confined to the snapshot by a PreToolUse hook, in addition
+# to the post-hoc `escaped` verdict both arms get. The graphin arm left the
+# snapshot 0 times in 81 runs, so a hook there would be inert; a grep loop
+# with the host's shell did it 33 times in 36 runs when the scaling bench
+# measured it, and one such run reads the answer out of the plugin cache's
+# copy of this repository. Denied calls are counted by the scorer from the
+# transcript (`contained`), so the pressure to leave is still visible.
+CONTAINMENT_HOOK = r'''#!/usr/bin/env bash
+set -eu
+cwd=$(pwd)
+p=$(jq -r '[.tool_input.command, .tool_input.file_path, .tool_input.path, .tool_input.pattern] | map(select(. != null)) | join(" ")')
+[ -n "$p" ] || exit 0
+bad=""
+for tok in $p; do
+  case "$tok" in
+    /*|~/*)
+      abs=${tok/#\~/$HOME}
+      case "$abs" in "$cwd"/*|"$cwd") ;; *) bad="$tok"; break ;; esac ;;
+  esac
+done
+[ -n "$bad" ] || exit 0
+jq -n --arg p "$bad" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:("Path outside the workspace under test: " + $p + ". Everything you may consult is under the current working directory; search there with relative paths.")}}'
+'''
+
+
+def write_containment_hook(out):
+    p = os.path.join(out, "contain.sh")
+    with open(p, "w") as f:
+        f.write(CONTAINMENT_HOOK)
+    os.chmod(p, 0o755)
+    return p
+
 # Sentence-level negation vocabulary for the not-here absence check. The
 # failure direction to avoid is a fabrication passing, so the list is loose on
 # purpose and an answer that neither denies nor fabricates lands in
@@ -123,7 +295,26 @@ SEARCH_TOOLS = {"mcp__graphin__search_hybrid", "mcp__graphin__search_keyword"}
 NEGATIONS = ("no ", "not ", "n't", "never", "nothing", "none", "absent",
              "nowhere", "does not", "isn't", "aren't", "없", "zero", " 0 ")
 
-TRUNCATION_STATED = re.compile(r"budget|truncat|ran out|stopped early|cut off|예산", re.I)
+# 1.3.3: the sentence rule above splits on periods, so "e.g." and "go.mod"
+# cut a denial in two and strand the forbidden literal in a fragment with no
+# negation. This looks back this many characters from the literal across
+# those periods — but never across a line break: a list item or a paragraph
+# is a real boundary, and the failure direction to avoid is still a
+# fabrication passing on a negation two sentences up.
+NEGATION_WINDOW = 60
+
+
+def negated_before(low, pos):
+    start = max(0, pos - NEGATION_WINDOW, low.rfind("\n", 0, pos) + 1)
+    return any(n in low[start:pos] for n in NEGATIONS)
+
+TRUNCATION_STATED = re.compile(
+    r"budget|truncat|ran out|stopped early|cut off|예산"
+    # 1.3.5: an overrun named by its number or its ceiling is stated, not silent.
+    # "over the" alone is not enough ("over the call chain") — it must be
+    # followed by a figure or a word for the ceiling.
+    r"|exceed|overr[au]n|overage|ran over|over (?:the |its |my )?(?:~?[\d,.]+|target|limit|cap|ceiling)",
+    re.I)
 
 # Repo-relative path shapes for the fake-citation check. Only paths under the
 # repository's own top-level dirs count — a hallucinated golang.org import is
@@ -371,7 +562,9 @@ def strip_frontmatter(text):
     return text.strip() + "\n"
 
 
-def compose_prompt():
+def compose_prompt(arm="graphin"):
+    if arm == "grep":
+        return GREP_AGENT_PROMPT
     with open(AGENT_MD, encoding="utf-8") as f:
         agent = strip_frontmatter(f.read())
     with open(SKILL_MD, encoding="utf-8") as f:
@@ -449,7 +642,7 @@ def run(args):
         tasks = tasks[:args.max_tasks]
     if not tasks:
         raise SystemExit("no tasks selected")
-    if not os.access(args.bin, os.X_OK):
+    if args.arm == "graphin" and not os.access(args.bin, os.X_OK):
         raise SystemExit(f"no graphin binary at {args.bin} — run `make build` or pass --bin")
 
     out = args.out
@@ -458,7 +651,7 @@ def run(args):
                          "(partial output must be deleted, finished output must not be reused)")
     os.makedirs(os.path.join(out, "transcripts"), exist_ok=True)
 
-    prompt = compose_prompt()
+    prompt = compose_prompt(args.arm)
     prompt_path = os.path.join(out, "system-prompt.md")
     with open(prompt_path, "w", encoding="utf-8") as f:
         f.write(prompt)
@@ -478,8 +671,11 @@ def run(args):
         with open(os.path.join(out, "files.txt"), "w") as f:
             f.write("\n".join(files))
 
-        print(f"indexing snapshot ({origin}) …", flush=True)
-        preindex(args.bin, snap, args.semantic, args.index_timeout)
+        # The grep arm never indexes: the corpus it searches is the bare tree,
+        # with no .graphin/ directory for a shell loop to stumble into.
+        if args.arm == "graphin":
+            print(f"indexing snapshot ({origin}) …", flush=True)
+            preindex(args.bin, snap, args.semantic, args.index_timeout)
 
         # Each worker gets its own copy of the indexed snapshot: two servers
         # on one workspace fight over the lock (and lose half the runs), and
@@ -491,9 +687,14 @@ def run(args):
             snaps.append(s2)
         cfgs = []
         for i, s in enumerate(snaps):
+            if args.arm != "graphin":
+                cfgs.append(None)
+                continue
             argv = [args.bin, "--workspace", s, "--offline"]
             if not args.semantic:
                 argv += ["--ort-lib", "/nonexistent-ort"]
+            else:
+                argv += ["--semantic-wait", SEMANTIC_WAIT]
             p = os.path.join(out, f"mcp-config-{i}.json")
             with open(p, "w") as f:
                 json.dump({"mcpServers": {"graphin": {
@@ -504,16 +705,34 @@ def run(args):
         # that way. Isolation is by subtraction instead — hooks (the wiki gate
         # would block the very tools under test) and plugins off, MCP strictly
         # ours, cwd in the snapshot so no CLAUDE.md or auto-memory resolves.
+        #
+        # The grep arm cannot disable all hooks: containment IS a hook. It
+        # keeps plugins off and adds the one hook; the snapshot's own
+        # .claude/settings.json hooks are inert for it (they guard edits and
+        # release commands, neither of which the arm can issue).
         settings_path = os.path.join(out, "settings.json")
         with open(settings_path, "w") as f:
-            json.dump({"disableAllHooks": True, "enabledPlugins": {}}, f)
+            if args.arm == "grep":
+                hook = write_containment_hook(out)
+                json.dump({"enabledPlugins": {}, "hooks": {"PreToolUse": [
+                    {"matcher": "Bash|Read|Grep|Glob",
+                     "hooks": [{"type": "command", "command": hook}]}]}}, f)
+            else:
+                json.dump({"disableAllHooks": True, "enabledPlugins": {}}, f)
 
+        if args.arm == "grep":
+            agent_sha = hashlib.sha256(GREP_AGENT_PROMPT.encode()).hexdigest()
+            skill_sha = "-"
+        else:
+            agent_sha, skill_sha = sha256_file(AGENT_MD), sha256_file(SKILL_MD)
         meta = {
             "rubric_version": RUBRIC_VERSION,
+            "arm": args.arm,
             "graphin_commit": commit, "worktree_dirty": dirty, "corpus": origin,
             "model": args.model, "cli_version": cli_ver,
             "semantic": args.semantic, "runs": args.runs,
-            "agent_sha": sha256_file(AGENT_MD), "skill_sha": sha256_file(SKILL_MD),
+            "semantic_wait": SEMANTIC_WAIT if args.semantic else None,
+            "agent_sha": agent_sha, "skill_sha": skill_sha,
             "prompt_sha": hashlib.sha256(prompt.encode()).hexdigest(),
             "taskset_sha": hashlib.sha256(
                 open(os.path.join(REPO, "eval/rag/tasks.jsonl"), "rb").read() +
@@ -555,14 +774,24 @@ def run(args):
                     question += ("\n\nWork to a retrieved-content budget of "
                                  f"about {t['budget_bytes']} bytes.")
                 cmd = ["claude", "-p", question,
-                       "--settings", settings_path, "--strict-mcp-config",
-                       "--mcp-config", cfgs[wi],
-                       "--system-prompt-file", prompt_path,
-                       "--model", args.model,
-                       "--output-format", "stream-json", "--verbose",
-                       "--max-turns", str(args.max_turns),
-                       "--allowedTools", ",".join(ALLOWED_TOOLS),
-                       "--disallowedTools", DENIED_TOOLS]
+                       "--settings", settings_path, "--strict-mcp-config"]
+                if args.arm == "grep":
+                    # --strict-mcp-config with no --mcp-config: no MCP server
+                    # at all, so the graphin tools do not exist for this arm.
+                    cmd += ["--system-prompt-file", prompt_path,
+                            "--model", args.model,
+                            "--output-format", "stream-json", "--verbose",
+                            "--max-turns", str(args.max_turns),
+                            "--allowedTools", ",".join(GREP_ARM_TOOLS),
+                            "--disallowedTools", GREP_ARM_DENIED]
+                else:
+                    cmd += ["--mcp-config", cfgs[wi],
+                            "--system-prompt-file", prompt_path,
+                            "--model", args.model,
+                            "--output-format", "stream-json", "--verbose",
+                            "--max-turns", str(args.max_turns),
+                            "--allowedTools", ",".join(ALLOWED_TOOLS),
+                            "--disallowedTools", DENIED_TOOLS]
                 t0 = time.time()
                 err = None
                 try:
@@ -679,7 +908,8 @@ def behavior_metrics(ledger):
     m = {"calls": len(ledger), "bytes_total": sum(e["bytes"] for e in ledger),
          "by_tool": {}, "nav_calls": 0, "invented_ids": 0,
          "hints_seen": 0, "hints_followed": 0, "read_batches": [],
-         "search_runs_max": 0, "escaped": escapes_of(ledger)}
+         "search_runs_max": 0, "escaped": escapes_of(ledger),
+         "contained": 0}  # calls the containment hook denied (grep arm)
     seen_text = ""
     consec_search = 0
     hint_pending = False
@@ -711,6 +941,80 @@ def behavior_metrics(ledger):
         if "<hint>" in str(e["result"]) and "search_keyword" in str(e["result"]):
             m["hints_seen"] += 1
             hint_pending = True
+        if "Path outside the workspace under test" in str(e["result"]):
+            m["contained"] += 1
+    m.update(keyword_metrics(ledger))
+    return m
+
+
+# What the agent does right after a search_keyword call, read off the ledger
+# (docs/keyword-plan.md §0). The keyword retriever's contract is that a hit
+# carries the node id that owns it, so the next move should be the graph or a
+# read of that node; a whole-file Read, a shell grep, or another keyword
+# search is the agent buying what the response did not give it. Observation
+# only — none of this gates.
+KEYWORD_TOOL = "mcp__graphin__search_keyword"
+KEYWORD_LOOKAHEAD = 3
+KEYWORD_NEXT_KINDS = ("keyword", "hybrid", "read_code", "read_code_other",
+                      "explore", "Read", "grep", "bash_read", "none")
+_GREP_CMD = re.compile(r"\b(grep|rg)\b")
+_BASH_READ_CMD = re.compile(r"\b(sed -n|cat|head|tail)\b")
+_KW_FILES = re.compile(r'\bfiles="(\d+)"')
+_KW_NODE_ID = re.compile(r'<node id="([^"]+)"')
+
+
+def keyword_next_of(entry, following):
+    """Classify the first consuming action in `following` (the ledger entries
+    after one keyword call, already capped at KEYWORD_LOOKAHEAD). Tool-schema
+    loads and other non-navigation calls are skipped rather than counted."""
+    ids = set(_KW_NODE_ID.findall(str(entry["result"])))
+    for x in following:
+        n, inp = x["name"], x["input"]
+        if n == KEYWORD_TOOL:
+            return "keyword"
+        if n == "mcp__graphin__search_hybrid":
+            return "hybrid"
+        if n == "mcp__graphin__read_code":
+            asked = set(inp.get("node_ids") or
+                        ([inp["node_id"]] if inp.get("node_id") else []))
+            return "read_code" if asked & ids else "read_code_other"
+        if n == "mcp__graphin__explore_graph":
+            return "explore"
+        if n == "Read":
+            return "Read"
+        if n == "Grep":
+            return "grep"
+        if n == "Bash":
+            cmd = str(inp.get("command", ""))
+            if _GREP_CMD.search(cmd):
+                return "grep"
+            if _BASH_READ_CMD.search(cmd):
+                return "bash_read"
+            continue
+        # ToolSearch, diagnose, bootstrap, Glob …: not a consuming move.
+    return "none"
+
+
+def keyword_metrics(ledger):
+    m = {"keyword_calls": 0, "keyword_empty": 0, "keyword_idless": 0,
+         "keyword_next": {k: 0 for k in KEYWORD_NEXT_KINDS},
+         "first_retriever": None}
+    for i, e in enumerate(ledger):
+        n = e["name"]
+        if m["first_retriever"] is None and n in SEARCH_TOOLS:
+            m["first_retriever"] = "keyword" if n == KEYWORD_TOOL else "hybrid"
+        if n != KEYWORD_TOOL:
+            continue
+        m["keyword_calls"] += 1
+        res = str(e["result"])
+        files = _KW_FILES.search(res)
+        if files and files.group(1) == "0":
+            m["keyword_empty"] += 1
+        elif not _KW_NODE_ID.search(res):
+            # Hits, but none resolved to a node: a package-level constant, a
+            # line outside any symbol. The contract has no next move here.
+            m["keyword_idless"] += 1
+        m["keyword_next"][keyword_next_of(e, ledger[i + 1:i + 1 + KEYWORD_LOOKAHEAD])] += 1
     return m
 
 
@@ -719,9 +1023,15 @@ def grade(task, exp, final_text, metrics, files, seen=""):
     g = {"end_state": exp["end_state"], "budget": budget,
          "bytes": metrics["bytes_total"]}
 
-    cited = set()
+    cited, elided = set(), set()
     for m in PATH_RE.finditer(final_text):
         if EXAMPLE_CUE.search(final_text[max(0, m.start() - 60):m.start()]):
+            continue
+        # docs/eval/.../scores.json is a directory the agent saw and shortened,
+        # not a path it claims exists — 1.3.2 failed five correct refusals as
+        # fake citations on this shape. Counted (1.3.3), never graded.
+        if "..." in m.group(1) or "\u2026" in m.group(1):
+            elided.add(m.group(1))
             continue
         cited.add(m.group(1))
     # Fabrication means citing a path the agent never saw. A path that is not
@@ -731,6 +1041,7 @@ def grade(task, exp, final_text, metrics, files, seen=""):
     # actually lives in.
     fake = sorted(p for p in cited if p not in files and p not in seen)
     g["fake_citations"] = fake
+    g["elided_citations"] = sorted(elided)
     self_hits = sorted(p for p in cited if p.startswith(SELF_PREFIXES))
     g["self_citations"] = self_hits  # reported, never filtered
 
@@ -772,9 +1083,21 @@ def grade(task, exp, final_text, metrics, files, seen=""):
         # sentence with no negation (1.0.0 failed two exemplary refusals on
         # this). Do not write any task's forbidden literal into this file:
         # a calibration run found one in a comment here via search_keyword.
-        forb = [w for w in exp.get("forbidden", [])
-                if any(w.lower() in s and not any(n in s for n in NEGATIONS)
-                       for s in sentences)]
+        # 1.3.3 adds one exemption on top of the sentence rule: an occurrence
+        # with a negation in the NEGATION_WINDOW before it on the same line is
+        # inside the denial even when the splitter cut the sentence at "e.g.".
+        # The pieces iterated here are exactly `sentences`, with offsets.
+        forb = []
+        for w in exp.get("forbidden", []):
+            wl = w.lower()
+            for sm in re.finditer(r"[^.\n]+", low):
+                s = sm.group(0)
+                if wl not in s or any(n in s for n in NEGATIONS):
+                    continue
+                if any(not negated_before(low, sm.start() + k.start())
+                       for k in re.finditer(re.escape(wl), s)):
+                    forb.append(w)
+                    break
         g["forbidden_hit"] = forb
         if forb or fake:
             g["verdict"] = "fail"
@@ -843,7 +1166,9 @@ def score(args):
         row.update(g)
         row.update({k: m[k] for k in ("calls", "nav_calls", "bytes_total",
                                       "invented_ids", "hints_seen", "hints_followed",
-                                      "search_runs_max", "by_tool")})
+                                      "search_runs_max", "by_tool",
+                                      "keyword_calls", "keyword_empty", "keyword_idless",
+                                      "keyword_next", "first_retriever", "contained")})
         row["read_batch_max"] = max(m["read_batches"], default=0)
         row["cost_usd"] = cost_usd
         row["turns"] = turns
@@ -858,12 +1183,13 @@ def score(args):
         tier = tasks[tid]["tier"]
         tiers.setdefault(tier, []).append((tid, rr))
 
-    lines = [f"# eval-rag — rubric {RUBRIC_VERSION}",
+    lines = [f"# eval-rag — rubric {RUBRIC_VERSION} · arm {meta.get('arm', 'graphin')}",
              "",
              f"corpus {meta['corpus']} · graphin {meta['graphin_commit']}"
              + (" (dirty)" if meta.get("worktree_dirty") else "")
              + f" · model {meta['model']} · runs {meta['runs']}"
-             + f" · {'hybrid' if meta['semantic'] else 'lexical-only'}",
+             + f" · {'hybrid' if meta['semantic'] else 'lexical-only'}"
+             + (f" (semantic-wait {meta['semantic_wait']})" if meta.get('semantic_wait') else ""),
              f"agent {meta['agent_sha'][:12]} · skill {meta['skill_sha'][:12]}"
              f" · taskset {meta['taskset_sha'][:12]} · cli {meta['cli_version']}",
              ""]
@@ -897,14 +1223,38 @@ def score(args):
                  + (f" — {[(r['task'], r['escaped']) for r in esc]}" if esc else ""))
     lines.append(f"- invented node ids: {len(bad)} run(s)"
                  + (f" — {[r['task'] for r in bad]}" if bad else ""))
+    if meta.get("arm") == "grep":
+        cont = sum(r.get("contained", 0) for r in rows)
+        lines.append(f"- calls the containment hook denied: {cont} in "
+                     f"{sum(1 for r in rows if r.get('contained'))} run(s)")
     lines.append(f"- fake citations: {len(fakes)} run(s)"
                  + (f" — {[(r['task'], r['fake_citations']) for r in fakes]}" if fakes else ""))
+    elided = [r for r in rows if r.get("elided_citations")]
+    if elided:
+        lines.append(f"- elided paths (docs/eval/.../x — shortened, not cited; 1.3.3): "
+                     f"{len(elided)} run(s) — {[(r['task'], r['elided_citations']) for r in elided]}")
     if selfs:
         lines.append(f"- self-tooling citations (reported, not filtered): "
                      f"{[(r['task'], r['self_citations']) for r in selfs]}")
     hs = sum(r.get("hints_seen", 0) for r in rows)
     hf = sum(r.get("hints_followed", 0) for r in rows)
     lines.append(f"- keyword hints seen {hs}, followed by search_keyword next {hf}")
+    fr = {}
+    for r in rows:
+        fr[r.get("first_retriever") or "none"] = fr.get(r.get("first_retriever") or "none", 0) + 1
+    lines.append("- first retriever: " + " · ".join(
+        f"{k} {fr.get(k, 0)}" for k in ("hybrid", "keyword", "none")))
+    kc = sum(r.get("keyword_calls", 0) for r in rows)
+    if kc:
+        ke = sum(r.get("keyword_empty", 0) for r in rows)
+        ki = sum(r.get("keyword_idless", 0) for r in rows)
+        nxt = {k: 0 for k in KEYWORD_NEXT_KINDS}
+        for r in rows:
+            for k, v in (r.get("keyword_next") or {}).items():
+                nxt[k] = nxt.get(k, 0) + v
+        lines.append(f"- search_keyword calls {kc}: empty {ke} · hits without a node id {ki}")
+        lines.append("- after a keyword call, first consuming move (≤3 calls): "
+                     + " · ".join(f"{k} {nxt[k]}" for k in KEYWORD_NEXT_KINDS if nxt[k]))
     sr = [r.get("self_report_ratio") for r in rows if r.get("self_report_ratio")]
     if sr:
         lines.append(f"- cost self-report ratio (reported/actual, median): "
@@ -1033,6 +1383,10 @@ def main():
     rp.add_argument("--subset", choices=["all", "smoke"], default="all",
                     help="smoke = the pinned patch-release subset "
                          f"({len(SMOKE_TASKS)} tasks)")
+    rp.add_argument("--arm", choices=list(ARMS), default="graphin",
+                    help="graphin (default): the graphin-rag agent with its skill and MCP "
+                         "server; grep: the control group — same tasks, same contract, "
+                         "host Read/Grep/Glob/Bash only, confined to the snapshot")
     rp.add_argument("--jobs", type=int, default=1,
                     help="parallel workers, each on its own snapshot copy")
     rp.add_argument("--runs", type=int, default=1)

@@ -175,7 +175,62 @@ def measure_one(mcp, tmp, q, want_row, args):
         "grep_literal": grep_arm(tmp, terms_of(q["query"]), want, evidence),
         "grep_symbol": grep_arm(tmp, q.get("grep") and [q["grep"]]
                                 or ident_guess(q["query"]), want, evidence),
+        "keyword": keyword_arm(mcp, q, k, want, evidence),
+        "hint": hint_kind(xml),
     }, contaminated
+
+
+KEYWORD_CONTEXTS = (0, 2, 4)
+FILE_RE = re.compile(r'<file path="([^"]+)"')
+HINT_RE = re.compile(r"<hint>(.*?)</hint>", re.S)
+
+
+def keyword_arm(mcp, q, k, want, evidence):
+    """The keyword retriever on a literal-shaped set: the golden `grep` string
+    goes to search_keyword at each context width (docs/keyword-plan.md M1).
+    Recall is by file, like the other arms; delivery is whether the evidence
+    literal arrived in the response itself — with context it should, since
+    the point of the parameter is that the neighbourhood comes in one call.
+    Only sets that carry a `grep` string are measured; prose sets are the
+    hybrid retriever's job and get None here."""
+    if q.get("shape") != "literal" or not q.get("grep"):
+        return None
+    out = {}
+    for ctx in KEYWORD_CONTEXTS:
+        call = {"pattern": q["grep"], "top_k": k}
+        if ctx:
+            call["context"] = ctx
+        xml = mcp.tool("search_keyword", call)
+        files = FILE_RE.findall(xml)
+        hits = [f for f in want if f in files]
+        got = [e for e in evidence if e in xml] if evidence else []
+        out[str(ctx)] = {"recall": len(hits) / len(want), "found": len(hits),
+                         "delivery": (len(got) / len(evidence)) if evidence else None,
+                         "context_bytes": len(xml.encode("utf-8")),
+                         "folded": xml.count('omitted="budget"'),
+                         "idless": xml.count("<node line=")}
+    return out
+
+
+def hint_kind(xml):
+    """Which search_hybrid hint fired, if any. The two literal-shape rules
+    (quoted / vocabulary) must stay silent on prose sets — the base and
+    variants tiers are the fixture that says so."""
+    m = HINT_RE.search(xml)
+    if not m:
+        return None
+    h = m.group(1)
+    if "quoted string" in h:
+        return "quoted"
+    if "in no indexed document" in h:
+        return "vocab"
+    if "no indexed symbol" in h:
+        return "ident"
+    if "no ranked result" in h:
+        return "empty"
+    if "touched" in h:
+        return "broad"
+    return "other"
 
 
 class MCP:
@@ -444,6 +499,39 @@ def main():
                   f"delivery {pct(mean_of([r['grep_symbol'] for r in rows if r['grep_symbol']], 'delivery'))}"
                   f"  {kb(sym_b)}  · 추측 가능 {n_sym}/{len(rows)}")
 
+        kw_rows = [r for r in rows if r.get("keyword")]
+        kw_means = {}
+        if kw_rows:
+            print(f"\n  keyword 검색기 — 리터럴형 {len(kw_rows)}문항, 골든 grep 문자열을 그대로 넣는다")
+            head = "".join(f"{'ctx=' + c:^19}" for c in map(str, KEYWORD_CONTEXTS))
+            print(f"{'':<28}{head}")
+            print(f"{'':<28}{''.join(f"{'rec  del   bytes':^19}" for _ in KEYWORD_CONTEXTS)}")
+            for r in kw_rows:
+                cells = "".join(f"{cell(r['keyword'][str(c)]):^19}" for c in KEYWORD_CONTEXTS)
+                print(f" {r['id']:<27}{cells}")
+            for c in map(str, KEYWORD_CONTEXTS):
+                arm_rows = [r["keyword"][c] for r in kw_rows]
+                kw_means[c] = {
+                    "mean_recall": sum(a["recall"] for a in arm_rows) / len(arm_rows),
+                    "mean_delivery": mean_of(arm_rows, "delivery"),
+                    "bytes": sum(a["context_bytes"] for a in arm_rows),
+                    "folded": sum(a["folded"] for a in arm_rows),
+                    "idless": sum(a["idless"] for a in arm_rows)}
+                m = kw_means[c]
+                print(f"  keyword ctx={c:<3}     recall {m['mean_recall']:>5.1%}  delivery {pct(m['mean_delivery'])}"
+                      f"  {kb(m['bytes'])}  · 접힌 파일 {m['folded']} · id 없는 히트 {m['idless']}")
+
+        hints = {}
+        for r in rows:
+            if r.get("hint"):
+                hints[r["hint"]] = hints.get(r["hint"], 0) + 1
+        if hints:
+            print("  search_hybrid 힌트 발화: " + " · ".join(f"{k} {v}" for k, v in sorted(hints.items()))
+                  + f"  ({len(rows)}문항)")
+        literal_fired = [r["id"] for r in rows if r.get("hint") in ("quoted", "vocab")]
+        if literal_fired and name in ("base", "variants", "hop"):
+            print(f"  경고 — 리터럴형 힌트가 산문 질의에서 떴다: {literal_fired}")
+
         if contaminated:
             print("  경고 — 측정이 자기 도구를 되받았다 (필터하지 않았다):")
             for qid, f in contaminated:
@@ -453,6 +541,8 @@ def main():
                         "mean_delivery": deliv, "graphin_bytes": g_bytes,
                         "grep_literal_recall": lit_r, "grep_literal_bytes": lit_b,
                         "grep_symbol_recall": sym_r, "grep_symbol_bytes": sym_b,
+                        "keyword": kw_means or None, "hints": hints,
+                        "literal_hint_on_prose": literal_fired,
                         "queries": rows, "contaminated": contaminated})
         if args.min_recall is not None and mean < args.min_recall:
             failures.append((name, mean))

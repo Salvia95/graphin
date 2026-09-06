@@ -105,7 +105,10 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
   하지만, 여기서는 그 파일들이 답 자체를 바꾸므로 배제가 맞다.
 - 기본은 lexical-only다(`--ort-lib /nonexistent-ort`) — 게이트가 머신의
   캐시 사정에 좌우되면 안 된다는 eval-recall의 규칙. `--semantic`은 별도
-  축으로 돌린다.
+  축으로 돌린다. **그 축의 서버에는 `--semantic-wait 60s`를 넘긴다**(1.3.4):
+  런마다 새 서버가 뜨고 모델 로드에 8~15초가 걸려, 기다리지 않으면 초반
+  콜은 어휘만 돈다 — 첫 하이브리드 팔은 hybrid 응답의 62%만 시맨틱이었다
+  ([2026-09-06-p1-hybrid](eval/2026-09-06-p1-hybrid/manifest.md)).
 - **못 격리하는 것: 스킬 텍스트가 시스템 프롬프트에 있다.** 도구 응답 계약을
   묻는 태스크는 에이전트가 검색 없이 프롬프트에서 답할 수 있다. 그래서 정답
   축이 **인용을 요구한다** — 프롬프트에서 답을 알아도 코드로 뒷받침하지
@@ -193,8 +196,31 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
 
 - **한국어 티어는 자리만 예약** — 조사·활용형 축은 모니터링 뒤 결정이라는
   기존 보류와 정합하게, v1 세트에는 없다.
-- **grep-only 대조군은 v2** — 같은 질문을 grep 루프 프롬프트로 돌린 짝 비교.
-  판단 기준이 토큰 이코노미인 이상 결국 필요하다.
+- **grep-only 대조군(v2)은 2026-09-06에 들어왔다** — `run --arm grep`(루브릭
+  1.3.2). 같은 태스크·같은 채점기·같은 계약(종료 상태 셋, 인용, 예산 고지)에
+  도구만 호스트의 `Read`·`Grep`·`Glob`·`Bash`이고, `--mcp-config` 없이
+  `--strict-mcp-config`라 graphin 도구가 존재하지 않는다. 프롬프트는 채점기 안의
+  `GREP_AGENT_PROMPT` 상수(graphin-rag 계약에서 검색기 서술을 뺀 것). 이 팔만
+  PreToolUse 봉쇄 훅으로 스냅샷 밖 경로를 거부한다 — graphin 팔은 81런에 이탈
+  0이라 훅이 무력했을 것이고, grep 루프는 스케일링 벤치에서 36런에 33회
+  나가려 했다. 거부 횟수는 `contained`로 센다. 기본 팔의 명령줄은 바이트 하나
+  안 바뀌어 `RUN_COMPAT`에 붙는다. 첫 런: [2026-09-06-grep-control](eval/2026-09-06-grep-control/manifest.md).
+- **1.3.3(2026-09-06, 소유자 허가)은 채점 표기 규칙 둘을 고쳤다** — 말줄임 경로
+  (`docs/eval/.../scores.json`)는 가짜 인용이 아니라 `elided_citations`로 따로 세고,
+  금지 리터럴 앞 **같은 줄** 60자 안에 부정어가 있으면 문장 분리가 `e.g.`의 점에서
+  끊겼어도 부정 문맥이다. 판정만 바뀌고 러너는 불변이라 `RUN_COMPAT`에 붙는다.
+  재채점: [2026-09-06-rescore-1.3.3](eval/2026-09-06-rescore-1.3.3/findings.md) —
+  grep 대조군 대 graphin의 6점 차 중 3점이 표기였다. 그대로 둔 것: 점을 포함한
+  금지 리터럴은 문장 규칙에서 원래 발화하지 않는다(같은 기록 §4).
+- **1.3.4(2026-09-06)는 `--semantic` 팔의 서버에 `--semantic-wait`를 넘긴다**(§4).
+  기본 팔은 바이트 불변이라 `RUN_COMPAT`에 붙고, 이전 시맨틱 런은 `meta.semantic_wait`
+  가 없어 다른 모집단으로 읽는다.
+- **1.3.5(2026-09-06, 소유자 허가)는 초과를 숫자로 말한 것도 stated로 본다** — "about 5 KB
+  over the ~20,000-byte target", "the overrun came from …". `read_code`·`explore_graph`가
+  `<cost>`를 달자 에이전트가 "budget"이라는 낱말 대신 숫자를 쓰기 시작했고, 그 어휘를
+  `TRUNCATION_STATED`가 몰라 정직한 초과 셋이 침묵으로 채점됐다. "over the call chain"은
+  안 걸린다(숫자 또는 target·limit·cap·ceiling이 따라야 한다). 재채점:
+  [2026-09-06-p1-fold](eval/2026-09-06-p1-fold/manifest.md).
 - 행동 축을 게이트로 승격할지는 베이스라인 데이터가 쌓인 뒤 정한다 — 지표를
   먼저 게이트로 만들면 측정이 목표가 된다.
 - 세트 재구성 절차와 오염 방지 규칙은 `.claude/skills/rag-golden-set`의
