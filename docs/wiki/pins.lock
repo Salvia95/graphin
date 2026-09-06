@@ -329,8 +329,8 @@
     },
     "release": {
       "docs/plugin-distribution.md#103-릴리스-게이트-실측-2026-08-07": {
-        "h": "b3:b4c500e61df2588ca8ebae28941ee70d4767f81a2388b7e19733b08681bcaa33",
-        "r": "b3:a5d4d49d55713f8efd06804e532788d9037ec6254ccdd6b66d43ebac32e737ae"
+        "h": "b3:69bdd5e86e1510add62b1f31203922e5ff7c19e63ec72b71675b7cfad7e819aa",
+        "r": "b3:52ca7ffae0e82130da258ab77bf374e00a79c8eb3e0b284a50559953bfd9a142"
       },
       "docs/plugin-distribution.md#104-배달-실측-2026-08-08": {
         "h": "b3:7a219e2c3046dbbb3c42e06de8fcf59d8597aa66a03a687d6bc9ec0fed297bbd",

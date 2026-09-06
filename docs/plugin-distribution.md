@@ -777,6 +777,17 @@ AL2023(2.34)이 조용히 잘려나가는데, 그때 이 검사가 발화한다.
 실패한다. 날짜를 예측해 갈아타는 대신 **감지한다** — 정상 미러를 먼저 시도하고
 실패하면 archive로 폴백하는 5줄이 `release.yml`과 `ci.yml` 양쪽에 있다.
 
+**실제로는 security 풀이 먼저 끊었다 (2026-09-06 실측).** `apt-get update`는 살아 있는데
+`apt-get install`이 `bullseye-security`의 파일에 404를 냈다 — CDN(Fastly) 엣지가 인덱스는
+갖고 풀 파일은 걷어낸 상태이고, 없는 파일이 엣지·호스트(`deb.debian.org`·
+`security.debian.org`)마다 달랐다. `archive.debian.org`에는 bullseye-security가 아직 없어
+(Release 404) 위의 폴백은 이 경우를 덮지 못했다. 답은 **security 스위트를 쓰지 않는 것**이다:
+소스를 `bullseye main` 하나로 쓰고, 컨테이너를 `debian:bullseye`(움직이는 태그, security
+버전이 이미 설치돼 main만으로는 "held broken packages") 대신 **`debian:11.0`**(순수 main,
+amd64·arm64)으로 고정했다. glibc 2.31 바닥은 그대로다. 커밋 셋(`2a0aa67`·`831f573`·`2f05f8b`)
+이 그 순서로 배웠고, 매 커밋이 rag 게이트 마커를 만료시켜 v0.4.12는 게이트를 세 번 돌렸다
+([gate-log](eval/gate-log.md)).
+
 **상시 컨텍스트 비용** (`claude plugin details`, CC 2.1.221):
 
 | 플러그인 | 상시 | 내역 |
