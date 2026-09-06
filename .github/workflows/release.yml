@@ -87,7 +87,11 @@ jobs:
     # itself (Ubuntu 22.04, glibc 2.35) would already break RHEL 9 and AL2023,
     # both on 2.34. bullseye's 2.31 clears every currently supported distro.
     container:
-      image: debian:bullseye
+      # 11.0, not the moving bullseye tag: that tag bakes in bullseye-security
+      # package versions, and once the security pool is gone (see the apt step)
+      # main cannot satisfy their dependencies — "held broken packages". 11.0 is
+      # pure bullseye main and upgrades from it cleanly. Same glibc 2.31 floor.
+      image: debian:11.0
 
     steps:
       - name: Install build prerequisites
@@ -356,7 +360,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     container:
-      image: debian:bullseye
+      # 11.0, not the moving bullseye tag: that tag bakes in bullseye-security
+      # package versions, and once the security pool is gone (see the apt step)
+      # main cannot satisfy their dependencies — "held broken packages". 11.0 is
+      # pure bullseye main and upgrades from it cleanly. Same glibc 2.31 floor.
+      image: debian:11.0
     steps:
       - name: Prerequisites
         run: |

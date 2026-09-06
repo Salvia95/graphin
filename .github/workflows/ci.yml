@@ -256,7 +256,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     container:
-      image: debian:bullseye
+      # 11.0, not the moving bullseye tag: that tag bakes in bullseye-security
+      # package versions, and once the security pool is gone (see the apt step)
+      # main cannot satisfy their dependencies — "held broken packages". 11.0 is
+      # pure bullseye main and upgrades from it cleanly. Same glibc 2.31 floor.
+      image: debian:11.0
     steps:
       - name: Prerequisites
         run: |
