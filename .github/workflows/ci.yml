@@ -266,6 +266,7 @@ jobs:
           # Detect that rather than timing it — and do NOT "fix" it by moving
           # to bookworm: that raises the glibc floor 2.31 → 2.36 and drops
           # RHEL 9 and AL2023, which is the whole reason this image is here.
+          archived=0
           if ! apt-get update; then
             echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
             printf '%s\n' \
@@ -274,8 +275,25 @@ jobs:
               > /etc/apt/sources.list
             rm -f /etc/apt/sources.list.d/*.list || true
             apt-get -o Acquire::Check-Valid-Until=false update
+            archived=1
           fi
-          apt-get install -y --no-install-recommends ca-certificates curl git jq
+          # deb.debian.org is a CDN. An edge that carries the index but not the
+          # pool file answers 404 on install after update succeeded (2026-09-06:
+          # the two Fastly edges GitHub's runners resolve to lacked
+          # bullseye-security's libperl5.32 while security.debian.org served
+          # it). Retry once from the origin hosts — unless we already moved to
+          # the archive, where there is nothing further to fall back to.
+          if ! apt-get install -y --no-install-recommends ca-certificates curl git jq; then
+            [ "$archived" = 0 ] || exit 100
+            echo "::notice::deb.debian.org edge answered 404 — retrying from ftp.debian.org / security.debian.org"
+            printf '%s\n' \
+              'deb http://ftp.debian.org/debian bullseye main' \
+              'deb http://security.debian.org/debian-security bullseye-security main' \
+              > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list || true
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates curl git jq
+          fi
           ldd --version | head -1
 
       - uses: actions/checkout@v4

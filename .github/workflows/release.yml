@@ -101,6 +101,7 @@ jobs:
           # Do NOT resolve this by bumping to bookworm: that raises the glibc
           # floor from 2.31 to 2.36 and drops RHEL 9 and AL2023 (both 2.34),
           # which is the only reason this container exists.
+          archived=0
           if ! apt-get update; then
             echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
             printf '%s\n' \
@@ -109,9 +110,25 @@ jobs:
               > /etc/apt/sources.list
             rm -f /etc/apt/sources.list.d/*.list || true
             apt-get -o Acquire::Check-Valid-Until=false update
+            archived=1
           fi
-          apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl git jq xz-utils
+          # deb.debian.org is a CDN. An edge that carries the index but not the
+          # pool file answers 404 on install after update succeeded (2026-09-06:
+          # the two Fastly edges GitHub's runners resolve to lacked
+          # bullseye-security's libperl5.32 while security.debian.org served
+          # it). Retry once from the origin hosts — unless we already moved to
+          # the archive, where there is nothing further to fall back to.
+          if ! apt-get install -y --no-install-recommends build-essential ca-certificates curl git jq xz-utils; then
+            [ "$archived" = 0 ] || exit 100
+            echo "::notice::deb.debian.org edge answered 404 — retrying from ftp.debian.org / security.debian.org"
+            printf '%s\n' \
+              'deb http://ftp.debian.org/debian bullseye main' \
+              'deb http://security.debian.org/debian-security bullseye-security main' \
+              > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list || true
+            apt-get update
+            apt-get install -y --no-install-recommends build-essential ca-certificates curl git jq xz-utils
+          fi
           git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v4
@@ -364,6 +381,7 @@ jobs:
           set -eu
           # Same bullseye-EOL fallback as the build job above; see its comment
           # for why bookworm is not the answer.
+          archived=0
           if ! apt-get update; then
             echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
             printf '%s\n' \
@@ -372,8 +390,25 @@ jobs:
               > /etc/apt/sources.list
             rm -f /etc/apt/sources.list.d/*.list || true
             apt-get -o Acquire::Check-Valid-Until=false update
+            archived=1
           fi
-          apt-get install -y --no-install-recommends ca-certificates curl git jq
+          # deb.debian.org is a CDN. An edge that carries the index but not the
+          # pool file answers 404 on install after update succeeded (2026-09-06:
+          # the two Fastly edges GitHub's runners resolve to lacked
+          # bullseye-security's libperl5.32 while security.debian.org served
+          # it). Retry once from the origin hosts — unless we already moved to
+          # the archive, where there is nothing further to fall back to.
+          if ! apt-get install -y --no-install-recommends ca-certificates curl git jq; then
+            [ "$archived" = 0 ] || exit 100
+            echo "::notice::deb.debian.org edge answered 404 — retrying from ftp.debian.org / security.debian.org"
+            printf '%s\n' \
+              'deb http://ftp.debian.org/debian bullseye main' \
+              'deb http://security.debian.org/debian-security bullseye-security main' \
+              > /etc/apt/sources.list
+            rm -f /etc/apt/sources.list.d/*.list || true
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates curl git jq
+          fi
 
       - uses: actions/checkout@v4
         with:
