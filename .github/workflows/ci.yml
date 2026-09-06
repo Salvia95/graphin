@@ -261,39 +261,24 @@ jobs:
       - name: Prerequisites
         run: |
           set -eu
-          # Debian 11 LTS ends 2026-08-31, after which the suite leaves
-          # deb.debian.org for archive.debian.org and apt-get update fails.
-          # Detect that rather than timing it — and do NOT "fix" it by moving
-          # to bookworm: that raises the glibc floor 2.31 → 2.36 and drops
-          # RHEL 9 and AL2023, which is the whole reason this image is here.
-          archived=0
+          # bullseye-security's pool is being pruned from the CDN (Debian 11
+          # LTS ended 2026-08-31): edges keep the index but answer 404 on the
+          # files, and which files varies by edge and by host (2026-09-06:
+          # perl on deb.debian.org, curl on security.debian.org — both Fastly).
+          # A throwaway container that only runs a smoke script needs no
+          # security suite: take everything from bullseye main, which is
+          # still served, and fall back to archive.debian.org when main itself
+          # leaves the mirrors. Do NOT "fix" any of this by moving to bookworm:
+          # that raises the glibc floor 2.31 → 2.36 and drops RHEL 9 and
+          # AL2023, which is the whole reason this image is here.
+          printf '%s\n' 'deb http://deb.debian.org/debian bullseye main' > /etc/apt/sources.list
+          rm -f /etc/apt/sources.list.d/*.list || true
           if ! apt-get update; then
             echo "::notice::bullseye has left the mirrors — falling back to archive.debian.org"
-            printf '%s\n' \
-              'deb http://archive.debian.org/debian bullseye main' \
-              'deb http://archive.debian.org/debian-security bullseye-security main' \
-              > /etc/apt/sources.list
-            rm -f /etc/apt/sources.list.d/*.list || true
+            printf '%s\n' 'deb http://archive.debian.org/debian bullseye main' > /etc/apt/sources.list
             apt-get -o Acquire::Check-Valid-Until=false update
-            archived=1
           fi
-          # deb.debian.org is a CDN. An edge that carries the index but not the
-          # pool file answers 404 on install after update succeeded (2026-09-06:
-          # the two Fastly edges GitHub's runners resolve to lacked
-          # bullseye-security's libperl5.32 while security.debian.org served
-          # it). Retry once from the origin hosts — unless we already moved to
-          # the archive, where there is nothing further to fall back to.
-          if ! apt-get install -y --no-install-recommends ca-certificates curl git jq; then
-            [ "$archived" = 0 ] || exit 100
-            echo "::notice::deb.debian.org edge answered 404 — retrying from ftp.debian.org / security.debian.org"
-            printf '%s\n' \
-              'deb http://ftp.debian.org/debian bullseye main' \
-              'deb http://security.debian.org/debian-security bullseye-security main' \
-              > /etc/apt/sources.list
-            rm -f /etc/apt/sources.list.d/*.list || true
-            apt-get update
-            apt-get install -y --no-install-recommends ca-certificates curl git jq
-          fi
+          apt-get install -y --no-install-recommends ca-certificates curl git jq
           ldd --version | head -1
 
       - uses: actions/checkout@v4
