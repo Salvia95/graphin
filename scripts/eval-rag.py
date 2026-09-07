@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.3.5"
+RUBRIC_VERSION = "1.4.0"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -86,7 +86,16 @@ RUBRIC_VERSION = "1.3.5"
 # explore_graph reported their cost (D′ arm, self-report median 0.99), agents
 # stopped writing "budget" and started writing the number — three D′ runs that
 # named their overrun to the byte were scored over_silent. Scoring-only.
-RUN_COMPAT = ("1.3.0", "1.3.1", "1.3.2", "1.3.3", "1.3.4", "1.3.5")
+# Reset at 1.4.0 (2026-09-07, owner: "스냅샷 절단 규칙을 집어넣어줘"): the snapshot
+# now also drops docs/eval/ — the repository's own benchmark records. They
+# name every task id, and a not-here task's id contains the very literal it
+# probes (rag-nh-redis → "redis"), so the corpus documented the absence it
+# was being asked about: in the D′ arm 103 of the not-here tier's search hits
+# landed in docs/eval. The golden set cites nothing under docs/eval and the
+# wiki sets carry none of those literals, so nothing the tasks need is lost.
+# A different corpus is a different runner, so earlier transcripts do not
+# re-score as comparable; the next full run is a new baseline.
+RUN_COMPAT = ("1.4.0",)
 
 # What a --semantic arm's servers wait for the embedding model. Generous: the
 # model loads in 8–15s on this machine, and a call that hits the ceiling just
@@ -333,7 +342,11 @@ EXAMPLE_CUE = re.compile(r"(?:e\.g\.|for example|for instance|example|such as|sa
 # expected.jsonl (and, one calibration run showed, in this very file's
 # comments), which flips "not here" to false. eval-recall keeps its self-files
 # and reports contamination; here the files change the answers themselves.
-SELF_PREFIXES = ("eval/rag/", "eval/golden/", ".claude/skills/", "scripts/eval-")
+# docs/eval/ is not apparatus but self-reference: the records of earlier
+# runs name the tasks, and the not-here tasks' names carry their forbidden
+# literals (1.4.0). The product index keeps docs/eval — the wiki sets pin
+# sections there — only the measurement corpus drops it.
+SELF_PREFIXES = ("eval/rag/", "eval/golden/", ".claude/skills/", "scripts/eval-", "docs/eval/")
 
 
 def load_jsonl(path):

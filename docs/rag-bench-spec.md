@@ -103,6 +103,13 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
   읽는다 — not-here의 금지 리터럴이 expected.jsonl에, 한 번은 채점기 주석에
   실재해서 "없다"가 거짓이 됐다. eval-recall은 자기 파일을 남기고 보고만
   하지만, 여기서는 그 파일들이 답 자체를 바꾸므로 배제가 맞다.
+  **`docs/eval/`도 잘라낸다**(1.4.0, 2026-09-07 소유자 지시). 장치가 아니라
+  자기 참조다 — 이전 런의 기록이 태스크 id를 전부 적고, not-here 태스크의 id는
+  자기가 묻는 금지 리터럴을 품는다(`rag-nh-redis` → "redis"). D′ 팔에서 not-here
+  층 검색 히트의 103건이 `docs/eval`이었다. 골든셋은 `docs/eval`을 한 번도
+  인용 근거로 삼지 않고 위키 세트 파일에도 그 리터럴이 없으므로 잃는 것은 없다.
+  **제품 인덱스는 `docs/eval`을 그대로 둔다** — 위키 세트가 그 섹션을 가리킨다.
+  절단은 측정 코퍼스에만 적용된다.
 - 기본은 lexical-only다(`--ort-lib /nonexistent-ort`) — 게이트가 머신의
   캐시 사정에 좌우되면 안 된다는 eval-recall의 규칙. `--semantic`은 별도
   축으로 돌린다. **그 축의 서버에는 `--semantic-wait 60s`를 넘긴다**(1.3.4):
@@ -215,6 +222,10 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
 - **1.3.4(2026-09-06)는 `--semantic` 팔의 서버에 `--semantic-wait`를 넘긴다**(§4).
   기본 팔은 바이트 불변이라 `RUN_COMPAT`에 붙고, 이전 시맨틱 런은 `meta.semantic_wait`
   가 없어 다른 모집단으로 읽는다.
+- **1.4.0(2026-09-07, 소유자 지시)은 스냅샷에서 `docs/eval/`을 잘라낸다**(§4). 코퍼스가
+  바뀌었으므로 러너 변경이고 `RUN_COMPAT`은 1.4.0 하나로 리셋된다 — 1.3.x 트랜스크립트는
+  다른 코퍼스의 산물이라 재채점하지 않는다. 다음 풀셋 런이 새 베이스라인이다. not-here
+  층의 절대값은 이제 자기 기록 없이 재는 값이라 이전과 직접 비교하지 않는다.
 - **1.3.5(2026-09-06, 소유자 허가)는 초과를 숫자로 말한 것도 stated로 본다** — "about 5 KB
   over the ~20,000-byte target", "the overrun came from …". `read_code`·`explore_graph`가
   `<cost>`를 달자 에이전트가 "budget"이라는 낱말 대신 숫자를 쓰기 시작했고, 그 어휘를
