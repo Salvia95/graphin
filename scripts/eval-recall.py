@@ -41,6 +41,16 @@ TIERS = ("base", "variants", "hop", "tests")
 
 SELF_PREFIXES = ("eval/golden/", ".claude/skills/", "scripts/eval-recall.py")
 
+# Cut from the corpus, not merely reported. docs/eval is not this script's
+# apparatus but the repository's record of its own runs: it names the tasks
+# and quotes the result tables, so a query about the thing being measured
+# finds the measurement. The rag bench cuts it for the same reason
+# (docs/rag-bench-spec.md §4), and here it also stops the grep arms' byte
+# counts from being dominated by result JSON. The distinction from
+# SELF_PREFIXES above is deliberate: those files stay and are reported,
+# because their presence does not change an answer.
+CUT_PREFIXES = ("docs/eval/",)
+
 NODE_RE = re.compile(r'<node\s+([^>]*?)/>')
 BLOCK_RE = re.compile(r'<code_block\s+([^>]*?)>')
 ATTR_RE = re.compile(r'(\w+)="([^"]*)"')
@@ -314,6 +324,8 @@ def materialize(dest, ref, worktree):
         out = subprocess.run(["git", "-C", REPO, "ls-files", "-co", "--exclude-standard"],
                              capture_output=True, text=True, check=True).stdout
         for rel in out.splitlines():
+            if rel.startswith(CUT_PREFIXES):
+                continue
             src, dst = os.path.join(REPO, rel), os.path.join(dest, rel)
             if not os.path.isfile(src):
                 continue
@@ -322,6 +334,8 @@ def materialize(dest, ref, worktree):
         return "worktree"
     tar = subprocess.run(["git", "-C", REPO, "archive", ref], capture_output=True, check=True)
     subprocess.run(["tar", "-x", "-C", dest], input=tar.stdout, check=True)
+    for pre in CUT_PREFIXES:
+        shutil.rmtree(os.path.join(dest, pre), ignore_errors=True)
     sha = subprocess.run(["git", "-C", REPO, "rev-parse", "--short", ref],
                          capture_output=True, text=True, check=True).stdout.strip()
     return sha

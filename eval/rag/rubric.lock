@@ -3,7 +3,7 @@
   "approved_by": "salvia95",
   "date": "2026-09-07",
   "files": {
-    "scripts/eval-rag.py": "3a987987349ee3505912ae93efde1bef155517e42214cb2036df5195c62099e9",
+    "scripts/eval-rag.py": "a86cec1018e8de4ba48ca91128a3a60a015d81e81736be1ab65f27d9f33aa472",
     "eval/rag/tasks.jsonl": "7c3f11ea249c503bd9b5c55a36f1c1fa11451d9d34403f5c663cfdc8936588a4",
     "eval/rag/expected.jsonl": "bc0bcde24274ac2cc6d757742583e931eba813f6c2cbe253ebc1cb9e25e92c4a"
   }

@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.4.0"
+RUBRIC_VERSION = "1.4.1"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -95,7 +95,17 @@ RUBRIC_VERSION = "1.4.0"
 # wiki sets carry none of those literals, so nothing the tasks need is lost.
 # A different corpus is a different runner, so earlier transcripts do not
 # re-score as comparable; the next full run is a new baseline.
-RUN_COMPAT = ("1.4.0",)
+# 1.4.1 (2026-09-07): the containment hook now confines BOTH arms, and the
+# escape detector reads the same fields the hook does. Until now only the grep
+# arm was confined, so one move — opening the real repository at an absolute
+# path — was a denied no-op there and an invalidating `escaped` verdict here,
+# and on Read/Grep/Glob it was neither blocked nor detected on the graphin
+# side (the detector only read Bash). 1.4.0 cutting docs/eval left 244
+# references to it in the snapshot, which is a standing invitation to go
+# looking outside; the two arms must answer that invitation the same way.
+# A hook change is runner behaviour, so this resets — 1.4.0 produced no run,
+# so nothing comparable is lost.
+RUN_COMPAT = ("1.4.1",)
 
 # What a --semantic arm's servers wait for the embedding model. Generous: the
 # model loads in 8–15s on this machine, and a call that hits the ceiling just
@@ -265,13 +275,14 @@ Structure the final message as:
 A pile of file paths is not an answer. Neither is a summary with no citations.
 """
 
-# The grep arm is confined to the snapshot by a PreToolUse hook, in addition
-# to the post-hoc `escaped` verdict both arms get. The graphin arm left the
-# snapshot 0 times in 81 runs, so a hook there would be inert; a grep loop
-# with the host's shell did it 33 times in 36 runs when the scaling bench
-# measured it, and one such run reads the answer out of the plugin cache's
-# copy of this repository. Denied calls are counted by the scorer from the
-# transcript (`contained`), so the pressure to leave is still visible.
+# Both arms are confined to the snapshot by this PreToolUse hook (1.4.1), on
+# top of the post-hoc `escaped` verdict. It was the grep arm's alone while the
+# graphin arm measured 0 escapes in 81 runs and a grep loop with the host's
+# shell managed 33 in 36 (scaling bench), one of them reading the answer out
+# of the plugin cache's copy of this repository. That asymmetry was a fairness
+# hole regardless: the same move cost the grep arm a denied call and the
+# graphin arm the whole run. Denied calls are counted from the transcript
+# (`contained`), so the pressure to leave stays visible for both.
 CONTAINMENT_HOOK = r'''#!/usr/bin/env bash
 set -eu
 cwd=$(pwd)
@@ -724,14 +735,11 @@ def run(args):
         # .claude/settings.json hooks are inert for it (they guard edits and
         # release commands, neither of which the arm can issue).
         settings_path = os.path.join(out, "settings.json")
+        hook = write_containment_hook(out)
         with open(settings_path, "w") as f:
-            if args.arm == "grep":
-                hook = write_containment_hook(out)
-                json.dump({"enabledPlugins": {}, "hooks": {"PreToolUse": [
-                    {"matcher": "Bash|Read|Grep|Glob",
-                     "hooks": [{"type": "command", "command": hook}]}]}}, f)
-            else:
-                json.dump({"disableAllHooks": True, "enabledPlugins": {}}, f)
+            json.dump({"enabledPlugins": {}, "hooks": {"PreToolUse": [
+                {"matcher": "Bash|Read|Grep|Glob",
+                 "hooks": [{"type": "command", "command": hook}]}]}}, f)
 
         if args.arm == "grep":
             agent_sha = hashlib.sha256(GREP_AGENT_PROMPT.encode()).hexdigest()
@@ -907,13 +915,23 @@ ESCAPE_RE = re.compile(
     r"~/\.claude/[^\s\"']*)")
 
 
+# The fields the containment hook inspects. Detection reads the same surface
+# as prevention: a Read of an absolute path outside the snapshot is the same
+# escape as a `cat` of it, and until 1.4.1 only the `cat` was ever seen.
+ESCAPE_TOOLS = ("Bash", "Read", "Grep", "Glob")
+ESCAPE_FIELDS = ("command", "file_path", "path", "pattern")
+
+
 def escapes_of(ledger):
     out = []
     for e in ledger:
-        if e["name"] != "Bash":
+        if e["name"] not in ESCAPE_TOOLS:
             continue
-        cmd = str(e["input"].get("command", ""))
-        out += ESCAPE_RE.findall(cmd)
+        inp = e["input"] if isinstance(e["input"], dict) else {}
+        for k in ESCAPE_FIELDS:
+            v = inp.get(k)
+            if isinstance(v, str):
+                out += ESCAPE_RE.findall(v)
     return sorted(set(out))[:5]
 
 

@@ -299,8 +299,8 @@
         "r": "b3:ffcf7107b69efff9bd7729361d427f2b5981e418bd7e4a6586f25bdcd99a099d"
       },
       "docs/rag-bench-spec.md#4-러너가-격리하는-것-못-하는-것": {
-        "h": "b3:62ebfb971d465730f7de7b2f931e486b509f07b1816941626d0379ba01642712",
-        "r": "b3:f0174cbe61cf1c9b7b0a4ec454097da644ea070313a866478d275901ff5b67cb"
+        "h": "b3:6149e0700d15a406cbeb61f41e512456ad38ed54111e0d47b7ab615bb1737316",
+        "r": "b3:b356a1b4eddb225d8428e481dea27a39ea6ead6c3fc459fec7c91c2ebf1e2949"
       },
       "docs/rag-bench-spec.md#5-판정-절차": {
         "h": "b3:323b6edf54909218d727bce634758bd224977be52776090f151a6a028bd2cc8e",
@@ -323,8 +323,8 @@
         "r": "b3:139a1b61fba68764c22b58059e3deb53bf953363178fcc2e188e0d9f1da7e726"
       },
       "docs/rag-bench-spec.md#9-알려진-한계와-다음-축": {
-        "h": "b3:112c8fd3d6e937c38c19ba1d8a7de3373c79ac4b07f89e079f4535dcfd3b9550",
-        "r": "b3:6fb36a171d518dd54817c96ac7aa9e6eaa95bb7ca418a7aca119c9df7f390d40"
+        "h": "b3:2b7c4f8442d12fdf531f342628d84213e026da392143e3a32e86c8a99d734e0f",
+        "r": "b3:f4df9cc400dc965ca8d3b173fc5856f2d89e74e98175a3c0707faeae6a98209c"
       }
     },
     "release": {
