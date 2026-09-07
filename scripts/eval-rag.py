@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.4.1"
+RUBRIC_VERSION = "1.4.2"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -105,7 +105,20 @@ RUBRIC_VERSION = "1.4.1"
 # looking outside; the two arms must answer that invitation the same way.
 # A hook change is runner behaviour, so this resets — 1.4.0 produced no run,
 # so nothing comparable is lost.
-RUN_COMPAT = ("1.4.1",)
+# 1.4.2 (2026-09-08, owner-approved verdict change — the promotion §7 wrote
+# down in advance): a node id the agent invented AND the server did not have
+# is no longer observation. It scores `invented`, never pass. The condition
+# was "one run where the guess actually missed"; the 1.4.1 baseline produced
+# two — internal.keyword.keyword.go (NODE_NOT_FOUND) and
+# internal.lexical.particles (omitted reason="not_found") — and both runs had
+# been scored pass. A guess that lands still passes: what this punishes is a
+# missing node reported as absence, which is the one failure this tool cannot
+# sell (the contract says "ids a previous call returned" for that reason).
+# An edge-less node is NOT a miss — explore returns an empty graph_context
+# for it, not NODE_NOT_FOUND (internal/workspace/indexer_test.go:245), and
+# reason="gone" is a reparse race, not an invention. Scoring-only: the runner
+# is byte-identical, so 1.4.1 transcripts re-score.
+RUN_COMPAT = ("1.4.1", "1.4.2")
 
 # What a --semantic arm's servers wait for the embedding model. Generous: the
 # model loads in 8–15s on this machine, and a call that hits the ceiling just
@@ -935,9 +948,24 @@ def escapes_of(ledger):
     return sorted(set(out))[:5]
 
 
+# A node id the server says it does not have. Two shapes: read_code omits it
+# from the batch, explore_graph errors on it. reason="gone" is deliberately
+# not here — that is a node lost to a reparse between the search and the
+# read, which is the index moving, not the agent inventing.
+_OMITTED_NOT_FOUND = re.compile(r'<omitted id="([^"]+)" reason="not_found"')
+_UNKNOWN_NODE = re.compile(
+    r'<error code="NODE_NOT_FOUND">\s*unknown node:\s*([^<]+?)\s*</error>')
+
+
+def missing_ids(result):
+    """Ids in one tool result that the server reported it does not have."""
+    t = str(result)
+    return set(_OMITTED_NOT_FOUND.findall(t)) | set(_UNKNOWN_NODE.findall(t))
+
+
 def behavior_metrics(ledger):
     m = {"calls": len(ledger), "bytes_total": sum(e["bytes"] for e in ledger),
-         "by_tool": {}, "nav_calls": 0, "invented_ids": 0,
+         "by_tool": {}, "nav_calls": 0, "invented_ids": 0, "invented_miss": [],
          "hints_seen": 0, "hints_followed": 0, "read_batches": [],
          "search_runs_max": 0, "escaped": escapes_of(ledger),
          "contained": 0}  # calls the containment hook denied (grep arm)
@@ -961,19 +989,23 @@ def behavior_metrics(ledger):
             ids = e["input"].get("node_ids") or \
                 ([e["input"]["node_id"]] if e["input"].get("node_id") else [])
             m["read_batches"].append(len(ids))
-            for i in ids:
-                if i and i not in seen_text:
-                    m["invented_ids"] += 1
+            invented = [i for i in ids if i and i not in seen_text]
+            m["invented_ids"] += len(invented)
+            gone = missing_ids(e["result"])
+            m["invented_miss"] += [i for i in invented if i in gone]
         if n == "mcp__graphin__explore_graph":
             i = e["input"].get("node_id", "")
             if i and i not in seen_text:
                 m["invented_ids"] += 1
+                if i in missing_ids(e["result"]):
+                    m["invented_miss"].append(i)
         seen_text += str(e["result"])
         if "<hint>" in str(e["result"]) and "search_keyword" in str(e["result"]):
             m["hints_seen"] += 1
             hint_pending = True
         if "Path outside the workspace under test" in str(e["result"]):
             m["contained"] += 1
+    m["invented_miss"] = sorted(set(m["invented_miss"]))[:5]
     m.update(keyword_metrics(ledger))
     return m
 
@@ -1102,6 +1134,11 @@ def grade(task, exp, final_text, metrics, files, seen=""):
     # Leaving the snapshot invalidates the run whatever it answered: what it
     # measured is not the corpus under test.
     g["escaped"] = metrics.get("escaped", [])
+    # A guess at a node id that the server did not have. The contract says to
+    # pass ids a previous call returned, precisely because a missing node
+    # comes back looking like absence — the one failure this tool cannot
+    # sell. Promoted from observation to a verdict in 1.4.2 (spec §7).
+    g["invented_miss"] = metrics.get("invented_miss", [])
 
     low = final_text.lower()
     if exp["end_state"] == "not-here":
@@ -1151,6 +1188,8 @@ def grade(task, exp, final_text, metrics, files, seen=""):
         g["verdict"] = "pass" if (correct and honest and budget_ok) else "fail"
     if g["escaped"]:
         g["verdict"] = "escaped"
+    elif g["invented_miss"]:
+        g["verdict"] = "invented"
 
     # The agent's own Cost section, checked against what it actually spent.
     m = re.search(r"([\d,]+)\s*(?:bytes|B\b)|(~?\d+(?:\.\d+)?)\s*KB", final_text)
@@ -1196,7 +1235,8 @@ def score(args):
         g = grade(tasks[r["task"]], expected[r["task"]], final_text, m, files, seen)
         row.update(g)
         row.update({k: m[k] for k in ("calls", "nav_calls", "bytes_total",
-                                      "invented_ids", "hints_seen", "hints_followed",
+                                      "invented_ids", "invented_miss",
+                                      "hints_seen", "hints_followed",
                                       "search_runs_max", "by_tool",
                                       "keyword_calls", "keyword_empty", "keyword_idless",
                                       "keyword_next", "first_retriever", "contained")})
@@ -1252,6 +1292,11 @@ def score(args):
     lines += ["## behavior", ""]
     lines.append(f"- left the snapshot (scored `escaped`, never pass): {len(esc)} run(s)"
                  + (f" — {[(r['task'], r['escaped']) for r in esc]}" if esc else ""))
+    miss = [r for r in rows if r.get("invented_miss")]
+    lines.append(f"- invented a node id the server did not have (scored "
+                 f"`invented`, never pass): {len(miss)} run(s)"
+                 + (f" — {[(r['task'], r['invented_miss']) for r in miss]}"
+                    if miss else ""))
     lines.append(f"- invented node ids: {len(bad)} run(s)"
                  + (f" — {[r['task'] for r in bad]}" if bad else ""))
     if meta.get("arm") == "grep":

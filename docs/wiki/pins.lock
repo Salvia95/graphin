@@ -295,8 +295,8 @@
         "r": "b3:1d85f9c78e39e69383a5dcf3518747a9bbda0e5a48feb16da4d4ad11a4505c4b"
       },
       "docs/rag-bench-spec.md#3-루브릭--세-축과-판정": {
-        "h": "b3:ba8164851cd0b7a9deffb78b68cbd180e148328076b9371d76995fabc04b7446",
-        "r": "b3:ffcf7107b69efff9bd7729361d427f2b5981e418bd7e4a6586f25bdcd99a099d"
+        "h": "b3:00a618dddd5dc21f9155df013ee7bfe06148f58d4e696bf9273049a16a536ecf",
+        "r": "b3:493967264707da1c850a0630e37f12e27a6747952e187a8e02d9da2bcec9367b"
       },
       "docs/rag-bench-spec.md#4-러너가-격리하는-것-못-하는-것": {
         "h": "b3:6149e0700d15a406cbeb61f41e512456ad38ed54111e0d47b7ab615bb1737316",
@@ -310,9 +310,9 @@
         "h": "b3:b49e79a33adc509c8fec0258ef41d7b825463bde36dc06f374da24c859f2bff8",
         "r": "b3:1f61e46c6a8f639e14c94c5e38e63e06a817d39bf436b17777cfa414e466ac60"
       },
-      "docs/rag-bench-spec.md#7-모니터링-중--지어낸-노드-id": {
-        "h": "b3:74d81983234f5f7cd5c1b95a99e9d6d2759d46abab41a505ed3bd7ba7b8dfbbb",
-        "r": "b3:c5b40e06cfaf08c9db8ce3e9a5e9e45acf93a5799b0524ef2dfe8cc252c3e16c"
+      "docs/rag-bench-spec.md#7-판정--지어낸-노드-id-2026-09-08-승격": {
+        "h": "b3:9f48c9a48c384fad0a4294f0f75a5173a09c71a6d455d2d04dcc34eed522625c",
+        "r": "b3:6f894571ecb719d1d1992ed32e42a19ec295e3d2a6a2e0397abd851917318a91"
       },
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
         "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",
@@ -323,8 +323,8 @@
         "r": "b3:139a1b61fba68764c22b58059e3deb53bf953363178fcc2e188e0d9f1da7e726"
       },
       "docs/rag-bench-spec.md#9-알려진-한계와-다음-축": {
-        "h": "b3:2b7c4f8442d12fdf531f342628d84213e026da392143e3a32e86c8a99d734e0f",
-        "r": "b3:f4df9cc400dc965ca8d3b173fc5856f2d89e74e98175a3c0707faeae6a98209c"
+        "h": "b3:48a42333f92a9313a94d580b1adabb2751bfed3a084ece6804e59be5213490f1",
+        "r": "b3:d9d5f8b6a634ef4ca7af327ab3392100b2b5fe1873b4920e8821b2a2849d052c"
       }
     },
     "release": {
