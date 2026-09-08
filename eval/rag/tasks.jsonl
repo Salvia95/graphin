@@ -25,3 +25,12 @@
 {"id": "rag-db-impact", "tier": "db-nav", "question": "What would be affected inside the database schema if the company table were renamed?"}
 {"id": "rag-db-nh-payments", "tier": "db-nav", "question": "Which code writes to the payments table?"}
 {"id": "rag-db-oor-rows", "tier": "db-nav", "question": "How many rows are currently in the job_posting table?"}
+{"id": "rag-lit-stoplist", "tier": "answered", "question": "Stoplisted returns true for very common member names like \"process\". When it does, does a call to that name end up with no edge at all, or is an edge still built in some cases?"}
+{"id": "rag-lit-debounce", "tier": "answered", "question": "NewDebouncer takes two durations. What are the defaults when you pass zero for both, and what is the second one protecting against?"}
+{"id": "rag-lit-tracks", "tier": "answered", "question": "FileDiff sorts the nodes of a reparsed file into OffsetOnly and Changed. What work does each of those two buckets trigger?"}
+{"id": "rag-lit-arity", "tier": "answered", "question": "What is the value of UnboundedArity, and which language constructs make a definition get it?"}
+{"id": "rag-chain-model-mismatch", "tier": "multi-hop", "question": "diagnose_index can report that the stored vectors were written by a different embedding model than the configured one. Where does each of the two ids it compares come from?"}
+{"id": "rag-chain-wiki-token", "tier": "multi-hop", "question": "The delegation gate accepts a manifest token. What does that token sign, and what does a valid token still not establish?"}
+{"id": "rag-chain-pin-drift", "tier": "multi-hop", "question": "A wiki pin records two hashes per section rather than one. What is the second hash computed over, and which situation needs both to tell two cases apart?"}
+{"id": "rag-chain-redirect", "tier": "multi-hop", "question": "The delta log carries a redirect op alongside upsert and tombstone. Why is it upsert-class rather than tombstone-class, and does it go into the same table as edges?"}
+{"id": "rag-chain-tokenizer", "tier": "multi-hop", "question": "The embedding path does not depend on a third-party tokenizer library. What is used instead, how many model families does it cover, and how is it shown to agree with the reference?"}

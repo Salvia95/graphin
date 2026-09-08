@@ -315,16 +315,16 @@
         "r": "b3:6f894571ecb719d1d1992ed32e42a19ec295e3d2a6a2e0397abd851917318a91"
       },
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
-        "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",
-        "r": "b3:352d16d8a2113850dc53a10040af6953e12e856a0c53d5235ede5adcc948a3c4"
+        "h": "b3:a48b8f77323e04b213fa6afedd8a32bfc1b181f4da023ab096ef5f5235f1817b",
+        "r": "b3:785348ef37d8af1c464c78f585c216cd218cd38e702754bb9a5d44738dec916d"
       },
       "docs/rag-bench-spec.md#8-유지-결정--스킬이-답을-서술하는-태스크-2026-09-01-소유자-결정": {
         "h": "b3:6380a4bc4c47c891131f741aac9ba82f50c84eac35278a24e407cc3f32c6491d",
         "r": "b3:139a1b61fba68764c22b58059e3deb53bf953363178fcc2e188e0d9f1da7e726"
       },
       "docs/rag-bench-spec.md#9-알려진-한계와-다음-축": {
-        "h": "b3:48a42333f92a9313a94d580b1adabb2751bfed3a084ece6804e59be5213490f1",
-        "r": "b3:d9d5f8b6a634ef4ca7af327ab3392100b2b5fe1873b4920e8821b2a2849d052c"
+        "h": "b3:cc8d896da18a84dac593e46700cd117b1c21bcd4f6de3d8499b343c959bce528",
+        "r": "b3:154711e86ffbe585938c1a6210b84584560dff4ad011ace359316566a9b8c356"
       }
     },
     "release": {
@@ -365,8 +365,8 @@
         "r": "b3:2536e0ae39d7202cb5bdfe4fb85909728d9d462ffe31d4789d7b3b53ac4473b2"
       },
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
-        "h": "b3:9e4acc8d483bb631d6aa6da5d067a45b74892c3682b29306a26b05e15f7243c2",
-        "r": "b3:352d16d8a2113850dc53a10040af6953e12e856a0c53d5235ede5adcc948a3c4"
+        "h": "b3:a48b8f77323e04b213fa6afedd8a32bfc1b181f4da023ab096ef5f5235f1817b",
+        "r": "b3:785348ef37d8af1c464c78f585c216cd218cd38e702754bb9a5d44738dec916d"
       }
     },
     "wiki-work": {

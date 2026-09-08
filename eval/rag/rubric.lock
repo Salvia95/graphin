@@ -4,7 +4,7 @@
   "date": "2026-09-08",
   "files": {
     "scripts/eval-rag.py": "d282c75d4fb024d54defc596bb323f2468ea0ad68db3cbf44847013c3ada73b0",
-    "eval/rag/tasks.jsonl": "7c3f11ea249c503bd9b5c55a36f1c1fa11451d9d34403f5c663cfdc8936588a4",
-    "eval/rag/expected.jsonl": "bc0bcde24274ac2cc6d757742583e931eba813f6c2cbe253ebc1cb9e25e92c4a"
+    "eval/rag/tasks.jsonl": "09736d58774e7f4604dc67cec791df0eeeadb16c7338202c31491b6b3f1bc7de",
+    "eval/rag/expected.jsonl": "d7ee79724716819cb42dcc4c7b711a177c061cb6cee0eeed54f752b1f164e932"
   }
 }
