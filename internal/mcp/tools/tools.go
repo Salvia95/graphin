@@ -131,6 +131,8 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Handler:     diagnoseHandler(ws),
 	})
 
+	registerScope(reg, ws)
+
 	registerWiki(reg, ws)
 
 	reg.Register(&mcp.Tool{

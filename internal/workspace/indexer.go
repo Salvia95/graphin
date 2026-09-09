@@ -8,6 +8,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -239,6 +240,32 @@ func (w *Workspace) removePrefixLocked(relDir string) {
 	}
 }
 
+// pruneUnwalked drops every indexed file the current walk did not produce.
+func (w *Workspace) pruneUnwalked(walked []scan.FileInfo) {
+	seen := make(map[string]bool, len(walked))
+	for _, f := range walked {
+		seen[f.RelPath] = true
+	}
+	w.indexMu.Lock()
+	defer w.indexMu.Unlock()
+	var stale []string
+	for rel := range w.merkle.Files {
+		if !seen[rel] {
+			stale = append(stale, rel)
+		}
+	}
+	if len(stale) == 0 {
+		return
+	}
+	sort.Strings(stale) // single-writer, but keep the log order stable
+	nodes := 0
+	for _, rel := range stale {
+		nodes += len(w.merkle.Files[rel].Nodes)
+		w.removeFileLocked(rel)
+	}
+	w.Log.Event("scan_pruned", map[string]any{"files": len(stale), "nodes": nodes})
+}
+
 // initialScan is the first full index pass: parallel parse fan-out, serial
 // single-writer application, staged availability flip.
 func (w *Workspace) initialScan(ctx context.Context) {
@@ -255,6 +282,15 @@ func (w *Workspace) initialScan(ctx context.Context) {
 	w.matcherMu.Lock()
 	w.matcher = res.Matcher
 	w.matcherMu.Unlock()
+
+	// Reconcile before parsing: anything the merkle tree still records but
+	// this walk did not reach is gone from the index's point of view. Two
+	// things land here — files deleted while no watcher was running, and
+	// files newly covered by .graphin/ignore. The watcher handles neither,
+	// because a deletion it never saw raises no event and an excluded file
+	// is still sitting on disk. This is the single moment where an exclusion
+	// takes effect (internal/workspace/scope.go).
+	w.pruneUnwalked(res.Files)
 
 	total := len(res.Files)
 	jobs := make(chan scan.FileInfo)

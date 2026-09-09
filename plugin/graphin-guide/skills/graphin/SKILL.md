@@ -68,6 +68,19 @@ a symbol you are sure exists doesn't come back from `search_hybrid`, or when
 wrong" from "the code is not what you thought". It scans every node, so it is a
 diagnostic, not something to call per question.
 
+`index_scope` shows what the index is *made of* — files and nodes per top-level
+directory and per extension, plus the exclusion patterns in effect — and edits
+that scope. Reach for it when the node count looks wrong for the project: scratch
+files, a vendored copy, build output, or a git worktree inside the project all get
+indexed unless excluded, and markdown is the usual surprise because a `.md` file
+becomes one node per heading. `add` (gitignore syntax) previews what patterns
+would take out, including warnings when they would cut wiki-pinned sections or DB
+snapshots; nothing is written until you repeat the call with `confirm=true`. Even
+then the current index is untouched — search keeps answering from it until the
+next `bootstrap_workspace`, which is when the nodes actually go. Ask the user
+before excluding anything: what looks like noise from here is sometimes the thing
+they care about.
+
 `run_local_benchmark` also exists — it measures how many bytes graphin navigation
 saves versus grep for a given query. It's a demonstration/QA tool, not part of
 normal exploration.
@@ -243,6 +256,12 @@ it reflects the schema as checked in, not the current production state.
   string-built calls, and unresolved import aliases can hide links. Low/absent edges
   = "look closer," not "definitely unrelated."
 - **DB view is snapshot-based** (no live connection, no migration-history replay).
+- **What gets indexed is a walk, not a whitelist of "source".** Every file whose
+  extension the parser knows — code, markdown, and plain text like `.json`, `.yml`,
+  `.sql`, `.txt`, `.sh` — under the workspace root, minus `.gitignore`,
+  `.graphin/ignore`, and a fixed list of build directories. `.claude/`, docs
+  archives and a worktree checked out inside the project are **not** excluded by
+  default. `index_scope` is how you see and change that.
 
 ## Quick recipes
 
