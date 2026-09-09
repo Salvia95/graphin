@@ -282,10 +282,6 @@
         "h": "b3:5e73c647000b64b132fc4531046cf72e2fe22d5e7dd90d8d5eb7587c33fd6234",
         "r": "b3:43e5b167191ac9cfc0be111c63b4f26b884f55fa7f0c4eb100486d16c27a7772"
       },
-      "docs/eval/gate-log.md#관찰-중--게이트가-5분을-넘기는-이유": {
-        "h": "b3:9b3a9bfc88f7ba15d3f342a67639d9f61f8f4356513ad4806eaa579c940a56cb",
-        "r": "b3:69acaf9252d2e2ee217a21d35191f68c1c36b82c188521401b74b2fce842142d"
-      },
       "docs/rag-bench-spec.md#0-무엇을-재나": {
         "h": "b3:abe4a1fc770696ea795ab86b9b64ebfcf066ef9b4b4154e131363a440c127b87",
         "r": "b3:990f0f49a97382b63612f323ce78b876ccaf3ab9b9d4805f839e17f9e58d4716"
@@ -315,8 +311,8 @@
         "r": "b3:6f894571ecb719d1d1992ed32e42a19ec295e3d2a6a2e0397abd851917318a91"
       },
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
-        "h": "b3:a48b8f77323e04b213fa6afedd8a32bfc1b181f4da023ab096ef5f5235f1817b",
-        "r": "b3:785348ef37d8af1c464c78f585c216cd218cd38e702754bb9a5d44738dec916d"
+        "h": "b3:81338b89a2822cd84321317f0d33de5ffca9831bec9d175df9a2c2808c12ef2c",
+        "r": "b3:90122202188fa4c800e6251065a38dc8e830ca2c52851ccecff459ddb63bed9e"
       },
       "docs/rag-bench-spec.md#8-유지-결정--스킬이-답을-서술하는-태스크-2026-09-01-소유자-결정": {
         "h": "b3:6380a4bc4c47c891131f741aac9ba82f50c84eac35278a24e407cc3f32c6491d",
@@ -325,6 +321,10 @@
       "docs/rag-bench-spec.md#9-알려진-한계와-다음-축": {
         "h": "b3:cc8d896da18a84dac593e46700cd117b1c21bcd4f6de3d8499b343c959bce528",
         "r": "b3:154711e86ffbe585938c1a6210b84584560dff4ad011ace359316566a9b8c356"
+      },
+      "docs/rag-bench-spec.md#게이트-운용--관찰-중인-것": {
+        "h": "b3:a8da7326109e104e4effd60b1ea5ed335c11754317eb1e99cd32023010b81961",
+        "r": "b3:5908ef4cbb68eb568d7f32e773cc5a93258b06f474a217725a51627bccbed72b"
       }
     },
     "release": {
@@ -365,8 +365,8 @@
         "r": "b3:2536e0ae39d7202cb5bdfe4fb85909728d9d462ffe31d4789d7b3b53ac4473b2"
       },
       "docs/rag-bench-spec.md#8-변경-통제와-릴리스-게이트-2026-09-01-소유자-결정": {
-        "h": "b3:a48b8f77323e04b213fa6afedd8a32bfc1b181f4da023ab096ef5f5235f1817b",
-        "r": "b3:785348ef37d8af1c464c78f585c216cd218cd38e702754bb9a5d44738dec916d"
+        "h": "b3:81338b89a2822cd84321317f0d33de5ffca9831bec9d175df9a2c2808c12ef2c",
+        "r": "b3:90122202188fa4c800e6251065a38dc8e830ca2c52851ccecff459ddb63bed9e"
       }
     },
     "wiki-work": {
