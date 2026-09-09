@@ -42,11 +42,13 @@ func scopeTestWS(t *testing.T) (*workspace.Workspace, string) {
 	return ws, root
 }
 
+// The second return value is isError, not ok — a successful call must report
+// false or every response is flagged as a failure to the client.
 func callScope(t *testing.T, ws *workspace.Workspace, args string) string {
 	t.Helper()
-	out, ok := scopeHandler(ws)(context.Background(), json.RawMessage(args))
-	if !ok {
-		t.Fatalf("handler reported failure: %s", out)
+	out, isErr := scopeHandler(ws)(context.Background(), json.RawMessage(args))
+	if isErr {
+		t.Fatalf("successful call marked as an error: %s", out)
 	}
 	return out
 }
@@ -99,17 +101,20 @@ func TestScopeToolReportsComposition(t *testing.T) {
 func TestScopeToolAcceptsNoArguments(t *testing.T) {
 	ws, _ := scopeTestWS(t)
 	for _, raw := range []string{``, `{}`, `{"add":[],"remove":[]}`} {
-		out, ok := scopeHandler(ws)(context.Background(), json.RawMessage(raw))
-		if !ok || !strings.Contains(out, "<index_scope ") {
-			t.Fatalf("raw %q did not produce a report: ok=%v\n%s", raw, ok, out)
+		out, isErr := scopeHandler(ws)(context.Background(), json.RawMessage(raw))
+		if isErr || !strings.Contains(out, "<index_scope ") {
+			t.Fatalf("raw %q did not produce a report: isError=%v\n%s", raw, isErr, out)
 		}
 	}
 }
 
 func TestScopeToolRejectsAddAndRemoveTogether(t *testing.T) {
 	ws, _ := scopeTestWS(t)
-	out, _ := scopeHandler(ws)(context.Background(),
+	out, isErr := scopeHandler(ws)(context.Background(),
 		json.RawMessage(`{"add":["a/"],"remove":["b/"],"confirm":true}`))
+	if !isErr {
+		t.Fatalf("a refusal must set isError so the client sees it as one:\n%s", out)
+	}
 	if !strings.Contains(out, "<error") {
 		t.Fatalf("mixed add/remove must be refused:\n%s", out)
 	}

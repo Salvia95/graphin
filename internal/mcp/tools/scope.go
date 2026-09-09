@@ -96,7 +96,7 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 				sb.WriteString("  <note>확정하려면 같은 호출에 confirm=true. " +
 					"쓰기는 .graphin/ignore만 바꾸고, 노드는 다음 bootstrap_workspace에서 사라집니다.</note>\n")
 				sb.WriteString("</scope>\n")
-				return sb.String(), true
+				return sb.String(), false
 			}
 			if _, err := ws.ScopeAdd(a.Add, a.Reason); err != nil {
 				return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
@@ -105,7 +105,7 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			sb.WriteString("  <note>.graphin/ignore에 기록했습니다. 현재 인덱스는 그대로이고, " +
 				"다음 bootstrap_workspace가 이 노드들을 제거합니다.</note>\n")
 			sb.WriteString("</scope>\n")
-			return sb.String(), true
+			return sb.String(), false
 
 		case len(a.Remove) > 0:
 			if !a.Confirm {
@@ -117,7 +117,7 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 				sb.WriteString("  <note>확정하려면 confirm=true. 다음 bootstrap_workspace가 " +
 					"이 파일들을 다시 색인합니다.</note>\n")
 				sb.WriteString("</scope>\n")
-				return sb.String(), true
+				return sb.String(), false
 			}
 			imp, err := ws.ScopeRemove(a.Remove)
 			if err != nil {
@@ -126,7 +126,7 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			writeImpact(&sb, "unexcluded", imp, "")
 			sb.WriteString("  <note>다음 bootstrap_workspace가 이 파일들을 다시 색인합니다.</note>\n")
 			sb.WriteString("</scope>\n")
-			return sb.String(), true
+			return sb.String(), false
 		}
 
 		rep, err := ws.Scope()
@@ -141,7 +141,7 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		if !rep.Estimated && st.State != "ready" {
 			sb.WriteString("<note>인덱싱이 진행 중입니다 — 위 수치는 지금까지 색인된 것까지입니다.</note>\n")
 		}
-		return sb.String(), true
+		return sb.String(), false
 	}
 }
 

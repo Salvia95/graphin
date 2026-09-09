@@ -211,9 +211,12 @@ func (w *Workspace) ScopeImpactOf(patterns []string) (*ScopeImpact, error) {
 // the tool's job is to make the cost visible, not to decide it.
 func (w *Workspace) scopeWarnings(m *ignore.Matcher, imp *ScopeImpact, total, dbHit int) []string {
 	var out []string
-	if pins := w.pinnedFilesCut(m); pins > 0 {
+	if docs := w.pinnedFilesCut(m); docs > 0 {
+		// Counted per document, not per pin: one file can hold several pinned
+		// sections, and saying "N pins" when N is a file count reads as a
+		// smaller loss than it is.
 		out = append(out, fmt.Sprintf(
-			"docs/wiki 핀 %d개가 이 패턴에 걸립니다 — 그 섹션을 가리키는 세트가 끊깁니다", pins))
+			"위키가 핀한 문서 %d개가 걸립니다 — 그 문서의 섹션을 가리키는 세트 항목이 끊깁니다", docs))
 	}
 	if dbHit > 0 {
 		out = append(out, fmt.Sprintf(

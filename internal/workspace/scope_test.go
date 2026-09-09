@@ -306,8 +306,8 @@ func TestScopeWarnsOnPinnedWikiSections(t *testing.T) {
 		t.Fatal("cutting a pinned section must warn: the sets that cite it break")
 	}
 	joined := strings.Join(imp.Warnings, " ")
-	if !strings.Contains(joined, "핀") {
-		t.Fatalf("warning does not name the pins: %q", joined)
+	if !strings.Contains(joined, "핀한 문서") {
+		t.Fatalf("warning does not name the pinned documents: %q", joined)
 	}
 }
 

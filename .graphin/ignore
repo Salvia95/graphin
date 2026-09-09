@@ -9,3 +9,6 @@
 # 워크스페이스로 복사해서 돌리고, 루트의 이 파일은 그 사본에 딸려가지 않는다.
 testdata/fixtures/**/broken/
 testdata/fixtures/**/broken.*
+
+# index_scope 2026-09-09: 에이전트 설정·훅·스킬은 이 저장소의 코드도 문서도 아니다 (소유자 요청, 2026-09-09)
+.claude/
