@@ -26,9 +26,10 @@ const scopeDescription = "Show what the index is made of — files and nodes per
 	"Pass `add` (gitignore syntax: \"build/\", \"*.txt\") to see what those patterns would take " +
 	"out: affected files, nodes, and warnings when they would cut wiki-pinned sections or DB " +
 	"schema snapshots. Nothing is written until you repeat the call with confirm=true, and even " +
-	"then the current index is untouched — search keeps answering from it until the next " +
-	"bootstrap_workspace, which is when the nodes actually go. `remove` takes patterns back out " +
-	"so the next bootstrap indexes them again. Use it when the node count looks wrong for the " +
+	"then the current index is untouched — search keeps answering from it until the server next " +
+	"starts up, which is when the nodes actually go (calling bootstrap_workspace again on the " +
+	"same server does not rescan). `remove` takes patterns back out so the next start indexes " +
+	"them again. Use it when the node count looks wrong for the " +
 	"project, or when scratch files, vendored copies, build output or a git worktree inside the " +
 	"project are being indexed."
 
@@ -94,7 +95,9 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			if !a.Confirm {
 				writeImpact(&sb, "preview", imp, "")
 				sb.WriteString("  <note>확정하려면 같은 호출에 confirm=true. " +
-					"쓰기는 .graphin/ignore만 바꾸고, 노드는 다음 bootstrap_workspace에서 사라집니다.</note>\n")
+					"쓰기는 .graphin/ignore만 바꾸고, 노드는 서버가 다음에 새로 뜰 때 사라집니다 " +
+					"(Claude Code 재시작). 같은 서버에서 bootstrap_workspace를 다시 불러도 " +
+					"이미 부트스트랩된 워크스페이스는 재스캔하지 않습니다.</note>\n")
 				sb.WriteString("</scope>\n")
 				return sb.String(), false
 			}
@@ -103,7 +106,8 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			}
 			writeImpact(&sb, "excluded", imp, a.Reason)
 			sb.WriteString("  <note>.graphin/ignore에 기록했습니다. 현재 인덱스는 그대로이고, " +
-				"다음 bootstrap_workspace가 이 노드들을 제거합니다.</note>\n")
+				"서버가 다음에 새로 뜰 때(Claude Code 재시작) 이 노드들이 사라집니다 — " +
+				"같은 서버에서 bootstrap_workspace를 다시 불러도 재스캔하지 않습니다.</note>\n")
 			sb.WriteString("</scope>\n")
 			return sb.String(), false
 
@@ -114,7 +118,7 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 					return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
 				}
 				writeImpact(&sb, "preview_remove", imp, "")
-				sb.WriteString("  <note>확정하려면 confirm=true. 다음 bootstrap_workspace가 " +
+				sb.WriteString("  <note>확정하려면 confirm=true. 서버가 다음에 새로 뜰 때 " +
 					"이 파일들을 다시 색인합니다.</note>\n")
 				sb.WriteString("</scope>\n")
 				return sb.String(), false
@@ -124,7 +128,8 @@ func scopeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 				return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
 			}
 			writeImpact(&sb, "unexcluded", imp, "")
-			sb.WriteString("  <note>다음 bootstrap_workspace가 이 파일들을 다시 색인합니다.</note>\n")
+			sb.WriteString("  <note>서버가 다음에 새로 뜰 때(Claude Code 재시작) " +
+				"이 파일들을 다시 색인합니다.</note>\n")
 			sb.WriteString("</scope>\n")
 			return sb.String(), false
 		}

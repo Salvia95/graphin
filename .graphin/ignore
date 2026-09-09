@@ -14,3 +14,6 @@ testdata/fixtures/**/broken.*
 .claude/agents/
 .claude/hooks/
 .claude/settings.json
+
+# index_scope 2026-09-09: 측정 기록은 경로를 알고 여는 것이지 검색으로 찾는 것이 아니다. 지식은 docs/adoption.md와 rag-bench-spec.md로 옮겼고 위키 참조는 0이다 (소유자 요청, 2026-09-09)
+docs/eval/

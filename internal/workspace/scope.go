@@ -2,10 +2,14 @@
 //
 // The exclusion contract is deliberately one-sided: writing a pattern changes
 // nothing that is already indexed. Search keeps answering from the current
-// index until the next bootstrap, which is when initialScan reconciles the
+// index until the server next starts, which is when initialScan reconciles the
 // walk against the merkle tree and drops what is no longer walked. That keeps
 // the read path filter-free (the same reason opRedirect stays out of the edge
 // map) and leaves exactly one moment where the index changes shape.
+//
+// "The server next starts" means a fresh process, not another
+// bootstrap_workspace call: Bootstrap returns immediately when the workspace is
+// already bootstrapped, so a second call on a live server rescans nothing.
 package workspace
 
 import (

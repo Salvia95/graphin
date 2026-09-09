@@ -185,7 +185,7 @@ func TestScopeAddWritesPatternAndReason(t *testing.T) {
 	}
 }
 
-// The contract: writing a pattern changes nothing until the next bootstrap.
+// The contract: writing a pattern changes nothing until the next scan.
 func TestExclusionTakesEffectOnlyAtNextBootstrap(t *testing.T) {
 	ws, _ := scopeWS(t, map[string]string{
 		"keep/A.java": "class A {}",

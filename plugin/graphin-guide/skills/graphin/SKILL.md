@@ -77,7 +77,8 @@ becomes one node per heading. `add` (gitignore syntax) previews what patterns
 would take out, including warnings when they would cut wiki-pinned sections or DB
 snapshots; nothing is written until you repeat the call with `confirm=true`. Even
 then the current index is untouched — search keeps answering from it until the
-next `bootstrap_workspace`, which is when the nodes actually go. Ask the user
+server next starts up, which is when the nodes actually go (calling
+`bootstrap_workspace` again on the same server does not rescan). Ask the user
 before excluding anything: what looks like noise from here is sometimes the thing
 they care about.
 
