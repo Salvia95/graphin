@@ -10,5 +10,7 @@
 testdata/fixtures/**/broken/
 testdata/fixtures/**/broken.*
 
-# index_scope 2026-09-09: 에이전트 설정·훅·스킬은 이 저장소의 코드도 문서도 아니다 (소유자 요청, 2026-09-09)
-.claude/
+# index_scope 2026-09-09: 에이전트 설정·훅은 코드도 문서도 아니다. skills/는 남긴다 — 위키 세트가 그 절을 핀한다 (소유자 요청, 2026-09-09)
+.claude/agents/
+.claude/hooks/
+.claude/settings.json
