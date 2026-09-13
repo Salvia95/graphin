@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.4.2"
+RUBRIC_VERSION = "1.4.3"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -118,7 +118,23 @@ RUBRIC_VERSION = "1.4.2"
 # for it, not NODE_NOT_FOUND (internal/workspace/indexer_test.go:245), and
 # reason="gone" is a reparse race, not an invention. Scoring-only: the runner
 # is byte-identical, so 1.4.1 transcripts re-score.
-RUN_COMPAT = ("1.4.1", "1.4.2")
+# Reset at 1.4.3 (2026-09-13, isolation-hardening audit): three runner changes,
+# so this resets and 1.4.2 transcripts do not re-score as comparable. (1) The
+# snapshot now drops all of eval/ (SELF_PREFIXES), not just eval/rag and
+# eval/golden — the SIBLING benches' answer files lived on: the grep arm's own
+# Grep read eval/combined/expected.jsonl (which restates rag-hop-truncate and
+# rag-semantic-gate answers) in 7 of 81 runs. (2) The per-run --settings now
+# sets permissions.blockReadsOutsideWorkingDirectories, which confines the
+# Read/Grep/Glob tools AND Bash subprocess reads to the snapshot at the kernel
+# path level — the contain.sh hook only matched absolute-path tokens and missed
+# Grep path="..", $HOME, and cd .. (all verified to leak before this). The hook
+# stays for its `contained` telemetry; enforcement moves here. (3) enabledPlugins
+# now names the two plugins false: an empty {} did NOT disable user-scope
+# plugins, so the graphin plugin's wiki gate armed on the graphin arm only
+# (16–17 Bash denials per full run) and never on grep — an asymmetry the arms
+# must not carry. A different corpus and a different confinement is a different
+# runner, so the next full run is a new baseline.
+RUN_COMPAT = ("1.4.3",)
 
 # What a --semantic arm's servers wait for the embedding model. Generous: the
 # model loads in 8–15s on this machine, and a call that hits the ceiling just
@@ -370,7 +386,11 @@ EXAMPLE_CUE = re.compile(r"(?:e\.g\.|for example|for instance|example|such as|sa
 # runs name the tasks, and the not-here tasks' names carry their forbidden
 # literals (1.4.0). The product index keeps docs/eval — the wiki sets pin
 # sections there — only the measurement corpus drops it.
-SELF_PREFIXES = ("eval/rag/", "eval/golden/", ".claude/skills/", "scripts/eval-", "docs/eval/")
+# 1.4.3: cut all of eval/, not just eval/rag and eval/golden. The sibling
+# benches' answer files (eval/combined/expected.jsonl, eval/wiki/…) restate
+# some rag answers verbatim and the grep arm's Grep read them; no rag task
+# cites anything under eval/, so nothing the tasks need is lost.
+SELF_PREFIXES = ("eval/", ".claude/skills/", "scripts/eval-", "docs/eval/")
 
 
 def load_jsonl(path):
@@ -740,19 +760,29 @@ def run(args):
 
         # Not --bare: bare never reads OAuth, and this machine authenticates
         # that way. Isolation is by subtraction instead — hooks (the wiki gate
-        # would block the very tools under test) and plugins off, MCP strictly
-        # ours, cwd in the snapshot so no CLAUDE.md or auto-memory resolves.
+        # would block the very tools under test) off, MCP strictly ours, cwd in
+        # the snapshot so no CLAUDE.md or auto-memory resolves.
         #
-        # The grep arm cannot disable all hooks: containment IS a hook. It
-        # keeps plugins off and adds the one hook; the snapshot's own
-        # .claude/settings.json hooks are inert for it (they guard edits and
-        # release commands, neither of which the arm can issue).
+        # enabledPlugins names the two plugins false: an empty {} does NOT
+        # disable user-scope plugins (they still loaded, and the graphin
+        # plugin's wiki gate then armed on the graphin arm only). MCP is still
+        # injected separately via --mcp-config, so the graphin server survives.
+        #
+        # blockReadsOutsideWorkingDirectories is the real fence: it confines the
+        # Read/Grep/Glob tools and Bash subprocess reads to the snapshot at the
+        # kernel path level, which the token-matching contain.sh hook could not
+        # (Grep path="..", $HOME and cd .. all slipped it). The hook stays for
+        # its `contained` count; the post-hoc `escaped` verdict stays as a
+        # backstop; enforcement is here.
         settings_path = os.path.join(out, "settings.json")
         hook = write_containment_hook(out)
         with open(settings_path, "w") as f:
-            json.dump({"enabledPlugins": {}, "hooks": {"PreToolUse": [
-                {"matcher": "Bash|Read|Grep|Glob",
-                 "hooks": [{"type": "command", "command": hook}]}]}}, f)
+            json.dump({"enabledPlugins": {"graphin@graphin": False,
+                                          "graphin-guide@graphin": False},
+                       "permissions": {"blockReadsOutsideWorkingDirectories": True},
+                       "hooks": {"PreToolUse": [
+                           {"matcher": "Bash|Read|Grep|Glob",
+                            "hooks": [{"type": "command", "command": hook}]}]}}, f)
 
         if args.arm == "grep":
             agent_sha = hashlib.sha256(GREP_AGENT_PROMPT.encode()).hexdigest()

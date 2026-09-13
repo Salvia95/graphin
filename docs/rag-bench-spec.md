@@ -94,16 +94,32 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
 
 - `--bare`를 쓰지 않는다. bare는 OAuth를 절대 읽지 않아 이 계정 인증이
   불가능하다. 대신 `--settings`로 훅 전부(위키 게이트가 측정 대상 도구를
-  막는다)와 플러그인을 끄고, `--strict-mcp-config`로 MCP는 러너가 띄운 서버
-  하나만 쓰고, cwd를 스냅샷에 둬 CLAUDE.md·자동 메모리가 해석되지 않게 한다.
+  막는다)를 끄고, `--strict-mcp-config`로 MCP는 러너가 띄운 서버 하나만 쓰고,
+  cwd를 스냅샷에 둬 CLAUDE.md·자동 메모리가 해석되지 않게 한다.
+- **플러그인은 이름을 명시해 끈다**(1.4.3). `enabledPlugins: {}`(빈 객체)는
+  사용자 스코프 플러그인을 **끄지 못한다** — 그 상태로는 graphin·graphin-guide가
+  자식 세션에 로드됐고, graphin 플러그인의 wiki 게이트가 `.graphin/merkle.json`이
+  있는 **graphin 팔에서만** 무장해 Bash를 풀런당 16~17회 거부했다(grep 팔은 0). 한
+  팔만 손발이 묶이던 비대칭이라, `{"graphin@graphin": false, "graphin-guide@graphin":
+  false}`로 실제로 끈다. MCP 서버는 `--mcp-config`로 따로 주입되므로 그대로 산다.
+- **읽기 경계를 `permissions.blockReadsOutsideWorkingDirectories`로 건다**(1.4.3).
+  이것이 실집행이다 — Read·Grep·Glob 도구와 Bash 하위 프로세스의 읽기를 커널 경로
+  기준으로 스냅샷 안에 가둔다. 문자열 토큰만 보던 봉쇄 훅(`contain.sh`)은 Grep
+  `path:".."`·`$HOME`·`cd ..`를 놓쳤다(전부 누출 실증). 훅은 `contained` 카운트용으로,
+  사후 `escaped` 판정은 백스톱으로 남기고, 집행은 이 설정으로 옮겼다. `--add-dir`은
+  이 경계를 넓히므로 스냅샷 밖을 가리켜선 안 된다.
 - 스냅샷은 `git ls-files` 기준 사본이고 러너가 미리 인덱스한다(런마다
   재인덱스하는 27배 증폭을 피한다). `.graphin/*`은 git-ignore라 usage 로그
   같은 런타임 데이터는 스냅샷에 없다.
-- **측정 장치는 스냅샷에서 잘라낸다**(`eval/rag`·`eval/golden`·골든셋 스킬·
+- **측정 장치는 스냅샷에서 잘라낸다**(`eval/` 전체·골든셋 스킬·
   `scripts/eval-*`). `.jsonl`은 색인만 막을 뿐인데 `search_keyword`는 파일을
   읽는다 — not-here의 금지 리터럴이 expected.jsonl에, 한 번은 채점기 주석에
   실재해서 "없다"가 거짓이 됐다. eval-recall은 자기 파일을 남기고 보고만
-  하지만, 여기서는 그 파일들이 답 자체를 바꾸므로 배제가 맞다.
+  하지만, 여기서는 그 파일들이 답 자체를 바꾸므로 배제가 맞다. **`eval/rag`·
+  `eval/golden`만이 아니라 `eval/` 전체를 자른다**(1.4.3): 형제 벤치의 정답
+  (`eval/combined/expected.jsonl`)이 일부 rag 답을 그대로 옮겨 적고 있었고 grep
+  팔의 Grep이 실제로 읽었다(81런 중 7). rag 태스크는 `eval/` 아래를 인용
+  근거로 쓰지 않으므로 잃는 것은 없다.
   **`docs/eval/`도 잘라낸다**(1.4.0, 2026-09-07 소유자 지시). 장치가 아니라
   자기 참조다 — 이전 런의 기록이 태스크 id를 전부 적고, not-here 태스크의 id는
   자기가 묻는 금지 리터럴을 품는다(`rag-nh-redis` → "redis"). D′ 팔에서 not-here
@@ -267,6 +283,14 @@ id를 넘긴 런으로, 1.4.2부터 `escaped`처럼 **판정 자체가 비-pass*
   통과한다 — 벌하는 것은 추론이 아니라 부재로 보이는 실패다. 채점 전용이라
   `RUN_COMPAT`에 붙는다(1.4.1 트랜스크립트 재채점 가능). 베이스라인 76→74/81.
   기록: [2026-09-08-141-baseline](eval/2026-09-08-141-baseline/findings.md).
+- **1.4.3(2026-09-13, 소유자 허가) — 격리 강화, 러너 3변경으로 `RUN_COMPAT` 리셋**(§4).
+  ① `eval/` 전체 절단(형제 정답 `eval/combined/expected.jsonl`을 grep 팔이 읽었다),
+  ② `blockReadsOutsideWorkingDirectories`로 스냅샷 밖 읽기 실차단(봉쇄 훅이 놓치던
+  Grep `path:".."`·`$HOME`·`cd ..`을 커널 경로 기준으로 막음), ③ `enabledPlugins`에
+  플러그인 이름을 명시해 실제로 끔(빈 `{}`는 못 껐고, wiki 게이트가 graphin 팔만
+  묶던 비대칭 제거). 재베이스라인 36×3 = **96/108(88.9%)**, 직전 36태스크 1.4.2
+  베이스라인 98/108과 층별로 이어지고(변동 폭 ±2, escaped 0·플러그인 0·invented-miss
+  0) 게이트 0.80을 여유 통과. 기록: [2026-09-13-isolation-hardening](eval/2026-09-13-isolation-hardening/findings.md).
 - **1.4.0(2026-09-07, 소유자 지시)은 스냅샷에서 `docs/eval/`을 잘라낸다**(§4). 코퍼스가
   바뀌었으므로 러너 변경이고 `RUN_COMPAT`은 1.4.0 하나로 리셋된다 — 1.3.x 트랜스크립트는
   다른 코퍼스의 산물이라 재채점하지 않는다. 다음 풀셋 런이 새 베이스라인이다. not-here

@@ -1,9 +1,9 @@
 {
   "policy": "Changes to these files require the repository owner's explicit approval. Regenerate only via `scripts/eval-rag.py lock --approved-by <owner>` after that approval, and carry a `Rag-Bench-Approved-By:` trailer on the commit.",
   "approved_by": "salvia95",
-  "date": "2026-09-08",
+  "date": "2026-09-13",
   "files": {
-    "scripts/eval-rag.py": "d282c75d4fb024d54defc596bb323f2468ea0ad68db3cbf44847013c3ada73b0",
+    "scripts/eval-rag.py": "f3ebf2cd2645555b5ed999f204aa6a900657487743d1699a8077a12d9ee5518f",
     "eval/rag/tasks.jsonl": "09736d58774e7f4604dc67cec791df0eeeadb16c7338202c31491b6b3f1bc7de",
     "eval/rag/expected.jsonl": "d7ee79724716819cb42dcc4c7b711a177c061cb6cee0eeed54f752b1f164e932"
   }
