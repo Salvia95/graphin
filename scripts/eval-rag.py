@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.4.3"
+RUBRIC_VERSION = "1.4.4"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -134,7 +134,15 @@ RUBRIC_VERSION = "1.4.3"
 # (16–17 Bash denials per full run) and never on grep — an asymmetry the arms
 # must not carry. A different corpus and a different confinement is a different
 # runner, so the next full run is a new baseline.
-RUN_COMPAT = ("1.4.3",)
+# 1.4.4 (2026-09-14, isolation-hardening Phase 2): the grep arm's Bash is
+# sandboxed with an empty network allowlist so it cannot `git clone` this
+# public repository and read the committed answer files. The DEFAULT (graphin)
+# arm grants no Bash and its MCP server is offline, so its settings are
+# byte-identical to 1.4.3 — the gate baseline does not move and graphin-arm
+# transcripts re-score. Only grep-arm runs (a separate meta.arm population,
+# like the 1.3.2 grep control) are produced under the new confinement, so this
+# appends rather than resets.
+RUN_COMPAT = ("1.4.3", "1.4.4")
 
 # What a --semantic arm's servers wait for the embedding model. Generous: the
 # model loads in 8–15s on this machine, and a call that hits the ceiling just
@@ -776,13 +784,26 @@ def run(args):
         # backstop; enforcement is here.
         settings_path = os.path.join(out, "settings.json")
         hook = write_containment_hook(out)
+        child_settings = {"enabledPlugins": {"graphin@graphin": False,
+                                             "graphin-guide@graphin": False},
+                          "permissions": {"blockReadsOutsideWorkingDirectories": True},
+                          "hooks": {"PreToolUse": [
+                              {"matcher": "Bash|Read|Grep|Glob",
+                               "hooks": [{"type": "command", "command": hook}]}]}}
+        # The grep arm grants Bash, so it can reach the network — and this
+        # repository is public, so `git clone` would fetch the committed answer
+        # files (blockReads cannot stop that: the clone lands inside cwd). So
+        # sandbox its Bash with an empty network allowlist (deny-ask → denied in
+        # -p), and failIfUnavailable so a host without bubblewrap fails loudly
+        # rather than measuring an unsandboxed arm. The graphin arm grants no
+        # Bash and its MCP server is offline (the server is not a Bash
+        # subprocess, so the sandbox never touches it — verified), so it has no
+        # network escape and its settings stay byte-identical to 1.4.3.
+        if args.arm == "grep":
+            child_settings["sandbox"] = {"enabled": True, "failIfUnavailable": True,
+                                         "network": {"allowedDomains": []}}
         with open(settings_path, "w") as f:
-            json.dump({"enabledPlugins": {"graphin@graphin": False,
-                                          "graphin-guide@graphin": False},
-                       "permissions": {"blockReadsOutsideWorkingDirectories": True},
-                       "hooks": {"PreToolUse": [
-                           {"matcher": "Bash|Read|Grep|Glob",
-                            "hooks": [{"type": "command", "command": hook}]}]}}, f)
+            json.dump(child_settings, f)
 
         if args.arm == "grep":
             agent_sha = hashlib.sha256(GREP_AGENT_PROMPT.encode()).hexdigest()

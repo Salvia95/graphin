@@ -364,13 +364,18 @@ def run(args):
         # 스냅샷 밖 읽기를 커널 경로 기준으로 막는다(봉쇄 훅이 놓치던 것).
         plugins_off = {"graphin@graphin": False, "graphin-guide@graphin": False}
         blk = {"blockReadsOutsideWorkingDirectories": True}
+        # 모든 팔이 Bash를 준다. 공개 저장소라 git clone으로 정답을 끌어올 수
+        # 있으므로 Bash를 네트워크 없는 샌드박스에 가둔다(빈 allowlist=deny-ask,
+        # -p에선 거부). failIfUnavailable로 bwrap 없는 머신은 조용히 폴백하지 않고
+        # 실패한다. MCP 서버는 Bash 하위 프로세스가 아니라 샌드박스가 안 건드린다.
+        sbx = {"enabled": True, "failIfUnavailable": True, "network": {"allowedDomains": []}}
         st = os.path.join(args.out, "settings.json")
-        json.dump({"enabledPlugins": plugins_off, "permissions": blk,
+        json.dump({"enabledPlugins": plugins_off, "permissions": blk, "sandbox": sbx,
                    "hooks": {"PreToolUse": contain}}, open(st, "w"))
         # 게이트 팔의 매처는 플러그인 hooks.json과 같다. Bash가 들어 있어서
         # 에이전트는 첫 셸 호출에서 막히고, 그때 게이트의 메시지를 읽는다.
         stg = os.path.join(args.out, "settings-gated.json")
-        json.dump({"enabledPlugins": plugins_off, "permissions": blk, "hooks": {
+        json.dump({"enabledPlugins": plugins_off, "permissions": blk, "sandbox": sbx, "hooks": {
             "PreToolUse": contain + [{"matcher": "Task|Agent|Edit|MultiEdit|Write|NotebookEdit|Bash",
                                       "hooks": [{"type": "command", "command": gate + " gate"}]}],
             "PostToolUse": [{"matcher": "*",

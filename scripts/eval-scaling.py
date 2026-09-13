@@ -367,8 +367,14 @@ def run(args):
     st = os.path.join(args.out, "settings.json")
     # enabledPlugins는 이름을 명시해야 실제로 꺼진다(빈 {}는 못 끈다). blockReads가
     # 스냅샷 밖 읽기의 실집행 — 봉쇄 훅은 절대경로 토큰만 봐 Grep path=".."을 놓친다.
+    # 두 팔 모두 Bash를 준다. 공개 저장소를 git clone으로 끌어올 수 없도록 Bash를
+    # 네트워크 없는 샌드박스에 가둔다(bwrap 없으면 failIfUnavailable로 실패).
+    # 특히 이 하니스는 ballast로 크기를 키우는데, clone으로 정답을 받으면 크기 축이
+    # 무의미해진다(스케일링 벤치가 실제로 겪은 이탈). MCP 서버는 샌드박스 밖에서 돈다.
     json.dump({"enabledPlugins": {"graphin@graphin": False, "graphin-guide@graphin": False},
                "permissions": {"blockReadsOutsideWorkingDirectories": True},
+               "sandbox": {"enabled": True, "failIfUnavailable": True,
+                           "network": {"allowedDomains": []}},
                "hooks": {"PreToolUse": [{"matcher": "Bash|Read|Grep|Glob",
                                          "hooks": [{"type": "command",
                                                     "command": hook,

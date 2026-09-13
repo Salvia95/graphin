@@ -267,10 +267,15 @@ def run(args):
         # enabledPlugins는 이름을 명시해야 실제로 꺼진다(빈 {}는 못 끈다).
         # blockReads로 스냅샷 밖 읽기를 커널 경로 기준으로 막는다 — docs/wiki는
         # 스냅샷 안이라 그대로 닿는다.
+        # 두 팔 모두 Bash를 준다. 공개 저장소를 git clone으로 끌어올 수 없도록
+        # Bash를 네트워크 없는 샌드박스에 가둔다(bwrap 없으면 failIfUnavailable로
+        # 실패). MCP 서버는 Bash 하위 프로세스가 아니라 샌드박스 밖에서 돈다.
         st = os.path.join(args.out, "settings.json")
         json.dump({"hooks": {},
                    "enabledPlugins": {"graphin@graphin": False, "graphin-guide@graphin": False},
-                   "permissions": {"blockReadsOutsideWorkingDirectories": True}}, open(st, "w"))
+                   "permissions": {"blockReadsOutsideWorkingDirectories": True},
+                   "sandbox": {"enabled": True, "failIfUnavailable": True,
+                               "network": {"allowedDomains": []}}}, open(st, "w"))
 
         roots, jobs = [root], max(1, args.jobs)
         for i in range(1, jobs):

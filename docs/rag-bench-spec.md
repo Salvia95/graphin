@@ -108,6 +108,17 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
   `path:".."`·`$HOME`·`cd ..`를 놓쳤다(전부 누출 실증). 훅은 `contained` 카운트용으로,
   사후 `escaped` 판정은 백스톱으로 남기고, 집행은 이 설정으로 옮겼다. `--add-dir`은
   이 경계를 넓히므로 스냅샷 밖을 가리켜선 안 된다.
+- **Bash를 주는 팔은 네트워크를 샌드박스로 막는다**(1.4.4). 이 저장소는 public이라
+  Bash가 있는 팔(rag의 grep 팔, combined·scaling·wiki의 전 팔)이 `git clone`으로
+  커밋된 정답 파일을 cwd 안으로 끌어올 수 있고, 그건 blockReads가 못 막는다. 그래서
+  자식 `--settings`에 `sandbox: {enabled, failIfUnavailable, network: {allowedDomains: []}}`
+  — 빈 allowlist는 deny-ask라 `-p`에선 네트워크가 거부되고(`git clone`→CONNECT 403),
+  `failIfUnavailable`로 bwrap/socat 없는 머신은 조용히 폴백하지 않고 시작에서 실패한다.
+  컨트롤플레인 API는 in-process라 샌드박스를 우회하고(모델은 정상 응답), graphin MCP
+  서버는 Bash 하위 프로세스가 아니라 샌드박스가 안 건드린다(둘 다 실증). **rag의
+  graphin 팔(게이트)은 Bash가 없고 서버가 오프라인이라 네트워크 escape가 없어 샌드박스를
+  달지 않는다** — 게이트 설정은 1.4.3과 바이트 동일하고, grep 팔만 새 모집단이라
+  `RUN_COMPAT`이 리셋 아니라 append다(1.3.2 grep 대조군 선례).
 - 스냅샷은 `git ls-files` 기준 사본이고 러너가 미리 인덱스한다(런마다
   재인덱스하는 27배 증폭을 피한다). `.graphin/*`은 git-ignore라 usage 로그
   같은 런타임 데이터는 스냅샷에 없다.
@@ -291,6 +302,12 @@ id를 넘긴 런으로, 1.4.2부터 `escaped`처럼 **판정 자체가 비-pass*
   묶던 비대칭 제거). 재베이스라인 36×3 = **96/108(88.9%)**, 직전 36태스크 1.4.2
   베이스라인 98/108과 층별로 이어지고(변동 폭 ±2, escaped 0·플러그인 0·invented-miss
   0) 게이트 0.80을 여유 통과. 기록: [2026-09-13-isolation-hardening](eval/2026-09-13-isolation-hardening/findings.md).
+- **1.4.4(2026-09-14, 소유자 허가) — 네트워크 격리(§4).** grep 팔의 Bash를 네트워크
+  없는 샌드박스에 가둬 공개 저장소 `git clone`으로 정답을 끌어오는 길을 막는다.
+  graphin 팔은 Bash가 없어 바이트 동일 → `RUN_COMPAT`에 append(게이트 재베이스라인
+  불필요). 카나리로 clone 차단·MCP/API 정상 확인, grep 팔 스모크 정상·escaped 0,
+  graphin 팔 스모크 6/6·설정에 sandbox 키 없음 확인. combined/wiki/scaling(전 팔이
+  Bash)에도 같은 샌드박스 적용. bwrap+socat 필요, `failIfUnavailable`로 fail-closed.
 - **1.4.0(2026-09-07, 소유자 지시)은 스냅샷에서 `docs/eval/`을 잘라낸다**(§4). 코퍼스가
   바뀌었으므로 러너 변경이고 `RUN_COMPAT`은 1.4.0 하나로 리셋된다 — 1.3.x 트랜스크립트는
   다른 코퍼스의 산물이라 재채점하지 않는다. 다음 풀셋 런이 새 베이스라인이다. not-here
