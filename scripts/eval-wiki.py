@@ -44,7 +44,7 @@ RUBRIC_VERSION = "0.1.0"
 
 # 측정 장치는 코퍼스에서 잘라낸다. expected.jsonl의 evidence 리터럴이 코퍼스에
 # 있으면 에이전트가 답을 거기서 읽는다 — rag 벤치가 실제로 겪은 사고다.
-CUT_PREFIXES = ("eval/", "scripts/eval-")
+CUT_PREFIXES = ("eval/", "docs/eval/", "scripts/eval-")
 
 ARMS = ("none", "injected")
 
@@ -264,8 +264,13 @@ def run(args):
 
         # 훅 전부와 플러그인을 끈다. 위키 게이트가 측정 대상 도구를 막고,
         # 설치된 플러그인은 이 코퍼스가 아니라 실제 저장소를 가리킨다.
+        # enabledPlugins는 이름을 명시해야 실제로 꺼진다(빈 {}는 못 끈다).
+        # blockReads로 스냅샷 밖 읽기를 커널 경로 기준으로 막는다 — docs/wiki는
+        # 스냅샷 안이라 그대로 닿는다.
         st = os.path.join(args.out, "settings.json")
-        json.dump({"hooks": {}, "enabledPlugins": {}}, open(st, "w"))
+        json.dump({"hooks": {},
+                   "enabledPlugins": {"graphin@graphin": False, "graphin-guide@graphin": False},
+                   "permissions": {"blockReadsOutsideWorkingDirectories": True}}, open(st, "w"))
 
         roots, jobs = [root], max(1, args.jobs)
         for i in range(1, jobs):

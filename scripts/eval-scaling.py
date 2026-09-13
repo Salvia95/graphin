@@ -91,7 +91,7 @@ QUESTIONS = ["rag-semantic-gate", "rag-lock-steal", "rag-usage-rotation",
 # `.claude/` goes too, unlike in eval-rag: this harness gives the child its own
 # hooks, so the repository's own must not load into it. No question's answer
 # lives there.
-SELF_PREFIXES = ("eval/", ".claude/", "scripts/eval-")
+SELF_PREFIXES = ("eval/", ".claude/", "docs/eval/", "scripts/eval-")
 
 GRAPHIN_TOOLS = ("mcp__graphin__bootstrap_workspace,mcp__graphin__search_hybrid,"
                  "mcp__graphin__search_keyword,mcp__graphin__explore_graph,"
@@ -365,7 +365,10 @@ def run(args):
         open(pp[k], "w").write(v)
     hook = write_containment_hook(args.out)
     st = os.path.join(args.out, "settings.json")
-    json.dump({"enabledPlugins": {},
+    # enabledPlugins는 이름을 명시해야 실제로 꺼진다(빈 {}는 못 끈다). blockReads가
+    # 스냅샷 밖 읽기의 실집행 — 봉쇄 훅은 절대경로 토큰만 봐 Grep path=".."을 놓친다.
+    json.dump({"enabledPlugins": {"graphin@graphin": False, "graphin-guide@graphin": False},
+               "permissions": {"blockReadsOutsideWorkingDirectories": True},
                "hooks": {"PreToolUse": [{"matcher": "Bash|Read|Grep|Glob",
                                          "hooks": [{"type": "command",
                                                     "command": hook,

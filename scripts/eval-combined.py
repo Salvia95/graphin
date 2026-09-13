@@ -30,7 +30,7 @@ import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUBRIC_VERSION = "0.1.0"
-CUT_PREFIXES = ("eval/", "scripts/eval-")
+CUT_PREFIXES = ("eval/", "docs/eval/", "scripts/eval-")
 ARMS = ("grep", "wiki-rag", "wiki-gated")
 SYSTEM_PATHS = ("/dev/", "/tmp", "/proc/", "/sys/", "/usr/", "/bin/", "/etc/", "/var/")
 
@@ -359,12 +359,18 @@ def run(args):
         gate = write_gate_hook(args.out, args.bin)
         contain = [{"matcher": "Bash|Read|Grep|Glob",
                     "hooks": [{"type": "command", "command": hook}]}]
+        # enabledPlugins에 이름을 명시해 끈다(빈 {}는 못 끈다) — 게이트 팔의
+        # 게이트 훅은 플러그인이 아니라 write_gate_hook라 무관하다. blockReads로
+        # 스냅샷 밖 읽기를 커널 경로 기준으로 막는다(봉쇄 훅이 놓치던 것).
+        plugins_off = {"graphin@graphin": False, "graphin-guide@graphin": False}
+        blk = {"blockReadsOutsideWorkingDirectories": True}
         st = os.path.join(args.out, "settings.json")
-        json.dump({"enabledPlugins": {}, "hooks": {"PreToolUse": contain}}, open(st, "w"))
+        json.dump({"enabledPlugins": plugins_off, "permissions": blk,
+                   "hooks": {"PreToolUse": contain}}, open(st, "w"))
         # 게이트 팔의 매처는 플러그인 hooks.json과 같다. Bash가 들어 있어서
         # 에이전트는 첫 셸 호출에서 막히고, 그때 게이트의 메시지를 읽는다.
         stg = os.path.join(args.out, "settings-gated.json")
-        json.dump({"enabledPlugins": {}, "hooks": {
+        json.dump({"enabledPlugins": plugins_off, "permissions": blk, "hooks": {
             "PreToolUse": contain + [{"matcher": "Task|Agent|Edit|MultiEdit|Write|NotebookEdit|Bash",
                                       "hooks": [{"type": "command", "command": gate + " gate"}]}],
             "PostToolUse": [{"matcher": "*",
