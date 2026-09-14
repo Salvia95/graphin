@@ -1,0 +1,25 @@
+{
+  "_comment": "preflight 매칭 정확도 회귀 케이스. 여기 사는 이유: en 그룹은 eval/combined·eval/wiki 러너의 문항 원문과 그 기대 세트(want)를 담아 측정 장치에 해당하므로, 벤치 코퍼스에서 잘리도록 testdata/에 둔다(내용은 preflight_real_test.go가 로드). want는 preflight가 골라야 할 세트, maxExtra는 목표가 아니라 현재 과매칭 상태의 기록이다.",
+  "ko": [
+    {"name": "release", "task": "read_code가 한 번에 돌려주는 응답 상한을 늘리려 한다, 버전은 어느 자리를 올리고 릴리스 게이트는 어느 계층으로 도나", "want": ["release"], "maxExtra": 1, "note": "여분: delegation-gate — 질의의 '게이트'가 이름을 직격한다"},
+    {"name": "delegation", "task": "새 서브에이전트를 추가했는데 위키 에이전트 표에 줄을 안 적었다, 위임 게이트는 어떻게 반응하나", "want": ["delegation-gate"], "maxExtra": 1, "note": "여분: wiki-work — 질의의 '위키'가 이름을 직격한다"},
+    {"name": "adoption", "task": "새 검색 도구를 냈는데 에이전트가 산문 질의로만 쓴다면 발견 실패 지표에 어떻게 잡히나", "want": ["adoption"], "maxExtra": 1, "note": "여분: delegation-gate — '지표' 그룹을 갖고 있다"},
+    {"name": "console+design", "task": "콘솔에 핀이 드리프트한 항목 목록 화면을 추가한다, API는 어떤 모양이어야 하고 드리프트 행에는 어떤 색 토큰을 쓰나", "want": ["console", "design"], "maxExtra": 0},
+    {"name": "none-python", "task": "Python 100만 줄 저장소를 인덱싱하면 시맨틱 검색이 켜지나", "want": [], "maxExtra": 0},
+    {"name": "none-go", "task": "Go 저장소의 노드 수가 얼마면 시맨틱이 꺼지나", "want": [], "maxExtra": 0}
+  ],
+  "en": [
+    {"name": "cb-response-cap", "task": "We want read_code to return more per response than it does now. Which file and constant sets that limit today, what is its current value, which version digit does this change move, and which release gate tier has to run?", "want": ["release"], "maxExtra": 2, "note": "여분: delegation-gate — 'gate'가 이름을 직격한다"},
+    {"name": "cb-unlisted-agent", "task": "A new subagent type is added to the plugin but nobody adds a line for it to the wiki's agent table. What does the delegation gate do when something tries to spawn it, and which function decides that?", "want": ["delegation-gate"], "maxExtra": 2, "note": "여분: wiki-work — 'wiki'가 이름을 직격한다"},
+    {"name": "cb-prose-only-tool", "task": "Suppose we ship a new search tool and agents only ever call it with prose questions, never symbol names. How would that show up in the discovery-failure metric, and which function makes that call?", "want": ["adoption"], "maxExtra": 1},
+    {"name": "cb-console-drift-screen", "task": "We want a console screen listing entries whose pins have drifted. What shape must the API take and which existing function should it serve unchanged, and which colour token marks a drifted row rather than yellow?", "want": ["console", "design"], "maxExtra": 1},
+    {"name": "cb-python-semantic", "task": "A Python repository of about one million lines is indexed. Does semantic search come up? Name the constant that decides it, its default, and the number it is compared against for a corpus that size.", "want": [], "maxExtra": 1},
+    {"name": "cb-go-semantic", "task": "A Go repository of about 1.7 million lines is indexed. Does semantic search come up for it? Give the node count that decides it and say what the real unit of that limit is.", "want": [], "maxExtra": 1},
+    {"name": "wiki-release-digit", "task": "We are releasing a change that renames one MCP tool. Which version digit moves, and which tier of the release gate has to run before dispatch?", "want": ["release"], "maxExtra": 2, "note": "여분: delegation-gate"},
+    {"name": "wiki-forged-token", "task": "An agent hands over a token it invented without running preflight. Separately, someone edits a set summary after a token was already issued. What happens in each case, and why?", "want": ["delegation-gate"], "maxExtra": 1},
+    {"name": "wiki-rescore-compat", "task": "If we change only the rubric's grading rules, versus changing the runner's behaviour, how does each affect whether runs recorded earlier can still be re-scored?", "want": ["rag-bench"], "maxExtra": 1},
+    {"name": "wiki-console-index", "task": "Why can the console not open the index directly, and where had that same constraint already forced a design decision before the console existed?", "want": ["console"], "maxExtra": 2, "note": "여분: design — 'design decision'이 이름을 직격한다"},
+    {"name": "wiki-severity-colour", "task": "In the console's decision queue, which colour token marks a drifted entry, and why is yellow not used to signal severity?", "want": ["design"], "maxExtra": 2, "note": "여분: console — 질의가 콘솔의 큐를 말한다"},
+    {"name": "wiki-failure-denominator", "task": "Why does the discovery-failure metric count only symbol-shaped searches, and why was the dot deliberately left out of the characters that mark a pattern as a regex?", "want": ["adoption"], "maxExtra": 1}
+  ]
+}

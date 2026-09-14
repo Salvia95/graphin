@@ -44,7 +44,10 @@ RUBRIC_VERSION = "0.1.0"
 
 # 측정 장치는 코퍼스에서 잘라낸다. expected.jsonl의 evidence 리터럴이 코퍼스에
 # 있으면 에이전트가 답을 거기서 읽는다 — rag 벤치가 실제로 겪은 사고다.
-CUT_PREFIXES = ("eval/", "docs/eval/", "scripts/eval-")
+# internal/wiki/testdata/select_cases.json는 preflight 회귀 테스트가 로드하는
+# 파일인데, 그 "en" 그룹이 eval/combined와 이 벤치의 문항 원문과 기대 세트를
+# 담는다 — 측정 장치라 코퍼스에서 자른다.
+CUT_PREFIXES = ("eval/", "docs/eval/", "internal/wiki/testdata/", "scripts/eval-")
 
 ARMS = ("none", "injected")
 

@@ -30,7 +30,10 @@ import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUBRIC_VERSION = "0.1.0"
-CUT_PREFIXES = ("eval/", "docs/eval/", "scripts/eval-")
+# internal/wiki/testdata/select_cases.json는 preflight 회귀 테스트가 로드하는
+# 파일인데, 그 "en" 그룹이 이 벤치와 eval/wiki 러너의 문항 원문과 기대 세트를
+# 담는다 — 측정 장치라 코퍼스에서 자른다.
+CUT_PREFIXES = ("eval/", "docs/eval/", "internal/wiki/testdata/", "scripts/eval-")
 ARMS = ("grep", "wiki-rag", "wiki-gated")
 SYSTEM_PATHS = ("/dev/", "/tmp", "/proc/", "/sys/", "/usr/", "/bin/", "/etc/", "/var/")
 

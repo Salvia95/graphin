@@ -1,18 +1,54 @@
 package wiki
 
 import (
+	"encoding/json"
+	"os"
 	"sort"
 	"strings"
 	"testing"
 )
 
-// selectCase is one task with the sets it must pull in and how many others
-// it is currently allowed to pull in alongside them.
+// selectCase is one task with the sets it must pull in and how many others it
+// is currently allowed to pull in alongside them. Fields are exported and
+// tagged because the cases are loaded from testdata/select_cases.json, not
+// embedded here: the "en" group is the eval/combined and eval/wiki runners'
+// questions verbatim plus their expected sets, so it is measurement apparatus
+// and must live where the bench corpora cut it — a source file would ship the
+// questions and the answer-shaped `want` inside the corpus under test.
 type selectCase struct {
-	name     string
-	task     string
-	want     []string
-	maxExtra int
+	Name     string   `json:"name"`
+	Task     string   `json:"task"`
+	Want     []string `json:"want"`
+	MaxExtra int      `json:"maxExtra"`
+}
+
+// loadSelectCases reads one named group from testdata/select_cases.json. The
+// test runs with its package directory as the working directory, so the
+// conventional testdata/ path resolves without a repo-root anchor.
+func loadSelectCases(t *testing.T, group string) []selectCase {
+	t.Helper()
+	b, err := os.ReadFile("testdata/select_cases.json")
+	if err != nil {
+		t.Fatalf("read select cases: %v", err)
+	}
+	// Parse group-by-group so sibling keys that are not case arrays (e.g. the
+	// file's "_comment") are left untouched.
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(b, &all); err != nil {
+		t.Fatalf("parse select cases: %v", err)
+	}
+	raw, ok := all[group]
+	if !ok {
+		t.Fatalf("no select-case group %q", group)
+	}
+	var cases []selectCase
+	if err := json.Unmarshal(raw, &cases); err != nil {
+		t.Fatalf("parse select-case group %q: %v", group, err)
+	}
+	if len(cases) == 0 {
+		t.Fatalf("select-case group %q is empty", group)
+	}
+	return cases
 }
 
 // runSelectCases runs every case against the real wiki and returns the total
@@ -20,13 +56,13 @@ type selectCase struct {
 func runSelectCases(t *testing.T, st *Store, cases []selectCase) (extras int) {
 	t.Helper()
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			got := map[string]bool{}
-			for _, n := range st.Select("", tc.task).Matched {
+			for _, n := range st.Select("", tc.Task).Matched {
 				got[n] = true
 			}
 			var missing, extra []string
-			for _, w := range tc.want {
+			for _, w := range tc.Want {
 				if !got[w] {
 					missing = append(missing, w)
 				}
@@ -43,9 +79,9 @@ func runSelectCases(t *testing.T, st *Store, cases []selectCase) (extras int) {
 			if len(missing) > 0 {
 				t.Errorf("놓친 세트 %v — 재현율 회귀다", missing)
 			}
-			if len(extra) > tc.maxExtra {
+			if len(extra) > tc.MaxExtra {
 				t.Errorf("여분 %d개 %v, 허용 %d — 과매칭 회귀다",
-					len(extra), extra, tc.maxExtra)
+					len(extra), extra, tc.MaxExtra)
 			}
 		})
 	}
@@ -69,19 +105,7 @@ func TestSelectOnRealWiki(t *testing.T) {
 	if len(st.Sets) < minSetsForCommonStop+1 {
 		t.Skipf("위키에 세트가 %d개뿐 — 이 테스트는 실물 규모를 전제한다", len(st.Sets))
 	}
-	cases := []selectCase{
-		{"release", "read_code가 한 번에 돌려주는 응답 상한을 늘리려 한다, 버전은 어느 자리를 올리고 릴리스 게이트는 어느 계층으로 도나",
-			[]string{"release"}, 1}, // 여분: delegation-gate — 질의의 "게이트"가 이름을 직격한다
-		{"delegation", "새 서브에이전트를 추가했는데 위키 에이전트 표에 줄을 안 적었다, 위임 게이트는 어떻게 반응하나",
-			[]string{"delegation-gate"}, 1}, // 여분: wiki-work — 질의의 "위키"가 이름을 직격한다
-		{"adoption", "새 검색 도구를 냈는데 에이전트가 산문 질의로만 쓴다면 발견 실패 지표에 어떻게 잡히나",
-			[]string{"adoption"}, 1}, // 여분: delegation-gate — "지표" 그룹을 갖고 있다
-		{"console+design", "콘솔에 핀이 드리프트한 항목 목록 화면을 추가한다, API는 어떤 모양이어야 하고 드리프트 행에는 어떤 색 토큰을 쓰나",
-			[]string{"console", "design"}, 0},
-		{"none-python", "Python 100만 줄 저장소를 인덱싱하면 시맨틱 검색이 켜지나", nil, 0},
-		{"none-go", "Go 저장소의 노드 수가 얼마면 시맨틱이 꺼지나", nil, 0},
-	}
-	extras := runSelectCases(t, st, cases)
+	extras := runSelectCases(t, st, loadSelectCases(t, "ko"))
 	// 총계를 남긴다. 개별 상한을 지켜도 합이 늘면 매칭이 느슨해진 것이다.
 	if extras > 2 {
 		t.Errorf("여분 총계 %d — 기록된 2를 넘었다", extras)
@@ -104,33 +128,7 @@ func TestSelectOnRealWikiEnglish(t *testing.T) {
 	if len(st.Sets) < minSetsForCommonStop+1 {
 		t.Skipf("위키에 세트가 %d개뿐 — 이 테스트는 실물 규모를 전제한다", len(st.Sets))
 	}
-	cases := []selectCase{
-		{"cb-response-cap", "We want read_code to return more per response than it does now. Which file and constant sets that limit today, what is its current value, which version digit does this change move, and which release gate tier has to run?",
-			[]string{"release"}, 2}, // 여분: delegation-gate — "gate"가 이름을 직격한다
-		{"cb-unlisted-agent", "A new subagent type is added to the plugin but nobody adds a line for it to the wiki's agent table. What does the delegation gate do when something tries to spawn it, and which function decides that?",
-			[]string{"delegation-gate"}, 2}, // 여분: wiki-work — "wiki"가 이름을 직격한다
-		{"cb-prose-only-tool", "Suppose we ship a new search tool and agents only ever call it with prose questions, never symbol names. How would that show up in the discovery-failure metric, and which function makes that call?",
-			[]string{"adoption"}, 1},
-		{"cb-console-drift-screen", "We want a console screen listing entries whose pins have drifted. What shape must the API take and which existing function should it serve unchanged, and which colour token marks a drifted row rather than yellow?",
-			[]string{"console", "design"}, 1},
-		{"cb-python-semantic", "A Python repository of about one million lines is indexed. Does semantic search come up? Name the constant that decides it, its default, and the number it is compared against for a corpus that size.",
-			nil, 1},
-		{"cb-go-semantic", "A Go repository of about 1.7 million lines is indexed. Does semantic search come up for it? Give the node count that decides it and say what the real unit of that limit is.",
-			nil, 1},
-		{"wiki-release-digit", "We are releasing a change that renames one MCP tool. Which version digit moves, and which tier of the release gate has to run before dispatch?",
-			[]string{"release"}, 2}, // 여분: delegation-gate
-		{"wiki-forged-token", "An agent hands over a token it invented without running preflight. Separately, someone edits a set summary after a token was already issued. What happens in each case, and why?",
-			[]string{"delegation-gate"}, 1},
-		{"wiki-rescore-compat", "If we change only the rubric's grading rules, versus changing the runner's behaviour, how does each affect whether runs recorded earlier can still be re-scored?",
-			[]string{"rag-bench"}, 1},
-		{"wiki-console-index", "Why can the console not open the index directly, and where had that same constraint already forced a design decision before the console existed?",
-			[]string{"console"}, 2}, // 여분: design — "design decision"이 이름을 직격한다
-		{"wiki-severity-colour", "In the console's decision queue, which colour token marks a drifted entry, and why is yellow not used to signal severity?",
-			[]string{"design"}, 2}, // 여분: console — 질의가 콘솔의 큐를 말한다
-		{"wiki-failure-denominator", "Why does the discovery-failure metric count only symbol-shaped searches, and why was the dot deliberately left out of the characters that mark a pattern as a regex?",
-			[]string{"adoption"}, 1},
-	}
-	extras := runSelectCases(t, st, cases)
+	extras := runSelectCases(t, st, loadSelectCases(t, "en"))
 	// 기록은 5이고 상한은 그보다 느슨하다. 여기서 여분은 전부 "정답 + 하나"이고,
 	// 에이전트가 걸러내는 값이 빈 카탈로그를 받는 값보다 싸다.
 	if extras > 7 {
