@@ -162,8 +162,8 @@ func TestLeaderGoingAwayFailsCallsAndSignals(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("in-flight call hung")
 	}
-	if _, _, _, err := c.Call(context.Background(), "x", nil); !errors.Is(err, ErrLeaderGone) {
-		t.Fatalf("call after the leader left: %v", err)
+	if _, _, _, err := c.Call(context.Background(), "x", nil); !errors.Is(err, ErrNoLeader) {
+		t.Fatalf("a call that never left must say so: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, addrName)); !os.IsNotExist(err) {
 		t.Fatalf("addr file survived Close: %v", err)

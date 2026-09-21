@@ -17,7 +17,6 @@ import (
 
 	"github.com/Salvia95/graphin/internal/console"
 	"github.com/Salvia95/graphin/internal/dbimport"
-	"github.com/Salvia95/graphin/internal/follow"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/mcp/tools"
 	"github.com/Salvia95/graphin/internal/obs"
@@ -146,18 +145,10 @@ func main() {
 	// from the admin listener's event, and the admin page is gone.
 	lg.Event("server_start", map[string]any{"version": ver, "workspace": abs})
 
-	// Whoever holds the workspace lock serves the sessions that lost it
-	// (internal/follow): same tool table, same handlers, over a unix socket.
-	ws.OnLeader(func(dataDir string) (io.Closer, error) {
-		return follow.Listen(dataDir, ver, func(ctx context.Context, tool string, args json.RawMessage) (string, bool, bool) {
-			t, ok := reg.Get(tool)
-			if !ok {
-				return "", false, false
-			}
-			text, isErr := t.Handler(ctx, args)
-			return text, isErr, true
-		}, lg)
-	})
+	// One index per workspace, however many sessions are open in it: the
+	// server that holds the lock serves the ones that lost it. After
+	// buildIdentity — the handshake refuses a leader on another major.minor.
+	tools.Follow(reg, ws, ver)
 
 	// A workspace indexed before comes up ready: nothing about restoring it
 	// needs the caller's say-so, and a delegate that never read the skill
