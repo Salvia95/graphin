@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,5 +110,64 @@ func TestEnsureBootstrappedOnlyRestores(t *testing.T) {
 	closed.Close()
 	if closed.EnsureBootstrapped(ctx, "test") {
 		t.Fatal("bootstrapped after Close")
+	}
+}
+
+// closerFunc adapts a func to io.Closer.
+type closerFunc func() error
+
+func (f closerFunc) Close() error { return f() }
+
+// TestLeaderHookLifecycle: the hook runs once the lock is held, never for a
+// server that lost it, and its Closer is closed without w.mu held — closing
+// the follower socket drains forwarded calls, and handlers take w.mu.
+func TestLeaderHookLifecycle(t *testing.T) {
+	root := t.TempDir()
+	cfg := Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"}
+	ctx := context.Background()
+
+	ws := New(cfg)
+	started, closed := 0, 0
+	ws.OnLeader(func(dir string) (io.Closer, error) {
+		if dir != ws.Dir {
+			t.Errorf("hook dir = %q, want %q", dir, ws.Dir)
+		}
+		started++
+		return closerFunc(func() error {
+			closed++
+			ws.Bootstrapped() // takes w.mu: deadlocks if Close still holds it
+			return nil
+		}), nil
+	})
+	if _, err := ws.Bootstrap(ctx, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.Bootstrap(ctx, "", false); err != nil { // idempotent: no second listener
+		t.Fatal(err)
+	}
+
+	loser := New(cfg)
+	loserStarted := false
+	loser.OnLeader(func(string) (io.Closer, error) {
+		loserStarted = true
+		return closerFunc(func() error { return nil }), nil
+	})
+	if _, err := loser.Bootstrap(ctx, "", false); !errors.Is(err, ErrLockHeld) {
+		t.Fatalf("expected ErrLockHeld, got %v", err)
+	}
+	loser.Close()
+	if loserStarted {
+		t.Fatal("a server without the lock started listening")
+	}
+
+	done := make(chan struct{})
+	go func() { ws.Close(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close deadlocked closing the leader")
+	}
+	if started != 1 || closed != 1 {
+		t.Fatalf("started=%d closed=%d, want 1/1", started, closed)
 	}
 }
