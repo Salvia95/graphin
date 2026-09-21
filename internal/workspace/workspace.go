@@ -6,6 +6,7 @@ package workspace
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -115,6 +116,8 @@ type Workspace struct {
 	mu           sync.Mutex
 	bootstrapped bool
 	closed       bool
+	leaderHook   func(dataDir string) (io.Closer, error)
+	leader       io.Closer
 	lk           *lock.Lock
 	cancel       context.CancelFunc
 	bg           sync.WaitGroup // goroutines touching engines; Close waits
@@ -189,6 +192,16 @@ func (w *Workspace) Bootstrapped() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.bootstrapped
+}
+
+// OnLeader registers what to start once this workspace holds the lock — the
+// follower socket (internal/follow). A hook rather than a dependency: what it
+// serves is the tool table, which is built on top of this package. Its Closer
+// is closed first in Close, before any engine a forwarded call might be using.
+func (w *Workspace) OnLeader(hook func(dataDir string) (io.Closer, error)) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.leaderHook = hook
 }
 
 // EnsureBootstrapped reports whether the workspace is bootstrapped, doing it
@@ -311,6 +324,15 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 
 	w.FSM.Set(PhaseIndexing)
 	w.bootstrapped = true
+	if w.leaderHook != nil {
+		// Not fatal: without the socket a second session is as dead as it
+		// always was, and this one works.
+		if ld, err := w.leaderHook(w.Dir); err != nil {
+			w.Log.Event("leader_listen_failed", map[string]any{"error": err.Error()})
+		} else {
+			w.leader = ld
+		}
+	}
 	w.Log.Event("bootstrap", map[string]any{
 		"root": w.Root, "model_type": modelType, "offline": offline || w.cfg.Offline,
 	})
@@ -428,9 +450,19 @@ func (w *Workspace) consumeBatches(ctx context.Context, batches <-chan watch.Bat
 
 // Close stops background goroutines and releases the lock.
 func (w *Workspace) Close() {
+	// Followers first, and outside w.mu: closing the socket waits for their
+	// calls to drain, and handlers take w.mu.
+	w.mu.Lock()
+	w.closed = true
+	ld := w.leader
+	w.leader = nil
+	w.mu.Unlock()
+	if ld != nil {
+		_ = ld.Close()
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.closed = true
 	if w.cancel != nil {
 		w.cancel()
 		w.cancel = nil
