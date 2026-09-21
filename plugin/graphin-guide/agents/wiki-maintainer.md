@@ -44,6 +44,10 @@ Anything else in the queue — work the wiki had no answer for, candidates
 awaiting review, an expired set — is **not yours**. Those need a person or a
 new claim. Leave them and say so in your report.
 
+If a graphin tool answers `NOT_BOOTSTRAPPED`, call `bootstrap_workspace` once
+and carry on. A workspace indexed before comes up on its own; this only
+happens on a first index or when another session holds the lock.
+
 # The loop
 
 1. **See the work.** Run `graphin wiki check` for dangling and drifted
