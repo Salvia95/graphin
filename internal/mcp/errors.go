@@ -10,6 +10,11 @@ const (
 	ErrNotBootstrapped  = "NOT_BOOTSTRAPPED"
 	ErrLockHeld         = "LOCK_HELD"
 	ErrModelUnavailable = "MODEL_UNAVAILABLE"
+	// ErrLeaderChanged: this server answers through the session that holds
+	// the workspace lock, and that session ended mid-call. Reads are retried
+	// internally; this surfaces only for a call that may already have
+	// written, which the caller has to look at before repeating.
+	ErrLeaderChanged = "LEADER_CHANGED"
 	// ErrInternal covers unexpected failures outside the five spec codes.
 	ErrInternal = "INTERNAL"
 )

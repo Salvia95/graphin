@@ -96,14 +96,16 @@ func (c *Client) read(dec *json.Decoder) {
 func (c *Client) Done() <-chan struct{} { return c.done }
 
 // Call runs one tool on the leader. known=false means the leader has no such
-// tool. ErrLeaderGone when the connection died before the answer; ctx.Err()
-// when the caller gave up, in which case the leader is told to stop.
+// tool. The two failures differ in what the caller may do next: ErrNoLeader
+// means the call never left, so routing it elsewhere is always safe;
+// ErrLeaderGone means it left and no answer came back, so the leader may have
+// run it. ctx.Err() when the caller gave up — the leader is told to stop.
 func (c *Client) Call(ctx context.Context, tool string, args json.RawMessage) (text string, isErr, known bool, err error) {
 	ch := make(chan msg, 1)
 	c.mu.Lock()
 	if c.gone {
 		c.mu.Unlock()
-		return "", false, false, ErrLeaderGone
+		return "", false, false, ErrNoLeader
 	}
 	c.nextID++
 	id := c.nextID
@@ -112,7 +114,7 @@ func (c *Client) Call(ctx context.Context, tool string, args json.RawMessage) (t
 
 	if err := c.send(&msg{Type: "call", ID: id, Tool: tool, Args: args}); err != nil {
 		c.forget(id)
-		return "", false, false, ErrLeaderGone
+		return "", false, false, ErrNoLeader // a torn line is never decoded, so never run
 	}
 	select {
 	case m, ok := <-ch:

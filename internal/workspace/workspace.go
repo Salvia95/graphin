@@ -213,9 +213,9 @@ func (w *Workspace) OnLeader(hook func(dataDir string) (io.Closer, error)) {
 // draws. A tree never indexed still waits for an explicit bootstrap_workspace:
 // the first index and its model download stay the user's decision.
 //
-// trigger names the caller in the log ("startup" or the tool). A failure —
-// typically ErrLockHeld under a second session — leaves the workspace
-// not_bootstrapped and the explicit path open.
+// trigger names the caller in the log. A failure leaves the workspace
+// not_bootstrapped and the explicit path open; under ErrLockHeld the tool
+// table forwards to the lock holder instead (tools.Follow).
 func (w *Workspace) EnsureBootstrapped(ctx context.Context, trigger string) bool {
 	if w.Bootstrapped() {
 		return true
@@ -224,7 +224,11 @@ func (w *Workspace) EnsureBootstrapped(ctx context.Context, trigger string) bool
 		return false
 	}
 	if _, err := w.Bootstrap(ctx, "", false); err != nil {
-		w.Log.Event("auto_bootstrap_failed", map[string]any{"trigger": trigger, "error": err.Error()})
+		// Another session holding the lock is the normal state of a second
+		// session, not a failure: it answers through that one (internal/follow).
+		if !errors.Is(err, ErrLockHeld) {
+			w.Log.Event("auto_bootstrap_failed", map[string]any{"trigger": trigger, "error": err.Error()})
+		}
 		return false
 	}
 	w.Log.Event("auto_bootstrap", map[string]any{"trigger": trigger})
