@@ -35,6 +35,11 @@ const DataDirName = ".graphin"
 // ErrLockHeld re-exports the lock error for tool handlers.
 var ErrLockHeld = lock.ErrHeld
 
+// ErrClosed is returned by Bootstrap once Close has run: the startup
+// auto-bootstrap goroutine can lose the race with shutdown, and taking the
+// lock after Close would leak it.
+var ErrClosed = errors.New("workspace closed")
+
 // SemanticSink receives Track-B embedding work (implemented by
 // *semantic.Engine; tests substitute recorders).
 type SemanticSink interface {
@@ -109,6 +114,7 @@ type Workspace struct {
 
 	mu           sync.Mutex
 	bootstrapped bool
+	closed       bool
 	lk           *lock.Lock
 	cancel       context.CancelFunc
 	bg           sync.WaitGroup // goroutines touching engines; Close waits
@@ -185,6 +191,33 @@ func (w *Workspace) Bootstrapped() bool {
 	return w.bootstrapped
 }
 
+// EnsureBootstrapped reports whether the workspace is bootstrapped, doing it
+// on the spot when this workspace was indexed before. The bootstrapped bit
+// lives in this process, but the index lives on disk: a fresh server over an
+// indexed tree has nothing to ask the caller for, and delegates that never
+// read the skill have no way to know the ritual. merkle.json is the test —
+// it exists only once a first scan was saved, the same line the wiki gate
+// draws. A tree never indexed still waits for an explicit bootstrap_workspace:
+// the first index and its model download stay the user's decision.
+//
+// trigger names the caller in the log ("startup" or the tool). A failure —
+// typically ErrLockHeld under a second session — leaves the workspace
+// not_bootstrapped and the explicit path open.
+func (w *Workspace) EnsureBootstrapped(ctx context.Context, trigger string) bool {
+	if w.Bootstrapped() {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(w.Dir, "merkle.json")); err != nil {
+		return false
+	}
+	if _, err := w.Bootstrap(ctx, "", false); err != nil {
+		w.Log.Event("auto_bootstrap_failed", map[string]any{"trigger": trigger, "error": err.Error()})
+		return false
+	}
+	w.Log.Event("auto_bootstrap", map[string]any{"trigger": trigger})
+	return true
+}
+
 // Bootstrap acquires the workspace lock, restores persisted indexes, starts
 // the watcher pipeline and kicks off indexing in the background. It returns
 // quickly (§3.1); progress is reported through Status on later tool calls.
@@ -193,6 +226,9 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 	defer w.mu.Unlock()
 	if w.bootstrapped {
 		return w.statusWithDB(), nil
+	}
+	if w.closed {
+		return w.FSM.Status(), ErrClosed
 	}
 	if modelType == "" {
 		modelType = w.cfg.ModelType
@@ -394,6 +430,7 @@ func (w *Workspace) consumeBatches(ctx context.Context, batches <-chan watch.Bat
 func (w *Workspace) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.closed = true
 	if w.cancel != nil {
 		w.cancel()
 		w.cancel = nil

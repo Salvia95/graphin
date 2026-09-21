@@ -189,6 +189,14 @@ func bootstrapHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	}
 }
 
+// ensureBootstrapped is the shared guard: true when the workspace is ready to
+// serve, bootstrapping a previously indexed one on the spot. It backs up the
+// startup auto-bootstrap, which can lose to the first tool call or fail on a
+// lock that has since been released.
+func ensureBootstrapped(ctx context.Context, ws *workspace.Workspace) bool {
+	return ws.EnsureBootstrapped(ctx, "tool")
+}
+
 // notBootstrapped renders the shared guard response.
 func notBootstrapped(ws *workspace.Workspace) string {
 	st := ws.FSM.Status()
@@ -202,7 +210,7 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Target string `json:"target"`
 	}
 	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
-		if !ws.Bootstrapped() {
+		if !ensureBootstrapped(ctx, ws) {
 			return notBootstrapped(ws), true
 		}
 		var a args
@@ -614,8 +622,8 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Cursor        string   `json:"cursor"`
 		MinConfidence *float64 `json:"min_confidence"`
 	}
-	return func(_ context.Context, raw json.RawMessage) (string, bool) {
-		if !ws.Bootstrapped() {
+	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
+		if !ensureBootstrapped(ctx, ws) {
 			return notBootstrapped(ws), true
 		}
 		var a args
@@ -696,8 +704,8 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		NodeID  string   `json:"node_id"`
 		NodeIDs []string `json:"node_ids"`
 	}
-	return func(_ context.Context, raw json.RawMessage) (string, bool) {
-		if !ws.Bootstrapped() {
+	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
+		if !ensureBootstrapped(ctx, ws) {
 			return notBootstrapped(ws), true
 		}
 		var a args
@@ -887,7 +895,7 @@ func benchmarkHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		ExpectedNode string `json:"expected_node"`
 	}
 	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
-		if !ws.Bootstrapped() {
+		if !ensureBootstrapped(ctx, ws) {
 			return notBootstrapped(ws), true
 		}
 		var a args

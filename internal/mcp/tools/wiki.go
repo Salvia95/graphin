@@ -305,7 +305,7 @@ func wikiResolveHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Sets    []string `json:"sets"`
 		NodeIDs []string `json:"node_ids"`
 	}
-	return func(_ context.Context, raw json.RawMessage) (string, bool) {
+	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		var a args
 		_ = json.Unmarshal(raw, &a)
 		st := ws.FSM.Status()
@@ -328,7 +328,7 @@ func wikiResolveHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			return sb.String(), false
 		}
 
-		if !ws.Bootstrapped() {
+		if !ensureBootstrapped(ctx, ws) {
 			return notBootstrapped(ws), true
 		}
 

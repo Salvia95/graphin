@@ -145,6 +145,13 @@ func main() {
 	// from the admin listener's event, and the admin page is gone.
 	lg.Event("server_start", map[string]any{"version": ver, "workspace": abs})
 
+	// A workspace indexed before comes up ready: nothing about restoring it
+	// needs the caller's say-so, and a delegate that never read the skill
+	// cannot know to ask. Off the serve path — restoring a large index must
+	// not eat into the client's MCP startup timeout; a tool call that beats it
+	// takes the same path through the guard.
+	go ws.EnsureBootstrapped(context.Background(), "startup")
+
 	srv := mcp.NewServer(os.Stdin, os.Stdout, reg, ver, lg)
 	if err := srv.Serve(context.Background()); err != nil && err != context.Canceled {
 		lg.Event("serve_error", map[string]any{"error": err.Error()})
