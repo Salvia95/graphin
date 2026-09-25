@@ -54,7 +54,6 @@ func runGate(stdin io.Reader, stderr io.Writer) int {
 	if !store.Present {
 		return exitAllow
 	}
-
 	switch in.ToolName {
 	case "Task", "Agent":
 		return gateDelegation(store, root, in, stderr)
@@ -75,6 +74,11 @@ func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) i
 		return exitAllow
 	}
 	if tok := FindToken(in.str("prompt")); store.VerifyToken(secret, tok) {
+		// Only the server mints tokens, so holding a valid one proves this
+		// session reached it — with or without a PostToolUse record of it.
+		if err := touchSessionMarker(root, in.SessionID, markerReached); err != nil {
+			fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
+		}
 		clearSpawn(root, in, Flag{
 			Status: StatusCleared, Producer: "manifest", Token: tok,
 		}, stderr)
@@ -99,6 +103,9 @@ func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) i
 			return exitAllow
 		}
 	}
+	if recoveryUnreachable(root, in.SessionID) {
+		return passUnreachable(root, in, stderr)
+	}
 	// Name the next action, not the fault. A block that only says "no" turns
 	// into a retry of the same call; a block that says what to run is a loop
 	// the caller can close on its own.
@@ -116,7 +123,7 @@ func gateDelegation(store *Store, root string, in hookInput, stderr io.Writer) i
 	}
 	fmt.Fprint(stderr, "A token minted before the wiki was last edited no longer verifies; run\n"+
 		"wiki_preflight again rather than reusing one from earlier in the session.\n")
-	return exitBlock
+	return block(root, in, stderr)
 }
 
 // clearSpawn leaves the note the spawn hook will consume. This is the only
@@ -138,6 +145,11 @@ func gateChange(root string, in hookInput, stderr io.Writer) int {
 	flag, found := ReadFlag(root, in.SessionID, in.AgentID)
 	if found && flag.Status == StatusCleared {
 		return exitAllow
+	}
+	// Checked only past the cleared fast path, so a working session still
+	// pays one stat per call.
+	if recoveryUnreachable(root, in.SessionID) {
+		return passUnreachable(root, in, stderr)
 	}
 
 	switch {
@@ -169,7 +181,42 @@ func gateChange(root string, in hookInput, stderr io.Writer) int {
 			"for the sets you need. If nothing applies, wiki_resolve with the sets\n"+
 			"named in the manifest — or an empty catalogue — still clears this.\n")
 	}
+	return block(root, in, stderr)
+}
+
+// block ends every deliberate refusal. It remembers that this session has now
+// been told what to run, which is what lets the next call tell a session that
+// cannot run it from one that has not yet — see recoveryUnreachable.
+//
+// The last paragraph is for the first kind. Every instruction above names an
+// MCP tool, and a session whose graphin server never connected has none: left
+// unsaid, that session reads the block as a wall and stops.
+func block(root string, in hookInput, stderr io.Writer) int {
+	if err := touchSessionMarker(root, in.SessionID, markerBlocked); err != nil {
+		fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
+	}
+	fmt.Fprint(stderr, "\nIf this session has no wiki_preflight tool, graphin's server is not\n"+
+		"connected and there is nothing to call. Retry the same call once: it will\n"+
+		"go through, recorded as unreachable. Tell the user graphin is not attached.\n")
 	return exitBlock
+}
+
+// passUnreachable lets a session through whose recovery cannot be reached,
+// and records how. The producer is its own value rather than a borrowed one:
+// passing because nothing could be asked is a different guarantee from every
+// other clearance (§4), and an audit that could not tell them apart would
+// count a disconnected session as one that loaded its knowledge.
+func passUnreachable(root string, in hookInput, stderr io.Writer) int {
+	f := Flag{Status: StatusCleared, Producer: ProducerUnreachable}
+	switch in.ToolName {
+	case "Task", "Agent":
+		clearSpawn(root, in, f, stderr)
+	default:
+		if err := WriteFlag(root, in.SessionID, in.AgentID, f); err != nil {
+			fmt.Fprintf(stderr, "graphin wiki gate: %v\n", err)
+		}
+	}
+	return exitAllow
 }
 
 // runMark implements `graphin wiki mark`, the recorder for both non-blocking
@@ -195,6 +242,13 @@ func runMark(stdin io.Reader, stderr io.Writer) int {
 	case "SubagentStart":
 		return markSpawn(store, root, in, stderr)
 	case "PostToolUse":
+		// Any wiki tool that answered proves this session can reach the
+		// recovery every block names, whatever the call itself was.
+		if isWikiTool(in.ToolName) {
+			if err := touchSessionMarker(root, in.SessionID, markerReached); err != nil {
+				fmt.Fprintf(stderr, "graphin wiki mark: %v\n", err)
+			}
+		}
 		return markResolve(root, in, stderr)
 	}
 	return exitAllow
@@ -245,6 +299,16 @@ func markSpawn(store *Store, root string, in hookInput, stderr io.Writer) int {
 	// set with no reads, which is the same statistic that demotes an unused
 	// set — so the leak feeds a metric instead of hiding.
 	return exitAllow
+}
+
+// ProducerUnreachable marks a clearance granted because this session could
+// not reach the tools that grant one.
+const ProducerUnreachable = "unreachable"
+
+// isWikiTool matches graphin's wiki tools under whatever namespace the server
+// was registered with (mcp__graphin__…, mcp__plugin_graphin_graphin__…).
+func isWikiTool(name string) bool {
+	return strings.HasPrefix(name, "mcp__") && strings.Contains(name, "__wiki_")
 }
 
 // markResolve clears whoever just loaded knowledge.

@@ -424,3 +424,90 @@ func TestGCFlagsDropsStaleSessions(t *testing.T) {
 		t.Error("a live session's flags must survive")
 	}
 }
+
+// TestGatePassesASessionThatCannotReachRecovery is the 2026-09-25 incident:
+// Claude Code 2.1.282 rejected graphin's tools/list, the session had no wiki
+// tools at all, and every Bash, Edit and Agent call was blocked with an
+// instruction to call one. One block is still spent — it is the only way to
+// tell this session from a connected one — and then the session goes on.
+func TestGatePassesASessionThatCannotReachRecovery(t *testing.T) {
+	root := gateWorkspace(t, true)
+	bash := map[string]any{"tool_name": "Bash", "cwd": root, "session_id": "s1"}
+
+	code, msg := runVerb(t, "gate", hookJSON(t, bash))
+	if code != exitBlock {
+		t.Fatalf("first call: exit = %d, want block", code)
+	}
+	if !strings.Contains(msg, "no wiki_preflight tool") {
+		t.Fatalf("the block must say what happens when the tool does not exist:\n%s", msg)
+	}
+
+	if code, _ := runVerb(t, "gate", hookJSON(t, bash)); code != exitAllow {
+		t.Fatalf("second call with no wiki tool ever reached: exit = %d, want allow", code)
+	}
+	f, ok := ReadFlag(root, "s1", "")
+	if !ok || f.Status != StatusCleared || f.Producer != ProducerUnreachable {
+		t.Fatalf("flag = %+v ok=%v, want cleared by %s", f, ok, ProducerUnreachable)
+	}
+
+	// Delegation is the same wall: its manifest comes from wiki_preflight.
+	// The spawn it lets through is recorded the same way.
+	if code := delegate(t, root, "s1", "backend-dev", "no token"); code != exitAllow {
+		t.Fatalf("delegation in an unreachable session: exit = %d, want allow", code)
+	}
+	spawn(t, root, "s1", "a1", "backend-dev")
+	if f, ok := ReadFlag(root, "s1", "a1"); !ok || f.Producer != ProducerUnreachable {
+		t.Fatalf("spawned agent flag = %+v ok=%v, want producer %s", f, ok, ProducerUnreachable)
+	}
+}
+
+// TestGateKeepsBlockingASessionThatReachedWiki: a session that has answered
+// once with a wiki call can reach the recovery, so a later retry without a
+// resolve is a caller skipping it, not a session unable to comply.
+func TestGateKeepsBlockingASessionThatReachedWiki(t *testing.T) {
+	root := gateWorkspace(t, true)
+	bash := map[string]any{"tool_name": "Bash", "cwd": root, "session_id": "s1"}
+
+	if code, _ := runVerb(t, "gate", hookJSON(t, bash)); code != exitBlock {
+		t.Fatalf("first call: exit = %d, want block", code)
+	}
+	// preflight answered, resolve never ran. The plugin's namespace is the
+	// one Claude Code actually sends.
+	runVerb(t, "mark", hookJSON(t, map[string]any{
+		"hook_event_name": "PostToolUse", "cwd": root, "session_id": "s1",
+		"tool_name": "mcp__plugin_graphin_graphin__wiki_preflight",
+	}))
+	if code, _ := runVerb(t, "gate", hookJSON(t, bash)); code != exitBlock {
+		t.Fatalf("retry after reaching a wiki tool: exit = %d, want block", code)
+	}
+}
+
+// TestGateUnreachableIsPerSession: one disconnected session must not open the
+// gate for another session in the same workspace.
+func TestGateUnreachableIsPerSession(t *testing.T) {
+	root := gateWorkspace(t, true)
+	for i := 0; i < 2; i++ {
+		runVerb(t, "gate", hookJSON(t, map[string]any{
+			"tool_name": "Bash", "cwd": root, "session_id": "s1",
+		}))
+	}
+	if code, _ := runVerb(t, "gate", hookJSON(t, map[string]any{
+		"tool_name": "Bash", "cwd": root, "session_id": "s2",
+	})); code != exitBlock {
+		t.Fatalf("a fresh session: exit = %d, want its own first block", code)
+	}
+}
+
+func TestIsWikiTool(t *testing.T) {
+	for name, want := range map[string]bool{
+		"mcp__graphin__wiki_resolve":                  true,
+		"mcp__plugin_graphin_graphin__wiki_preflight": true,
+		"mcp__graphin__search_hybrid":                 false,
+		"wiki_resolve":                                false, // not an MCP call
+		"Bash":                                        false,
+	} {
+		if got := isWikiTool(name); got != want {
+			t.Errorf("isWikiTool(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

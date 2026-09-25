@@ -151,6 +151,23 @@ func TestWikiGateSmoke(t *testing.T) {
 		}
 	})
 
+	t.Run("a session with no graphin tools is blocked once, then passes", func(t *testing.T) {
+		// 2026-09-25: Claude Code 2.1.282 rejected graphin's tools/list, and
+		// every Bash, Edit and Agent call was blocked with an instruction to
+		// call a tool the session did not have.
+		bash := map[string]any{"tool_name": "Bash", "session_id": "no-tools"}
+		code, msg := hook(t, "gate", bash)
+		if code != 2 {
+			t.Fatalf("first call: exit = %d, want 2", code)
+		}
+		if !strings.Contains(msg, "no wiki_preflight tool") {
+			t.Fatalf("the block must say what to do without the tool:\n%s", msg)
+		}
+		if code, msg := hook(t, "gate", bash); code != 0 {
+			t.Fatalf("retry with no wiki tool ever reached (%d): %s", code, msg)
+		}
+	})
+
 	t.Run("the escape hatch works", func(t *testing.T) {
 		// Arming by wiki presence protects against unwanted policy, not
 		// against a bug in the gate. Someone blocked wrongly needs a way out

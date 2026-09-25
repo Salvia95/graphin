@@ -397,6 +397,46 @@ Edit          → 게이트②: 플래그 found && status==seen → 차단
 
 ---
 
+### 장면 15 — 세션에 graphin 도구가 없다
+
+**상황.** 디스크에는 `docs/wiki`와 색인이 있어 게이트가 무장했다. 그런데 이
+세션에는 graphin 서버가 붙지 않았다. 2026-09-25의 실제 사례에서는 Claude Code
+2.1.282가 graphin의 `tools/list`를 스키마 위반으로 거부했고, 도구가 0개인 채로
+세션이 시작됐다.
+
+**화면.**
+
+```
+Bash(…)
+   └─ 게이트②: 플래그 없음 → 차단. 세션에 blocked 표식을 남긴다
+      stderr: …(장면 10의 안내)…
+              If this session has no wiki_preflight tool, graphin's server is not
+              connected and there is nothing to call. Retry the same call once: …
+
+Bash(…)   ← 같은 세션, 그 사이 wiki 도구 호출 없음
+   └─ 게이트②: blocked 있음, reached 없음 → 통과. cleared / producer=unreachable
+```
+
+**기대.** 첫 호출은 **평소처럼 막힌다.** 같은 세션에서 wiki 도구에 한 번도 닿지
+않은 채 다음 호출이 오면 **통과시킨다.** 위임(게이트①)도 같은 규칙으로 통과하고,
+그 스폰은 `unreachable`로 기록된다. 세션에서 wiki 도구가 한 번이라도 응답했거나
+검증되는 토큰이 나온 적이 있으면 `reached`가 남고, 그 세션은 계속 막힌다.
+
+**왜.** 게이트가 무장하는 조건은 디스크 상태이고, 이 세션에 도구가 있는지는 그
+조건에 들어 있지 않다. 그런데 모든 차단 안내는 MCP 호출을 지목한다. 그래서
+서버가 안 붙은 세션은 따를 수 없는 안내 앞에서 Bash·Edit·Agent가 전부 멈췄다.
+장면 13과 같은 실패다. 복구 수단이 닿지 않는 경우라는 점이 같고, 원인이 바이너리가
+아니라 연결일 뿐이다. "못 물어본 것은 허용한다"를 연결에도 적용한 것이 이 장면이다.
+
+한 번은 막는 이유는 **그 차단이 두 세션을 가르는 유일한 방법**이기 때문이다. 붙어
+있는 세션은 wiki 호출로 답하고, 안 붙은 세션은 답할 수 없다. 대가는 도구가 있는데도
+차단을 무시하고 재시도하는 호출자가 통과한다는 것이다. 그래도 그 경로는
+`producer=unreachable`로 남아 사후에 셀 수 있고, 따를 방법이 없는 세션을 세우는
+것보다는 덜 나쁜 실패다. 표식은 세션 단위라, 안 붙은 세션 하나가 같은
+워크스페이스의 다른 세션을 열어 주지 않는다.
+
+---
+
 ## 4. 플래그 상태 기계
 
 한 세션의 한 에이전트에 대해 게이트가 아는 것 전부.
@@ -409,9 +449,11 @@ Edit          → 게이트②: 플래그 found && status==seen → 차단
 | **cleared** `producer=manifest` | 게이트①이 남긴 pending 메모를 소비했다 | 통과 |
 | **cleared** `producer=inherited` | 게이트①이 호출자가 cleared인 것을 보고 물려줬다 | 통과 |
 | **cleared** `producer=resolve` | `PostToolUse`가 `wiki_resolve` 호출을 봤다 | 통과 |
+| **cleared** `producer=unreachable` | 한 번 막힌 세션이 wiki 도구에 닿은 적 없이 다시 왔다 (장면 15) | 통과 |
 
 `producer`를 기록하는 이유는 사후에 **어느 경로로 통과했는지**를 물을 수 있어야 하기
-때문이다. 넷은 서로 다른 보증이고, 특히 `inherited`를 `manifest`로 덮어쓰면 검증된
+때문이다. 다섯은 서로 다른 보증이고(`unreachable`은 아무것도 보증하지 않는다는
+기록이다), 특히 `inherited`를 `manifest`로 덮어쓰면 검증된
 클리어런스와 물려받은 것이 기록에서 구별되지 않는다.
 
 플래그는 24시간이 지나면 GC된다. `SubagentStop`은 보장되지 않는다(크래시가 건너뛴다).
@@ -439,6 +481,7 @@ Edit          → 게이트②: 플래그 found && status==seen → 차단
 | 인덱싱 안 된 워크스페이스 | 통과 | 통과 |
 | 바이너리 없음/옛 버전/패닉 | 통과 | 통과 |
 | `GRAPHIN_WIKI_GATE=off` | 통과 | 통과 |
+| graphin 도구가 없는 세션, 두 번째 호출부터 | 통과 (unreachable) | 통과 (unreachable) |
 
 ---
 

@@ -159,8 +159,8 @@
         "r": "b3:819c5ae362e1bddead59ce7efd327adb6793f981f6c7a4462ad14b61a01ccb6a"
       },
       "docs/delegation-gate.md#4-플래그-상태-기계": {
-        "h": "b3:ab853abc72a3509f4380648116a1b08358a6c686a9b392ee21ca30bba4605b85",
-        "r": "b3:00d13d026e2792315b828218232da4573f76a2f2ea9e9935791c407b150a1b8a"
+        "h": "b3:2fd324c751edfea6a48bcc25962e04dd2bb738ff62cd62d84fba3c16dfc309fd",
+        "r": "b3:75dc3f8b178f6cf37988c479a0a1e1cc9fbcaf788318477d030b6bab803f5e41"
       },
       "docs/delegation-gate.md#6-이-게이트가-하지-않는-것": {
         "h": "b3:d07aff25e0ef0abf12b56789a739902d5b69d63cc3ad60f264508a52621b7cca",
@@ -189,6 +189,10 @@
       "docs/delegation-gate.md#장면-14--비상구": {
         "h": "b3:3adf156eddff4e81b6b95af71d90cf569ed99af60e7b4ccbc2766b7982d52c10",
         "r": "b3:faf385d51111c3b447dc6b97c1461907632d2529c10130f7f7d6395f8a0caf7b"
+      },
+      "docs/delegation-gate.md#장면-15--세션에-graphin-도구가-없다": {
+        "h": "b3:4a5099e18bb59950d7b06d23b555849c040960f2d7fea5be9bffe0340f65581b",
+        "r": "b3:73c1b6700a373e9505d159812a9ce16b071daf90cfbe5a72e648ca351e949a59"
       },
       "docs/delegation-gate.md#장면-2--위키가-할-말이-없는-일": {
         "h": "b3:3fa97e784a3c6228f894a31468796b7db514e588d6ae9ac9318627760c2b5a46",

@@ -214,6 +214,57 @@ func WriteFlag(root, sessionID, agentID string, f Flag) error {
 	return os.WriteFile(path, raw, 0o644)
 }
 
+// Session markers. They sit next to the per-agent flags, and their names
+// carry no .json suffix, which FlagPath always appends — so no agent id can
+// ever address one.
+//
+// Together they answer one question the flags cannot: can this session reach
+// the recovery the gate asks for at all? Every block names an MCP call
+// (wiki_preflight, wiki_resolve), and the gate arms on disk state alone —
+// docs/wiki and an indexed workspace — which says nothing about whether this
+// session's graphin server is connected. On 2026-09-25 it was not (Claude
+// Code 2.1.282 rejected our tools/list), and every Bash, Edit and Agent call
+// was blocked with an instruction no tool existed to follow.
+const (
+	markerBlocked = "blocked" // the gate has blocked in this session
+	markerReached = "reached" // a wiki MCP tool answered in this session
+)
+
+func sessionMarkerPath(root, sessionID, name string) string {
+	return filepath.Join(root, filepath.FromSlash(RuntimeSubdir), "flags",
+		safeName(sessionID), name)
+}
+
+func touchSessionMarker(root, sessionID, name string) error {
+	path := sessionMarkerPath(root, sessionID, name)
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o644)
+}
+
+func hasSessionMarker(root, sessionID, name string) bool {
+	_, err := os.Stat(sessionMarkerPath(root, sessionID, name))
+	return err == nil
+}
+
+// recoveryUnreachable reports whether this session was already told what to
+// run and has never once reached a tool that runs it.
+//
+// One block is always spent first. That block is the normal, working path's
+// only cost (장면 10), and it is also the only way to tell the two sessions
+// apart: a connected session answers it with a wiki call, a disconnected one
+// cannot. What this lets through is a caller that has the tools and ignores
+// the block — a real cost, and the one the gate's own rule prices below
+// stopping a session that has no way to comply.
+func recoveryUnreachable(root, sessionID string) bool {
+	return hasSessionMarker(root, sessionID, markerBlocked) &&
+		!hasSessionMarker(root, sessionID, markerReached)
+}
+
 // GCFlags removes session directories older than flagTTL.
 func GCFlags(root string) {
 	base := filepath.Join(root, filepath.FromSlash(RuntimeSubdir), "flags")
