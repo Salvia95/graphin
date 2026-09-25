@@ -58,6 +58,21 @@ const (
 
 const serverName = "graphin"
 
+// Caching hints of a 2026-07-28 CacheableResult. server/discover and
+// tools/list are cacheable results there, and ttlMs and cacheScope are
+// required fields, not optional ones: Claude Code 2.1.282 rejected a
+// tools/list without them and kept the connection with no tools at all.
+//
+// Both answers are fixed for the life of the process — the tool table is
+// built once, and listChanged is false — and an upgrade restarts the process,
+// so a long freshness window cannot outlive the table it describes. The scope
+// is private because nothing sits between a stdio client and this server to
+// share a cache with; private is the answer that stays right if that changes.
+const (
+	cacheTTLMs = 60 * 60 * 1000
+	cacheScope = "private"
+)
+
 // Server serves MCP over a byte stream (stdin/stdout in production).
 type Server struct {
 	in      io.Reader
@@ -171,10 +186,10 @@ func (s *Server) dispatch(ctx context.Context, req *request) {
 		// It doubles as the stdio backward-compatibility probe, so a client
 		// that sends it without `_meta` still gets the modern answer — what it
 		// gets back is precisely what tells it which era this process is.
-		s.reply(req, modern(), map[string]any{
+		s.reply(req, modern(), cacheable(map[string]any{
 			"supportedVersions": modernVersions,
 			"capabilities":      capabilities(),
-		})
+		}))
 	case "notifications/initialized":
 		// notification: no response
 	case "notifications/cancelled":
@@ -182,7 +197,11 @@ func (s *Server) dispatch(ctx context.Context, req *request) {
 	case "ping":
 		s.reply(req, m, map[string]any{})
 	case "tools/list":
-		s.reply(req, m, s.toolsList())
+		res := s.toolsList()
+		if m.present {
+			res = cacheable(res)
+		}
+		s.reply(req, m, res)
 	case "tools/call":
 		s.calls.Add(1)
 		go func() {
@@ -314,6 +333,14 @@ func negotiate(params json.RawMessage) string {
 // the result map it is handed, and a shared map would collect that decoration.
 func capabilities() map[string]any {
 	return map[string]any{"tools": map[string]any{"listChanged": false}}
+}
+
+// cacheable adds the CacheableResult fields to a modern result. It is never
+// applied to a legacy one: no revision before 2026-07-28 defines them.
+func cacheable(result map[string]any) map[string]any {
+	result["ttlMs"] = cacheTTLMs
+	result["cacheScope"] = cacheScope
+	return result
 }
 
 func (s *Server) toolsList() map[string]any {
