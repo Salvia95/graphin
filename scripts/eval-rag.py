@@ -41,7 +41,7 @@ import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-RUBRIC_VERSION = "1.4.4"
+RUBRIC_VERSION = "1.5.0"
 
 # Runs recorded under these versions were produced by a runner whose behavior
 # is identical to the current one, so their transcripts may be re-scored.
@@ -142,7 +142,23 @@ RUBRIC_VERSION = "1.4.4"
 # transcripts re-score. Only grep-arm runs (a separate meta.arm population,
 # like the 1.3.2 grep control) are produced under the new confinement, so this
 # appends rather than resets.
-RUN_COMPAT = ("1.4.3", "1.4.4")
+# Reset at 1.5.0 (2026-10-02, docs/effort-adoption-bench-design.md §6.5–6.6):
+# the runner now runs the model and effort the agent definition declares, and
+# nothing of the user's settings. Three changes, one cause. The alias `sonnet`
+# moved from Sonnet 5 to Sonnet 5.5 between 09-26 and 09-30 and this file
+# recorded only the alias, so the gate dropped from 97/108 to 85/108 with
+# nothing in any report saying why; Sonnet 5.5 at its default effort stops one
+# read short on multi-hop questions, and at `high` it clears the floor. (1) The
+# model and effort come from graphin-rag.md's frontmatter (`model:`,
+# `effort:`), passed as --model/--effort, so the gate measures what ships —
+# --system-prompt-file drops the frontmatter, so before this the agent's own
+# `model:` never reached the gate at all. (2) Children get
+# --setting-sources project,local: the user's settings were leaking in —
+# effortLevel, and permissions.defaultMode "auto", under which Bash outside
+# the allowlist was left to the auto classifier and sometimes ran (1.4.3: 46
+# Bash calls, several returning 0.5–2KB). (3) Every run's answering model is
+# read off the transcript and stamped into the report and the gate marker.
+RUN_COMPAT = ("1.5.0",)
 
 # What a --semantic arm's servers wait for the embedding model. Generous: the
 # model loads in 8–15s on this machine, and a call that hits the ceiling just
@@ -627,6 +643,23 @@ def strip_frontmatter(text):
     return text.strip() + "\n"
 
 
+def agent_frontmatter():
+    """The scalar keys of graphin-rag.md's frontmatter (1.5.0). The runner
+    passes the prompt with --system-prompt-file, which carries no frontmatter,
+    so what the agent declares about its own model and effort reaches a child
+    only through flags built from here."""
+    with open(AGENT_MD, encoding="utf-8") as f:
+        text = f.read()
+    out = {}
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        for line in text[3:end].splitlines():
+            m = re.match(r"^([A-Za-z][\w-]*):\s*(\S.*)$", line)
+            if m and not m.group(2).startswith(">"):
+                out[m.group(1)] = m.group(2).strip()
+    return out
+
+
 def compose_prompt(arm="graphin"):
     if arm == "grep":
         return GREP_AGENT_PROMPT
@@ -716,6 +749,12 @@ def run(args):
                          "(partial output must be deleted, finished output must not be reused)")
     os.makedirs(os.path.join(out, "transcripts"), exist_ok=True)
 
+    # 1.5.0: the agent definition decides the model and effort, as it does in
+    # production; a flag overrides only on purpose (and the meta says so). The
+    # grep arm takes the same pair, so the control differs only in retrieval.
+    fm = agent_frontmatter()
+    model = args.model or fm.get("model", "sonnet")
+    effort = args.effort or fm.get("effort")
     prompt = compose_prompt(args.arm)
     prompt_path = os.path.join(out, "system-prompt.md")
     with open(prompt_path, "w", encoding="utf-8") as f:
@@ -814,7 +853,11 @@ def run(args):
             "rubric_version": RUBRIC_VERSION,
             "arm": args.arm,
             "graphin_commit": commit, "worktree_dirty": dirty, "corpus": origin,
-            "model": args.model, "cli_version": cli_ver,
+            "model": model, "effort": effort,
+            "model_source": "flag" if args.model else "frontmatter",
+            "effort_source": "flag" if args.effort else ("frontmatter" if effort else "none"),
+            "setting_sources": "project,local",
+            "cli_version": cli_ver,
             "semantic": args.semantic, "runs": args.runs,
             "semantic_wait": SEMANTIC_WAIT if args.semantic else None,
             "agent_sha": agent_sha, "skill_sha": skill_sha,
@@ -858,13 +901,18 @@ def run(args):
                 if t.get("budget_bytes"):
                     question += ("\n\nWork to a retrieved-content budget of "
                                  f"about {t['budget_bytes']} bytes.")
+                # --setting-sources (1.5.0): the user's own settings stay out —
+                # their effortLevel and permission mode are not the agent's.
                 cmd = ["claude", "-p", question,
-                       "--settings", settings_path, "--strict-mcp-config"]
+                       "--settings", settings_path, "--strict-mcp-config",
+                       "--setting-sources", "project,local",
+                       "--model", model]
+                if effort:
+                    cmd += ["--effort", effort]
                 if args.arm == "grep":
                     # --strict-mcp-config with no --mcp-config: no MCP server
                     # at all, so the graphin tools do not exist for this arm.
                     cmd += ["--system-prompt-file", prompt_path,
-                            "--model", args.model,
                             "--output-format", "stream-json", "--verbose",
                             "--max-turns", str(args.max_turns),
                             "--allowedTools", ",".join(GREP_ARM_TOOLS),
@@ -872,7 +920,6 @@ def run(args):
                 else:
                     cmd += ["--mcp-config", cfgs[wi],
                             "--system-prompt-file", prompt_path,
-                            "--model", args.model,
                             "--output-format", "stream-json", "--verbose",
                             "--max-turns", str(args.max_turns),
                             "--allowedTools", ",".join(ALLOWED_TOOLS),
@@ -967,6 +1014,23 @@ def parse_transcript(path):
                 cost_usd = ev.get("total_cost_usd")
                 num_turns = ev.get("num_turns")
     return final_text, ledger, cost_usd, num_turns
+
+
+def answering_models(path):
+    """The models that actually answered a run, from the result event's
+    per-model usage (1.5.0). meta.model is what was asked for — an alias, or a
+    frontmatter value — and an alias can move under it without a trace."""
+    models = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                ev = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if ev.get("type") == "result":
+                for name, u in (ev.get("modelUsage") or {}).items():
+                    models.add((u or {}).get("canonicalModel") or name)
+    return sorted(models)
 
 
 # Bash stays in the roster (production has it), so the one escape it still
@@ -1292,6 +1356,7 @@ def score(args):
                                       "keyword_calls", "keyword_empty", "keyword_idless",
                                       "keyword_next", "first_retriever", "contained")})
         row["read_batch_max"] = max(m["read_batches"], default=0)
+        row["models"] = answering_models(os.path.join(out, "transcripts", r["transcript"]))
         row["cost_usd"] = cost_usd
         row["turns"] = turns
         rows.append(row)
@@ -1313,8 +1378,19 @@ def score(args):
              + f" · {'hybrid' if meta['semantic'] else 'lexical-only'}"
              + (f" (semantic-wait {meta['semantic_wait']})" if meta.get('semantic_wait') else ""),
              f"agent {meta['agent_sha'][:12]} · skill {meta['skill_sha'][:12]}"
-             f" · taskset {meta['taskset_sha'][:12]} · cli {meta['cli_version']}",
-             ""]
+             f" · taskset {meta['taskset_sha'][:12]} · cli {meta['cli_version']}"]
+    # 1.5.0: what answered, next to what was asked for. More than one model in
+    # a run set, or an answer from a model the request did not name, is said
+    # here in the header rather than left for someone to find in transcripts.
+    answered = sorted({mdl for r in rows for mdl in r.get("models", [])})
+    lines.append(f"asked {meta['model']} · effort {meta.get('effort') or 'model default'}"
+                 f" · answered by {', '.join(answered) or '—'}")
+    if len(answered) > 1:
+        lines.append(f"**WARNING: {len(answered)} answering models in one run set** — "
+                     "results mix models; compare per model, not in aggregate")
+    elif answered and meta["model"].startswith("claude-") and answered[0] != meta["model"]:
+        lines.append(f"**WARNING: asked {meta['model']}, answered by {answered[0]}**")
+    lines.append("")
     agg = {}
     for tier in TIERS:
         if tier not in tiers:
@@ -1430,6 +1506,8 @@ def score(args):
         marker = {
             "commit": meta["graphin_commit"], "corpus": meta["corpus"],
             "mode": mode, "rate": round(rate, 4), "floor": args.gate,
+            "model": meta["model"], "effort": meta.get("effort"),
+            "answered_by": answered,
             "rubric_version": RUBRIC_VERSION, "taskset_sha": meta["taskset_sha"],
             "scored_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
@@ -1523,8 +1601,12 @@ def main():
     rp.add_argument("--worktree", action="store_true")
     rp.add_argument("--semantic", action="store_true",
                     help="hybrid index; off by default for reproducibility")
-    rp.add_argument("--model", default="sonnet",
-                    help="matches the agent frontmatter (default: sonnet)")
+    rp.add_argument("--model", default=None,
+                    help="override the agent frontmatter's model (default: the "
+                         "frontmatter's — what ships is what the gate runs)")
+    rp.add_argument("--effort", default=None,
+                    help="override the agent frontmatter's effort (default: the "
+                         "frontmatter's; none passed if it declares none)")
     rp.add_argument("--max-turns", type=int, default=40)
     rp.add_argument("--run-timeout", type=int, default=900)
     rp.add_argument("--index-timeout", type=float, default=300.0)

@@ -185,6 +185,22 @@ not-here는 forbidden·fake 없이 부재 문장이 있으면 pass, 부재 문�
 여부) · corpus(ref 또는 worktree) · 모델 · CLI 버전 · 에이전트 정의/스킬/
 합성 프롬프트의 sha256 · 태스크셋 sha256 · runs · semantic 여부.
 
+**모델과 effort는 에이전트 정의가 정한다 (1.5.0, 2026-10-02).** 러너는
+graphin-rag.md 프론트매터의 `model:`·`effort:`를 `--model`·`--effort`로 넘긴다
+— `--system-prompt-file`은 프론트매터를 버리므로, 그 전까지 에이전트가 선언한
+모델은 게이트에 닿지 않았다. 플래그로 덮을 수 있지만 meta가 출처(`frontmatter`/
+`flag`)를 적는다. 자식은 `--setting-sources project,local`로 사용자 설정을
+읽지 않는다 — 사용자의 `effortLevel`과 `defaultMode: auto`가 새어 들어, auto
+분류기가 허용목록 밖 Bash를 통과시키기도 했다.
+
+**요청한 모델과 응답한 모델을 둘 다 적는다.** meta의 `model`은 요청이고, 리포트
+머리의 "answered by"는 런마다 result 이벤트에서 읽은 실제 모델이다. 둘이 어긋나거나
+한 런 집합에 모델이 둘 이상이면 리포트 머리에 경고가 뜨고, 게이트 마커에도
+`answered_by`가 남는다. **이 줄이 생긴 이유**: 별칭 `sonnet`이 09-26~09-30 사이
+Sonnet 5에서 Sonnet 5.5로 넘어갔는데 meta에는 별칭만 있어서, 게이트가 97/108에서
+85/108로 떨어지는 동안 어느 리포트에도 이유가 없었다(설계 문서
+`docs/effort-adoption-bench-design.md` §6.5).
+
 ## 7. 판정 — 지어낸 노드 id (2026-09-08 승격)
 
 **두 지표다.** `invented node ids`는 `read_code`나 `explore_graph`에 넘긴 id가
