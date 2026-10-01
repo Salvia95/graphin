@@ -13,7 +13,8 @@ description: >-
 skills:
   - graphin
 disallowedTools: Edit, Write, NotebookEdit
-model: sonnet
+model: claude-sonnet-5-5
+effort: high
 color: green
 ---
 
@@ -33,6 +34,17 @@ color: green
   MCP tool names are namespaced by however the server was registered
   (`mcp__plugin_graphin_graphin__*` for a plugin install, something else for a
   hand-registered one), so an allowlist would break on the second kind.
+
+  `model` is a full id, not the `sonnet` alias, and `effort` is pinned
+  (2026-10-02, docs/effort-adoption-bench-design.md §6.5–6.6). The alias moved
+  from Sonnet 5 to Sonnet 5.5 between 09-26 and 09-30 and took this agent with
+  it unannounced: at its default effort 5.5 names the far end of an edge
+  without reading it, and the rag gate fell from 97/108 to 85/108. At `high`
+  it scored 92/108 at about $0.078 a run. A prompt clause forcing that read did
+  not hold — at medium the model moved the claim to "not verified" instead, and
+  at high it cost the budget-pressure tier — so the fix is the effort, and this
+  prompt is unchanged. The release gate reads both keys from here, so moving
+  either one is a change the gate will measure.
 -->
 
 # Role
