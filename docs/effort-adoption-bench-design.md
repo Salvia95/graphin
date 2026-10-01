@@ -575,6 +575,18 @@ v3 + high는 xhigh 수준의 품질을 비용 25% 낮게 낸다. **미확인 셋
 세 번: 18/27·32/45·17/27 = 67/99, 68%; Sonnet 5는 25/27) — 다른 층이 그것을 메운다.
 풀셋 한 번의 측정이므로 반영 뒤 게이트 재베이스라인이 두 번째 측정이 된다.
 
+### 6.7 반영 (2026-10-02, 소유자 승인)
+
+브랜치 `bench/sonnet55-high`에 셋을 반영했다. graphin-guide 0.6.6 — graphin-rag
+프론트매터를 `model: claude-sonnet-5-5` · `effort: high`로 고정, 프롬프트는 그대로.
+rag 벤치 1.5.0 — 게이트가 프론트매터의 모델·effort를 플래그로 넘기고, 사용자 설정을
+끊고, 런마다 실제 응답 모델을 리포트와 마커에 적는다(변경 통제: 소유자 허가,
+`lock --approved-by salvia95`, `Rag-Bench-Approved-By` 트레일러). 재베이스라인
+**91/108(84.3%)**, 풀셋 $8.44, 108런 전부 `claude-sonnet-5-5`가 답했다 — §6.6 검증의
+92/108이 재현됐다. 이득은 answered·budget-pressure·db-nav에서 왔고 **multi-hop은 18/27로
+그대로**다(Sonnet 5는 23/27). 기록 `docs/eval/2026-10-02-rag150-baseline/`, 대장에 모델
+소급 주석.
+
 ## 7. 결과가 제품에 닿는 길
 
 A가 설정 하나를 고르면 `graphin-rag.md`에 `model:`·`effort:`를 적는다(graphin-guide
