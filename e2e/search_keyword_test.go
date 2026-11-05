@@ -277,3 +277,95 @@ func TestSearchKeywordFoldsDataFilesAfterCode(t *testing.T) {
 		t.Fatalf("a data file the caller pointed at must open:\n%s", text)
 	}
 }
+
+const keywordTSFixture = `import { headRef } from "@/runtime/session";
+
+export function logHeadRef(ref: string): void {
+  console.log("headRef", headRef(ref));
+}
+
+export class Ledger {
+  settleHeadRef(ref: string): string {
+    return headRef(ref);
+  }
+}
+
+describe("headRef", () => {
+  it("settles headRef", () => {
+    expect(new Ledger().settleHeadRef("x")).toBe("x");
+  });
+});
+`
+
+// Every matched line in an indexed source file has an owner: the narrowest
+// node overlapping the line, and the file node when no symbol does. The
+// shapes below are the ones that used to come back id-less or mis-owned in
+// TypeScript (nklcbdt, 2026-11-05): an import, a describe/it block, a
+// declaration after `export `, and an indented method whose line start sat in
+// the class.
+func TestSearchKeywordOwnsEveryLineOfASourceFile(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, javaFixtures, root)
+	writeFile(t, root, "web/ledger.test.ts", keywordTSFixture)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	const file = "web/ledger.test.ts"
+	// One pattern per shape: a response keeps only the first few matched
+	// lines of a file, so a single shared pattern would not reach them all.
+	cases := []struct {
+		pattern, line string
+		ok            func(string) bool
+	}{
+		{`from "@/runtime/session"`, "1", func(id string) bool { return id == file }},
+		{"export function logHeadRef", "3", func(id string) bool { return strings.HasSuffix(id, "logHeadRef") }},
+		{"settleHeadRef(ref: string)", "8", func(id string) bool { return strings.Contains(id, "settleHeadRef") }},
+		{`describe("headRef"`, "13", func(id string) bool { return id == file }},
+		{`it("settles headRef"`, "14", func(id string) bool { return id == file }},
+	}
+	for _, tc := range cases {
+		text, isErr := c.tool("search_keyword", map[string]any{"pattern": tc.pattern, "path": "web/"})
+		if isErr {
+			t.Fatalf("search_keyword %q: %s", tc.pattern, text)
+		}
+		if strings.Contains(text, `<node line=`) {
+			t.Errorf("%q: a matched line in an indexed source file came back without an id:\n%s", tc.pattern, text)
+			continue
+		}
+		var got string
+		for _, m := range keywordNodeRe.FindAllStringSubmatch(text, -1) {
+			if m[2] == tc.line {
+				got = m[1]
+			}
+		}
+		if !tc.ok(got) {
+			t.Errorf("%q: line %s resolved to %q:\n%s", tc.pattern, tc.line, got, text)
+		}
+	}
+	if t.Failed() {
+		t.FailNow()
+	}
+
+	// The file node is addressable: read_code returns the whole file, and
+	// explore_graph answers rather than refusing an unknown id.
+	rc, isErr := c.tool("read_code", map[string]any{"node_id": file})
+	if isErr || !strings.Contains(rc, `lines="1-`) || !strings.Contains(rc, "describe(") {
+		t.Fatalf("read_code on the file node:\n%s", rc)
+	}
+	if eg, isErr := c.tool("explore_graph", map[string]any{"node_id": file}); isErr {
+		t.Fatalf("explore_graph on the file node: %s", eg)
+	}
+
+	// ...and never ranked: search_hybrid answers what it answered before the
+	// file node existed, so a query for the file's name or its text does not
+	// surface the whole file over the symbols in it.
+	for _, q := range []string{"ledger.test.ts", "settles headRef", "headRef"} {
+		sh, isErr := c.tool("search_hybrid", map[string]any{"query": q, "top_k": 20})
+		if isErr {
+			t.Fatalf("search_hybrid %q: %s", q, sh)
+		}
+		if strings.Contains(sh, `id="`+file+`"`) {
+			t.Fatalf("search_hybrid %q ranked the file node:\n%s", q, sh)
+		}
+	}
+}

@@ -59,7 +59,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Name: "search_keyword",
 		Description: "Literal or regex file search over the same tree the index walks, ranked by match count. " +
 			"Returns the matching lines with the node id that owns each one, so a string hit flows straight into " +
-			"explore_graph and read_code. Reach for it when you know the exact text — an error message, a config " +
+			"explore_graph and read_code. The owner is the narrowest symbol on the line — a declaration line " +
+			"resolves to the symbol it declares; a line outside every symbol (an import, a test block, a " +
+			"top-level statement) resolves to the file itself, whose id is its path: read_code on it reads the " +
+			"file, and it has no graph edges. Reach for it when you know the exact text — an error message, a config " +
 			"key, a magic constant, a string built at runtime that no parser can see as a call — and when a symbol " +
 			"you are certain exists did not come back from search_hybrid. It also works before the index is warm, " +
 			"which is when the ranked retrievers are least useful. Pass context=N to get the N lines around each " +
@@ -560,7 +563,7 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			fmt.Fprintf(&fb, "\n  <file path=\"%s\" matches=\"%d\" rank=\"%d\">",
 				mcp.EscapeAttr(h.RelPath), h.Matches, i+1)
 			for _, ln := range h.Lines {
-				id, _ := workspace.NodeAtOffset(byFile[h.RelPath], uint32(ln.Byte))
+				id, _ := workspace.NodeAtLine(byFile[h.RelPath], uint32(ln.Byte), uint32(ln.End))
 				fb.WriteString("\n    ")
 				if id != "" {
 					fmt.Fprintf(&fb, `<node id="%s" line="%d" match_type="keyword"`, mcp.EscapeAttr(id), ln.No)

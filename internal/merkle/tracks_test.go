@@ -198,3 +198,35 @@ func nodeIDs(nodes []parse.Node) []string {
 	}
 	return out
 }
+
+// A source file's whole-file node is new on first sight and offset-only on
+// every later edit, though its hash follows the content: nothing in Track B
+// consumes it, so it must not turn an import-only edit into Track B work.
+func TestUnrankedFileNodeIsNeverTrackB(t *testing.T) {
+	rel := "src/run.ts"
+	tree := NewTree()
+	first := parseSrc(t, rel, []byte("export function run() {}\n"))
+	if d := Diff(tree, first); !containsID(d.Changed, rel) {
+		t.Fatalf("a new file node must be Changed: %v", nodeIDs(d.Changed))
+	}
+	tree.Update(first)
+
+	second := parseSrc(t, rel, []byte("import { a } from \"./a\";\nexport function run() {}\n"))
+	d := Diff(tree, second)
+	if containsID(d.Changed, rel) || !containsID(d.OffsetOnly, rel) {
+		t.Fatalf("an edited file node must be OffsetOnly: changed=%v", nodeIDs(d.Changed))
+	}
+	tree.Update(second)
+	if got := tree.Files[rel].Nodes[rel]; got != Hex(second.FileHash) {
+		t.Fatalf("recorded file-node hash %s, want the new content hash", got)
+	}
+}
+
+func containsID(ns []parse.Node, id string) bool {
+	for _, n := range ns {
+		if n.ID == id {
+			return true
+		}
+	}
+	return false
+}

@@ -20,6 +20,7 @@ import (
 	"github.com/zeebo/blake3"
 
 	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/nodeid"
 )
 
 // Language identifies a supported grammar.
@@ -181,6 +182,11 @@ type Node struct {
 	// 이름 해석이 필요한 다른 참조들과 달리 대상이 파싱 시점에 이미 확정돼
 	// 있으므로 엔진은 후보 조회 없이 그대로 엣지로 만든다.
 	Contains []string
+	// Unranked keeps the node out of the ranked retrievers — the symbol
+	// table, BM25 and the vector index — while it stays addressable by id
+	// (read_code, explore_graph) and as a keyword line's owner. Only the
+	// file node of a grammar-parsed source file sets it: see appendCodeFileNode.
+	Unranked bool
 }
 
 // FileResult is the full extraction of one file.
@@ -308,11 +314,60 @@ func FileWithRoute(relPath string, src []byte, route *DBRoute) (*FileResult, err
 		case LangGo:
 			extractGo(src, root, res)
 		}
+		appendCodeFileNode(src, res)
 	}
 
 	attachBodyTokens(res, src)
 	attachLines(res, src)
 	return res, nil
+}
+
+// appendCodeFileNode gives a grammar-parsed source file the whole-file node
+// that plain and markdown files already have, so that every line of the file
+// has an owner.
+//
+// Without it, a line outside every symbol — an import, a describe/it block,
+// a top-level statement, a type alias — belonged to no node, and a keyword
+// hit on it came back with no id: a location the agent could not follow into
+// explore_graph or read_code. In TypeScript that was most matched lines
+// (nklcbdt usage, 2026-11-05: ~58% of TS keyword lines came back id-less).
+//
+// It is the least specific owner by construction: its span is the whole
+// file, and a keyword line resolves to the narrowest node overlapping it, so
+// any function or class on the line wins.
+//
+// It is Unranked. A whole source file is one node that shares every token of
+// every symbol in it, so in BM25 or the vector index it would outrank the
+// function a query is about — the failure target="code" exists to undo for
+// markdown. The ranked retrievers therefore never see it, and search_hybrid
+// answers exactly what it answered before. It carries no calls, so the graph
+// gains no edges either: describe/it blocks and top-level calls stay outside
+// the call graph, as before.
+//
+// The id is the relative path, as for every file node. A grammar-derived id
+// is dotted, never slashed, so the two can only meet for a root-level file
+// whose module declares a symbol named after the extension (setup.py's
+// `py`); the symbol keeps the id then, and the file goes without.
+func appendCodeFileNode(src []byte, res *FileResult) {
+	for _, n := range res.Nodes {
+		if n.ID == res.RelPath {
+			return
+		}
+	}
+	base := pathpkg.Base(res.RelPath)
+	res.Nodes = append(res.Nodes, Node{
+		ID:          res.RelPath,
+		DisplayName: base,
+		SimpleName:  base,
+		Kind:        nodeid.KindFile,
+		StartByte:   0,
+		EndByte:     uint32(len(src)),
+		Hash:        res.FileHash,
+		// Non-nil so attachBodyTokens does not tokenize the whole file for
+		// an index that will never receive it.
+		BodyTokens: []string{},
+		Unranked:   true,
+	})
 }
 
 // attachBodyTokens (§보완 B): node bodies (literals, comments, fields) become

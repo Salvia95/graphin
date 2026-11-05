@@ -100,13 +100,25 @@ func (w *Workspace) NodesInFiles(rels []string) map[string][]FileNode {
 	return out
 }
 
-// NodeAtOffset picks the node owning a byte offset: the smallest span that
-// contains it, so a method wins over the class and the class over the file.
-// Ties break on id to stay deterministic.
-func NodeAtOffset(nodes []FileNode, off uint32) (string, bool) {
+// NodeAtLine picks the node owning a line, given as the byte range
+// [start, end) of its text without the newline: the smallest span that
+// overlaps the line, so a method wins over its class and the class over the
+// file. Ties break on id to stay deterministic.
+//
+// Overlap rather than containment of the line start, because a declaration's
+// span begins at the declaration, not at the line: after `export `, after the
+// indentation of a method or a nested def. Resolving the line start sent a
+// declaration line to the enclosing class, or to nothing at top level — the
+// one line an agent searching for a symbol most wants to follow.
+//
+// An empty line is treated as its first byte, so it still has an owner.
+func NodeAtLine(nodes []FileNode, start, end uint32) (string, bool) {
+	if end <= start {
+		end = start + 1
+	}
 	best, bestSpan := "", ^uint32(0)
 	for _, n := range nodes {
-		if off < n.StartByte || off >= n.EndByte {
+		if n.StartByte >= end || n.EndByte <= start {
 			continue
 		}
 		span := n.EndByte - n.StartByte
@@ -146,6 +158,9 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 			changedIDs[n.ID] = true
 		}
 		for _, n := range res.Nodes {
+			if n.Unranked {
+				continue
+			}
 			if force || changedIDs[n.ID] {
 				w.semSink.Enqueue(n.ID, semantic.Summarize(res.Package, n))
 			}
@@ -184,6 +199,11 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 	w.nodesMu.Unlock()
 
 	for _, n := range diff.Changed { // Track B consumers: content changed only
+		// An unranked node (a source file's whole-file node) is addressable
+		// by id but never a search result; parse.appendCodeFileNode says why.
+		if n.Unranked {
+			continue
+		}
 		w.Sym.Put(n.ID, n.SimpleName)
 		tokens := lexical.BuildDocTokens(n.SimpleName, n.ID, signatureText(n))
 		w.Lex.Upsert(n.ID, append(tokens, n.BodyTokens...)) // §보완 B

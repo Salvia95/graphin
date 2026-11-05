@@ -12,6 +12,13 @@ import (
 //	             metadata (they shift when code above moves) and nothing else.
 //	Changed    — new or content-changed. Track B: re-embed + re-extract edges.
 //	Removed    — node IDs that existed before and are gone now.
+//
+// An Unranked node that already existed is OffsetOnly whatever its hash. A
+// source file's whole-file node changes hash on every edit, but nothing in
+// Track B consumes it — it is never embedded and carries no edges — so
+// counting it as changed would break "an import-only edit changes no
+// subtree" for no work at all. Its hash stays the true content hash, which
+// the wiki's pins read straight from the parse.
 type FileDiff struct {
 	RelPath    string
 	OffsetOnly []parse.Node
@@ -29,7 +36,8 @@ func Diff(prev *Tree, res *parse.FileResult) FileDiff {
 	seen := make(map[string]bool, len(res.Nodes))
 	for _, n := range res.Nodes {
 		seen[n.ID] = true
-		if prevNodes != nil && prevNodes[n.ID] == Hex(n.Hash) {
+		prevHash, existed := prevNodes[n.ID]
+		if existed && (n.Unranked || prevHash == Hex(n.Hash)) {
 			d.OffsetOnly = append(d.OffsetOnly, n)
 		} else {
 			d.Changed = append(d.Changed, n)

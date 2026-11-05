@@ -35,7 +35,8 @@ import (
 // baseline (GrepRegions) byte-identical.
 type Line struct {
 	No   int    // 1-based
-	Byte int    // offset of the line start, for resolving the hit to a node
+	Byte int    // offset of the line start; with End, resolves the hit to a node
+	End  int    // offset just past the line's last byte, newline excluded
 	Text string // trimmed; callers truncate for display
 
 	Window  Region   // 1-based inclusive; zero when no context was requested or the previous kept line's window already covers it
@@ -135,7 +136,7 @@ func searchFile(rel, src string, o Options) (Hit, bool) {
 		}
 		h.Matches++
 		if o.MaxLines > 0 && len(h.Lines) < o.MaxLines {
-			ln := Line{No: i + 1, Byte: lineStart, Text: strings.TrimSpace(line)}
+			ln := Line{No: i + 1, Byte: lineStart, End: lineStart + len(line), Text: strings.TrimSpace(line)}
 			if o.ContextLines > 0 {
 				lo, hi := max(0, i-o.ContextLines), min(last, i+o.ContextLines)
 				// Consecutive kept lines share their surroundings; the later
