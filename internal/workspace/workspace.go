@@ -112,6 +112,11 @@ type Workspace struct {
 	dbManifest     string   // active manifest rel path ("" = none)
 	dbManifestErrs []string // agent-facing validation errors
 
+	// tsconfig path aliases per directory (tsaliases.go); parse workers read
+	// it, a config change resets it.
+	tsAliasMu    sync.Mutex
+	tsAliasCache map[string]*tsAliases
+
 	// Semantic engine (Track-B embedding consumer). semSink is the narrow
 	// interface applyFileResult talks to, so tests can substitute recorders.
 	sem        *semantic.Engine
@@ -178,19 +183,20 @@ func New(cfg Config) *Workspace {
 	sym := lexical.NewSymbolTable()
 	ix := lexical.NewIndex()
 	return &Workspace{
-		Root:       cfg.Root,
-		Dir:        filepath.Join(cfg.Root, DataDirName),
-		FSM:        &FSM{},
-		Log:        cfg.Log,
-		Sym:        sym,
-		Lex:        ix,
-		Router:     &search.Router{Sym: sym, Lex: ix},
-		cfg:        cfg,
-		lexReady:   make(chan struct{}),
-		merkle:     merkle.NewTree(),
-		nodes:      map[string]NodeMeta{},
-		chunkLines: map[string]uint32{},
-		chunkCount: map[string]int{},
+		Root:         cfg.Root,
+		Dir:          filepath.Join(cfg.Root, DataDirName),
+		FSM:          &FSM{},
+		Log:          cfg.Log,
+		Sym:          sym,
+		Lex:          ix,
+		Router:       &search.Router{Sym: sym, Lex: ix},
+		cfg:          cfg,
+		lexReady:     make(chan struct{}),
+		merkle:       merkle.NewTree(),
+		nodes:        map[string]NodeMeta{},
+		chunkLines:   map[string]uint32{},
+		tsAliasCache: map[string]*tsAliases{},
+		chunkCount:   map[string]int{},
 	}
 }
 

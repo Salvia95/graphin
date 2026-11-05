@@ -2,6 +2,7 @@
   "mcpServers": {
     "graphin": {
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/graphin-launch.sh",
+      "alwaysLoad": true,
       "env": {
         "GRAPHIN_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}",
         "GRAPHIN_MODEL_TYPE": "${user_config.model_type}",

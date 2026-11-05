@@ -350,11 +350,15 @@ func (s *Server) toolsList() map[string]any {
 		if schema == nil {
 			schema = map[string]any{"type": "object"}
 		}
-		tools = append(tools, map[string]any{
+		tool := map[string]any{
 			"name":        t.Name,
 			"description": t.Description,
 			"inputSchema": schema,
-		})
+		}
+		if t.Deferred {
+			tool["_meta"] = map[string]any{"anthropic/alwaysLoad": false}
+		}
+		tools = append(tools, tool)
 	}
 	return map[string]any{"tools": tools}
 }

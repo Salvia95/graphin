@@ -90,6 +90,10 @@ func TestReadCodeLines(t *testing.T) {
 		strings.Contains(text, "one") {
 		t.Fatalf("file-node range read:\n%s", text)
 	}
+	text, isErr = c.tool("read_code", map[string]any{"node_id": "docs/a.md", "lines": "[4-5]"})
+	if isErr || !strings.Contains(text, `lines="4-5"`) {
+		t.Fatalf("a bracketed range should read the same lines:\n%s", text)
+	}
 	text, isErr = c.tool("read_code", map[string]any{"node_id": "docs/a.md#a", "lines": "5-50"})
 	if isErr || !strings.Contains(text, `lines="5-6"`) || strings.Contains(text, "# B") {
 		t.Fatalf("a range is clipped to its node:\n%s", text)

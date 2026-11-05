@@ -209,7 +209,7 @@ db-trace 시나리오가 담당한다(공개 벤치에 DB 스키마 저장소가
 
 - 라이브 DB 접속(불변 원칙) · 컬럼 수준 엣지(테이블 접힘 유지) ·
   새 MCP 도구 · LLM-in-the-loop 평가 · ORM 전 종 지원(§1.3 제외 열은
-  수요 확인 후) · tsconfig paths 해석(별도 트랙).
+  수요 확인 후) · tsconfig paths 해석(별도 트랙 — 2026-11-05 구현, README JS/TS 절).
 
 ## 5. 열린 질문
 

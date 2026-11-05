@@ -222,13 +222,18 @@ type SectionChunk struct {
 
 // FileResult is the full extraction of one file.
 type FileResult struct {
-	RelPath  string
-	Lang     Language
-	Package  string // declared package (Java/Kotlin) or module path (Python)
-	Imports  []string
-	Nodes    []Node
-	Partial  bool // tree contained ERROR nodes (§2.4)
-	FileHash [32]byte
+	RelPath string
+	Lang    Language
+	Package string // declared package (Java/Kotlin) or module path (Python)
+	Imports []string
+	// ImportBare runs parallel to Imports for JS/TS: true where the entry came
+	// from a bare (non-relative) specifier, the only kind a tsconfig path
+	// alias applies to. Dotted, "@/x" and "src/x" are otherwise
+	// indistinguishable. Nil for every other language.
+	ImportBare []bool
+	Nodes      []Node
+	Partial    bool // tree contained ERROR nodes (§2.4)
+	FileHash   [32]byte
 }
 
 var (

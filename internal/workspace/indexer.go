@@ -407,6 +407,7 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 	defer func() { w.xrefDelta = nil }()
 	touched := 0
 	manifestEvent := false
+	tsconfigEvent := false
 	for abs, ch := range b {
 		rel, err := filepath.Rel(w.Root, abs)
 		if err != nil {
@@ -418,6 +419,9 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 		}
 		if parse.IsDBManifest(rel) {
 			manifestEvent = true
+		}
+		if isTSConfig(rel) {
+			tsconfigEvent = true
 		}
 
 		if ch.Kind == watch.Removed {
@@ -444,6 +448,11 @@ func (w *Workspace) handleBatch(b watch.Batch) {
 	// 매니페스트 변경: 라우팅 diff → 영향받은 SSOT 파일 강제 재인덱싱
 	if manifestEvent {
 		touched += w.reloadDBRoutesLocked(matcher)
+	}
+	// A tsconfig change can remap any JS/TS file's imports without touching
+	// its bytes: re-parse them all so the graph sees the new imports.
+	if tsconfigEvent {
+		touched += w.reapplyJSImportsLocked()
 	}
 	// DB 레지스트리가 움직였으면 크로스 도메인 엣지 재해석 (Phase 7b)
 	if !w.xrefDelta.empty() {

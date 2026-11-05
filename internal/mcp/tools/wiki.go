@@ -42,7 +42,8 @@ func (r wsReader) Read(ids []string) []wiki.Block {
 // registerWiki wires the knowledge-layer tools.
 func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 	reg.Register(&mcp.Tool{
-		Name: "wiki_preflight",
+		Name:     "wiki_preflight",
+		Deferred: true,
 		Description: "Before delegating work or starting a change, get the knowledge catalogue for it: " +
 			"which curated sets of documentation sections apply, with one line each and no bodies. " +
 			"Returns a token that must be included in the delegation prompt. " +
@@ -62,7 +63,8 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 
 	reg.Register(&mcp.Tool{
-		Name: "wiki_propose",
+		Name:     "wiki_propose",
+		Deferred: true,
 		Description: "Submit a glossary candidate for review. Never writes to the glossary itself — " +
 			"it files a proposal and returns the mechanical verdict. A word the code index already " +
 			"resolves is rejected outright: that is structure, and search answers it. Cite evidence " +
@@ -91,7 +93,8 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 
 	reg.Register(&mcp.Tool{
-		Name: "wiki_resolve",
+		Name:     "wiki_resolve",
+		Deferred: true,
 		Description: "Load the sections a knowledge set names, by set name or by node id. " +
 			"Each section carries a drift verdict: absent means it is byte-for-byte what it was when " +
 			"the set was written, \"changed-since-registration\" means the section was rewritten and the " +
@@ -114,7 +117,8 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 
 	reg.Register(&mcp.Tool{
-		Name: "wiki_edit_set",
+		Name:     "wiki_edit_set",
+		Deferred: true,
 		Description: "Maintain one knowledge set without editing markdown by hand: repoint an entry whose " +
 			"section moved (op=repoint), rewrite an entry's one-line summary after re-reading the section " +
 			"(op=summarize), record that a drifted entry was re-read and its summary still holds (op=confirm), " +
@@ -147,7 +151,8 @@ func registerWiki(reg *mcp.Registry, ws *workspace.Workspace) {
 		"required": []string{"title", "node_id", "summary"},
 	}
 	reg.Register(&mcp.Tool{
-		Name: "wiki_write_set",
+		Name:     "wiki_write_set",
+		Deferred: true,
 		Description: "Write a new knowledge set at the end of a task whose wiki_preflight returned an empty " +
 			"catalogue — the sections you had to find and read to do the work, with one line each saying " +
 			"what they claim. Judged before it lands: the task must have missed in this workspace (pass the " +

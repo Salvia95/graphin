@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -79,22 +80,71 @@ type resolver struct {
 	// "is the DB domain active" and synthesizes dangling xref targets
 	// (Phase 7a §1.5).
 	dbSchemas map[string]map[string]int
+	// changed collects the lookup keys (see depKey) whose answer may differ
+	// since the last takeChanged: a def appeared, vanished, or changed a
+	// field resolution reads. The engine re-resolves exactly the records
+	// that looked one of them up.
+	changed map[string]struct{}
 }
+
+// Lookup keys. A record's resolution depends on the answers to the lookups
+// it made; these name them so a change on the definition side can find the
+// records that asked.
+const (
+	depName = "n:" // candidates(name)
+	depID   = "i:" // classByFQN / defByID
+	depDB   = "db" // dbActive / dbSole
+)
 
 func newResolver() *resolver {
 	return &resolver{
 		byName:    map[string]map[string]*DefInfo{},
 		byID:      map[string]*DefInfo{},
 		dbSchemas: map[string]map[string]int{},
+		changed:   map[string]struct{}{},
 	}
+}
+
+// markLocked records that every lookup d answers may now answer differently.
+func (r *resolver) markLocked(d *DefInfo) {
+	for _, name := range d.lookupNames() {
+		r.changed[depName+name] = struct{}{}
+	}
+	r.changed[depID+d.ID] = struct{}{}
+	if _, _, ok := dbTableLoc(d); ok {
+		r.changed[depDB] = struct{}{}
+	}
+}
+
+// takeChanged returns and clears the keys changed since the last call.
+func (r *resolver) takeChanged() map[string]struct{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	c := r.changed
+	r.changed = map[string]struct{}{}
+	return c
+}
+
+// sameDef reports whether two defs answer every lookup identically. Track A
+// re-registers every node of a file on every save; only a real difference
+// may send the file's callers back through resolution.
+func sameDef(a, b *DefInfo) bool {
+	return a.ID == b.ID && a.Pkg == b.Pkg && a.ClassFQN == b.ClassFQN && a.Simple == b.Simple &&
+		a.Kind == b.Kind && a.FilePath == b.FilePath && a.ArityMin == b.ArityMin &&
+		a.ArityMax == b.ArityMax && slices.Equal(a.Aliases, b.Aliases)
 }
 
 func (r *resolver) register(d *DefInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if old, ok := r.byID[d.ID]; ok {
-		r.removeNamesLocked(old)
+		if sameDef(old, d) {
+			return
+		}
+		r.markLocked(old)
+		r.unregisterLocked(old.ID)
 	}
+	r.markLocked(d)
 	r.byID[d.ID] = d
 	for _, name := range d.lookupNames() {
 		set := r.byName[name]
@@ -117,6 +167,13 @@ func (r *resolver) register(d *DefInfo) {
 func (r *resolver) unregister(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if d, ok := r.byID[id]; ok {
+		r.markLocked(d)
+	}
+	r.unregisterLocked(id)
+}
+
+func (r *resolver) unregisterLocked(id string) {
 	d, ok := r.byID[id]
 	if !ok {
 		return
@@ -269,7 +326,7 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 	// 1) Supertypes: the relation is syntactically certain (§2.1.3 1.0).
 	for _, super := range rec.Supers {
 		name := simpleTypeName(super)
-		tier, cands := bestTier(e.res.candidates(name), rec)
+		tier, cands := bestTier(e.candidates(name), rec)
 		for _, c := range cands {
 			if c.Kind != nodeid.KindClass && c.Kind != nodeid.KindInterface {
 				continue
@@ -290,7 +347,7 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 	//    the file's import edges).
 	if rec.Container == "" && (rec.Kind == nodeid.KindClass || rec.Kind == nodeid.KindInterface) {
 		for _, imp := range rec.Imports {
-			if d := e.res.classByFQN(imp); d != nil {
+			if d := e.classByFQN(imp); d != nil {
 				put(d.ID, EdgeImport, confCertain)
 			}
 		}
@@ -298,6 +355,9 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 
 	// 3) Calls: name + arity-range + scope ranking.
 	for _, call := range rec.RawCalls {
+		// A same-file hit never asks the resolver, but a def added or
+		// removed in this file still changes the answer: depend on the name.
+		e.dep(depName + call.Name)
 		// Same-file self call → syntactically certain (§2.1.3).
 		selfHit := false
 		for _, d := range sameFileDefs[call.Name] {
@@ -310,7 +370,7 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 			continue
 		}
 
-		all := e.res.candidates(call.Name)
+		all := e.candidates(call.Name)
 		var callable []*DefInfo
 		var classes []*DefInfo
 		for _, d := range all {
@@ -356,7 +416,7 @@ func (e *Engine) resolveEdges(rec *nodeRecord, sameFileDefs map[string][]*DefInf
 // Registry-bound except the explicit-mapping dangling case (sole datasource
 // only).
 func (e *Engine) resolveDBXrefs(rec *nodeRecord, put func(target string, t EdgeType, conf float32)) {
-	if len(rec.DBRefs) == 0 || !e.res.dbActive() {
+	if len(rec.DBRefs) == 0 || !e.dbActive() {
 		return
 	}
 	for _, ref := range rec.DBRefs {
@@ -371,7 +431,7 @@ func (e *Engine) resolveDBXrefs(rec *nodeRecord, put func(target string, t EdgeT
 				continue
 			}
 			seenName[nm] = true
-			for _, c := range e.res.candidates(nm) {
+			for _, c := range e.candidates(nm) {
 				if c.Kind == nodeid.KindTable || c.Kind == nodeid.KindView {
 					found[c.ID] = c
 				}
@@ -380,7 +440,7 @@ func (e *Engine) resolveDBXrefs(rec *nodeRecord, put func(target string, t EdgeT
 		if len(found) == 0 {
 			// 명시 매핑만 dangling을 허용한다 — 스냅샷 누락의 정직한 표현.
 			if ref.Source == parse.DBRefExplicit {
-				if ds, schema, ok := e.res.dbSole(); ok {
+				if ds, schema, ok := e.dbSole(); ok {
 					put(nodeid.DBNode(ds, schema, ref.Name), EdgeReference, confCertain)
 				}
 			}
@@ -454,7 +514,7 @@ func (e *Engine) resolveDBEdges(rec *nodeRecord) []Edge {
 	// 1) Exact FQN refs: table FKs, explicit view/routine references, the
 	//    RLS/trigger table anchor and the trigger function.
 	for _, fqn := range rec.Supers {
-		put(fqn, dbEdgeType(rec.Kind, e.res.defByID(fqn)), confCertain)
+		put(fqn, dbEdgeType(rec.Kind, e.defByID(fqn)), confCertain)
 	}
 	// 2) enforced:false logical refs (다형성, 크로스 데이터소스 ETL 등).
 	for _, fqn := range rec.LogicalRefs {
@@ -466,9 +526,9 @@ func (e *Engine) resolveDBEdges(rec *nodeRecord) []Edge {
 	}
 	// 3) Definition-token heuristics: same-datasource tables/views only.
 	for _, call := range rec.RawCalls {
-		cands := e.res.candidates(call.Name)
+		cands := e.candidates(call.Name)
 		if len(cands) == 0 { // 스냅샷이 대문자 식별자(Oracle 등)를 쓰는 경우
-			cands = e.res.candidates(strings.ToUpper(call.Name))
+			cands = e.candidates(strings.ToUpper(call.Name))
 		}
 		for _, c := range cands {
 			if c.Pkg != rec.Pkg {

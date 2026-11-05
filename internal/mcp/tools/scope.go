@@ -36,6 +36,7 @@ const scopeDescription = "Show what the index is made of — files and nodes per
 func registerScope(reg *mcp.Registry, ws *workspace.Workspace) {
 	reg.Register(&mcp.Tool{
 		Name:        "index_scope",
+		Deferred:    true,
 		Description: scopeDescription,
 		InputSchema: objSchema(map[string]any{
 			"add": map[string]any{

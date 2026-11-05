@@ -16,6 +16,12 @@ type Tool struct {
 	Description string
 	InputSchema map[string]any
 	Handler     ToolHandler
+	// Deferred keeps the tool behind the client's tool search even though the
+	// plugin loads this server's tools up front (.mcp.json alwaysLoad). The
+	// navigation tools are what an agent must see on its first turn — hidden,
+	// they were never chosen (0/108, docs/effort-adoption-bench-design.md);
+	// maintenance and wiki-writing tools only cost schema tokens there.
+	Deferred bool
 }
 
 // Registry holds the tool table in registration order.

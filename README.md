@@ -28,7 +28,10 @@ tree-sitter).
 JS/TS는 파일 경로 기반 모듈 ID(`src/order/service.ts` →
 `src.order.service.OrderService`)를 사용하며, 상대 경로 import·re-export·
 `require()`는 파싱 시점에 같은 dotted 모듈 공간으로 정규화되어 스코프 랭킹에
-반영된다. tsconfig `paths` 별칭은 해석하지 않는다(전역 티어 0.80으로 폴백).
+반영된다. tsconfig `paths`·`baseUrl` 별칭(`@/features/order`)은 파일에서 가장
+가까운 `tsconfig.json`/`jsconfig.json`(상대 경로 `extends` 포함)을 읽어 같은
+공간으로 옮기고, 설정이 바뀌면 JS/TS import를 다시 해석한다. JSX로 렌더하는
+컴포넌트(`<OrderList />`)는 호출 엣지가 된다.
 `.d.ts`는 선언 시그니처를 인덱싱하고, TS 오버로드 시그니처는 구현부 하나로
 접힌다. `.min.js`·`dist/`·`.next/`·`coverage/`·`node_modules/`는 기본 제외.
 

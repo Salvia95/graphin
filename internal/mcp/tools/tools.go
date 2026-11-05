@@ -129,7 +129,8 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 	})
 
 	reg.Register(&mcp.Tool{
-		Name: "diagnose_index",
+		Name:     "diagnose_index",
+		Deferred: true,
 		Description: "Report the index's own health: node/edge/shard counts, edges whose target is missing, " +
 			"files parsed with syntax errors, reverse-index stats, semantic search state (including a " +
 			"vectors.bin written by a different embedding model than the one configured), the effective " +
@@ -148,6 +149,7 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 
 	reg.Register(&mcp.Tool{
 		Name:        "run_local_benchmark",
+		Deferred:    true,
 		Description: "Compare grep-style context bytes vs graphin navigation bytes for a query, as a markdown report.",
 		InputSchema: objSchema(map[string]any{
 			"target_query":  map[string]any{"type": "string"},
@@ -680,8 +682,18 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			}
 			fmt.Fprintf(&sb, "\n  <%s>", tag)
 			for _, e := range edges {
-				fmt.Fprintf(&sb, "\n    <node id=\"%s\" type=\"%s\" confidence=\"%.2f\" />",
+				fmt.Fprintf(&sb, "\n    <node id=\"%s\" type=\"%s\" confidence=\"%.2f\"",
 					mcp.EscapeAttr(e.NodeID), e.Type, e.Confidence)
+				// Where each neighbour is, as search_hybrid says it: a hop
+				// can then be cited (or read with lines) without a search
+				// to find its file. Multi-hop answers failed on exactly
+				// that — the second file found, named, and never cited.
+				// A target not in the index has no location; its absence
+				// says so.
+				if rel, line, ok := ws.NodeLocation(e.NodeID); ok {
+					fmt.Fprintf(&sb, ` file="%s" line="%d"`, mcp.EscapeAttr(rel), line)
+				}
+				sb.WriteString(" />")
 			}
 			fmt.Fprintf(&sb, "\n  </%s>", tag)
 		}
@@ -782,7 +794,10 @@ func readOne(ws *workspace.Workspace, id string) (string, bool) {
 // clipped: which 200 of the lines asked for to return is the caller's choice.
 func parseLines(s string) (int, int, error) {
 	bad := fmt.Errorf("lines must be \"start-end\" or \"N\" with 1 <= start <= end, got %q", s)
-	a, b, isRange := strings.Cut(strings.TrimSpace(s), "-")
+	// "[1-38]" is how agents quote a range back from file:line notation;
+	// refusing it only made one widen the retry to 200 lines.
+	spec := strings.Trim(strings.TrimSpace(s), "[]() ")
+	a, b, isRange := strings.Cut(spec, "-")
 	from, err := strconv.Atoi(strings.TrimSpace(a))
 	if err != nil {
 		return 0, 0, bad

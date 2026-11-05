@@ -166,6 +166,17 @@ func TestE2EFixtureRoundtripByteSavings(t *testing.T) {
 	if isErr || !strings.Contains(text, "<graph_context") || !strings.Contains(text, "confidence=") {
 		t.Fatalf("explore: %s", text)
 	}
+	// Every indexed neighbour says where it is, so a hop can be cited
+	// without another search.
+	neighbours := regexp.MustCompile(`<node [^>]*/>`).FindAllString(text, -1)
+	if len(neighbours) == 0 {
+		t.Fatalf("explore returned no neighbours to check:\n%s", text)
+	}
+	for _, n := range neighbours {
+		if !regexp.MustCompile(` file="[^"]+\.java" line="\d+"`).MatchString(n) {
+			t.Fatalf("explore neighbour without a location: %s\n%s", n, text)
+		}
+	}
 
 	// 3) read_code: exact slice.
 	text, isErr = c.tool("read_code", map[string]any{"node_id": cancelID})

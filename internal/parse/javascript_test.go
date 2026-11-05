@@ -262,3 +262,64 @@ func TestJSBrokenFileIsPartial(t *testing.T) {
 		t.Fatalf("intact declarations should be salvaged: %v", ids(res))
 	}
 }
+
+// A rendered component is a call: <Widget title="home" /> makes Page use
+// Widget. Host elements (<div>) are not code in the tree and stay out.
+func TestJSXRendersAreCalls(t *testing.T) {
+	res := parseFixture(t, "typescript", "src/components/widget.tsx")
+	page := nodeByID(res, "src.components.widget.Page")
+	if page == nil {
+		t.Fatalf("Page missing: %v", ids(res))
+	}
+	var got []Call
+	for _, c := range page.Calls {
+		got = append(got, c)
+	}
+	if len(got) != 1 || got[0].Name != "Widget" || got[0].Args != -1 {
+		t.Fatalf("Page calls = %+v, want one Widget render with unknowable arity", got)
+	}
+	for _, c := range nodeByID(res, "src.components.widget.Widget").Calls {
+		if c.Name == "div" {
+			t.Fatalf("a host element became a call: %+v", c)
+		}
+	}
+
+	src := []byte(`export function Form() {
+  return <Layout.Panel><Field name="a" /><motion.div /></Layout.Panel>;
+}
+`)
+	r, err := File("src/form.tsx", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, c := range r.Nodes[0].Calls {
+		names = append(names, c.Recv+"|"+c.Name)
+	}
+	if len(names) != 2 || names[0] != "Layout|Panel" || names[1] != "|Field" {
+		t.Fatalf("calls = %v, want [Layout|Panel |Field]", names)
+	}
+}
+
+// Bare specifiers are flagged so a tsconfig path alias can be applied to
+// them and only them.
+func TestJSImportBareFlags(t *testing.T) {
+	src := []byte(`import { a } from "@/lib/a";
+import { b } from "./b";
+import c from "react";
+export { d } from "../d";
+`)
+	r, err := File("src/x/m.ts", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"@.lib.a.a": true, "src.x.b.b": false, "react.c": true, "src.d.d": false}
+	if len(r.Imports) != len(want) || len(r.ImportBare) != len(r.Imports) {
+		t.Fatalf("imports %v bare %v", r.Imports, r.ImportBare)
+	}
+	for i, imp := range r.Imports {
+		if b, ok := want[imp]; !ok || b != r.ImportBare[i] {
+			t.Fatalf("import %q bare=%v, want %v (all: %v %v)", imp, r.ImportBare[i], b, r.Imports, r.ImportBare)
+		}
+	}
+}

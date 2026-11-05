@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Salvia95/graphin/internal/nodeid"
+	"github.com/Salvia95/graphin/internal/obs"
 	"github.com/Salvia95/graphin/internal/parse"
 )
 
@@ -85,14 +86,35 @@ func TestInspectStatsAndForEach(t *testing.T) {
 }
 
 func TestInspectDanglingAfterRemoval(t *testing.T) {
-	e, runID, chargeID := inspectFixture(t)
+	dir := t.TempDir()
+	first, err := Open(dir, obs.Nop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := "com.a"
+	applyAll(first,
+		fileRes(parse.LangJava, "a/Svc.java", pkg, nil,
+			methodNode(pkg, "Svc", "charge", []string{"long"}, 1, 1)),
+		fileRes(parse.LangJava, "a/Flow.java", pkg, nil,
+			methodNode(pkg, "Flow", "run", nil, 0, 0,
+				parse.Call{Name: "charge", Args: 1, Recv: "svc"})))
+	first.Close()
+	chargeID := nodeid.Method(pkg, "Svc", "charge", []string{"long"})
+	runID := nodeid.Method(pkg, "Flow", "run", nil)
 
+	e, err := Open(dir, obs.Nop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(e.Close)
 	if _, totals := e.DanglingEdges(0); totals.Sum() != 0 {
 		t.Fatalf("fresh graph dangling = %+v, want 0", totals)
 	}
 
-	// Removing the callee leaves the caller's persisted edge pointing at a
-	// node that is no longer on the read path.
+	// A caller this session has not re-applied holds only its persisted
+	// edges, with nothing to re-resolve them from — removing the callee now
+	// leaves that edge pointing at a node no longer on the read path. (A
+	// caller that has been applied is re-resolved instead: stale_test.go.)
 	e.RemoveNodes([]string{chargeID})
 	e.Flush()
 

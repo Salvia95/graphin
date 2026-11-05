@@ -48,6 +48,10 @@ type nodeRecord struct {
 	Imports      []string
 	Uses         []Edge // current resolved edges (loaded or computed)
 	needsResolve bool
+	// rawLoaded: the raw fields above came from a parse this session. A
+	// record loaded from a shard has only Uses until its file is applied.
+	rawLoaded bool
+	deps      []string // lookup keys of the last resolution (deps.go)
 }
 
 type shardHandle struct {
@@ -81,6 +85,14 @@ type Engine struct {
 	res *resolver
 	rev *Reverse
 
+	// pending: packages holding a record that needs resolution, whether or
+	// not anything in them is dirty yet. dependents: lookup key → record ID
+	// → package, the reverse of nodeRecord.deps. curDeps collects the keys
+	// of the resolution in progress. All guarded by stateMu.
+	pending    map[string]bool
+	dependents map[string]map[string]string
+	curDeps    map[string]struct{}
+
 	// clock stamps redirect epochs. It is a field so a test can pin the
 	// value; nothing else in the engine reads a clock.
 	clock func() uint64
@@ -113,6 +125,9 @@ func Open(dir string, lg *obs.Logger) (*Engine, error) {
 		gens:    map[string]uint64{},
 		res:     newResolver(),
 		rev:     rev,
+
+		pending:    map[string]bool{},
+		dependents: map[string]map[string]string{},
 	}
 	paths, _ := filepath.Glob(filepath.Join(dir, "chunk_*.fb"))
 	sort.Strings(paths)
@@ -125,8 +140,9 @@ func Open(dir string, lg *obs.Logger) (*Engine, error) {
 	return e, nil
 }
 
-// loadShard mmaps one shard and reconstructs records (edges only — raw calls
-// reappear when the file is next parsed as Changed).
+// loadShard mmaps one shard and reconstructs records (edges only — raw
+// references reappear when the file is next applied, which the initial scan
+// does for every file).
 func (e *Engine) loadShard(path string) error {
 	ref, err := store.OpenMMap(path)
 	if err != nil {
@@ -253,13 +269,24 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 		rec.Partial = res.Partial
 		rec.ArityMin, rec.ArityMax = n.ArityMin, n.ArityMax
 
-		if changed[n.ID] {
-			rec.Supers = n.Supers
-			rec.LogicalRefs = n.LogicalRefs
-			rec.RawCalls = n.Calls
-			rec.DBRefs = n.DBRefs
-			rec.Imports = res.Imports
+		// Raw references are kept current for every node, changed or not,
+		// so that any record can be re-resolved when the definitions it
+		// looked up move (deps.go). Two cases resolve here besides Track B:
+		// the first apply of a session, when the record came back from a
+		// shard with edges that may predate edits made while the server was
+		// down; and an import change, which lies outside every node's span
+		// and so never makes a node Changed.
+		firstLoad := !rec.rawLoaded
+		importsMoved := rec.rawLoaded && !slices.Equal(rec.Imports, res.Imports)
+		rec.Supers = n.Supers
+		rec.LogicalRefs = n.LogicalRefs
+		rec.RawCalls = n.Calls
+		rec.DBRefs = n.DBRefs
+		rec.Imports = res.Imports
+		rec.rawLoaded = true
+		if changed[n.ID] || firstLoad || importsMoved {
 			rec.needsResolve = true
+			e.pending[pkg] = true
 		}
 
 		// Contains is the one raw field that is not derived from this node's
@@ -268,14 +295,13 @@ func (e *Engine) ApplyFile(res *parse.FileResult, diff merkle.FileDiff) {
 		// heading added further down the document changes the child list while
 		// leaving the parent "unchanged" forever. Refresh it with Track A.
 		//
-		// Compare rather than assign-and-resolve: shards persist Uses but not
-		// the raw fields, so after a restart every RawCalls is nil, and an
-		// unconditional resolve would rebuild a code node's edges from nothing
-		// and erase them. Code nodes never set Contains, so nil == nil keeps
+		// Compare rather than assign-and-resolve, so an unchanged child list
+		// costs nothing. Code nodes never set Contains, so nil == nil keeps
 		// them out of this branch entirely.
 		if !slices.Equal(rec.Contains, n.Contains) {
 			rec.Contains = n.Contains
 			rec.needsResolve = true
+			e.pending[pkg] = true
 			touched = true
 		}
 
@@ -345,6 +371,7 @@ func (e *Engine) dropRecordLocked(pkg string, rec *nodeRecord) {
 	for _, u := range rec.Uses {
 		e.rev.Tombstone(u.TargetID, rec.ID, u.Type)
 	}
+	e.clearDepsLocked(rec)
 	e.res.unregister(rec.ID)
 	delete(e.records[pkg], rec.ID)
 	e.mu.Lock()
@@ -383,11 +410,17 @@ func (e *Engine) RemoveNodes(ids []string) {
 
 // Flush resolves pending edges and regenerates every dirty shard: build →
 // atomic rename → new mmap → pointer swap → retire old mapping (§4).
+//
+// A package is rewritten when something in it was touched or when a
+// resolution changed some record's edges; a re-resolution that lands on the
+// same edges (the common case for the first flush after a restart) writes
+// nothing.
 func (e *Engine) Flush() {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
 
-	for pkg := range e.dirty {
+	e.invalidateLocked()
+	for pkg := range e.pending {
 		recs := e.records[pkg]
 
 		// Same-file definition table for self-call certainty.
@@ -409,13 +442,19 @@ func (e *Engine) Flush() {
 			if !rec.needsResolve {
 				continue
 			}
-			newUses := e.resolveEdges(rec, fileDefs[rec.FilePath])
-			e.diffReverse(rec.ID, rec.Uses, newUses)
-			rec.Uses = newUses
+			newUses := e.resolveTracked(rec, fileDefs[rec.FilePath])
+			if !sameEdges(rec.Uses, newUses) {
+				e.diffReverse(rec.ID, rec.Uses, newUses)
+				rec.Uses = newUses
+				e.dirty[pkg] = true
+			}
 			rec.needsResolve = false
 		}
+	}
+	e.pending = map[string]bool{}
 
-		if err := e.rebuildShard(pkg, recs); err != nil {
+	for pkg := range e.dirty {
+		if err := e.rebuildShard(pkg, e.records[pkg]); err != nil {
 			e.log.Event("shard_write_error", map[string]any{"pkg": pkg, "error": err.Error()})
 		}
 	}

@@ -41,6 +41,9 @@ type jsExtractor struct {
 	// pendingDecorators carries decorators that sit on an export_statement
 	// (siblings of the exported class in the grammar) down to ex.class.
 	pendingDecorators []*ts.Node
+	// bare: the specifier last passed to resolveSpec was non-relative. Every
+	// addImport that follows comes from that same specifier.
+	bare bool
 }
 
 func extractJS(src []byte, root *ts.Node, res *FileResult) {
@@ -104,7 +107,8 @@ func (ex *jsExtractor) ordinal(container, name string) int {
 // package specifiers stay as written (dotted) — they point outside the index
 // and never match, like JDK imports in Java.
 func (ex *jsExtractor) resolveSpec(spec string) string {
-	if strings.HasPrefix(spec, "./") || strings.HasPrefix(spec, "../") {
+	ex.bare = !strings.HasPrefix(spec, "./") && !strings.HasPrefix(spec, "../")
+	if !ex.bare {
 		joined := pathpkg.Join(pathpkg.Dir(ex.res.RelPath), spec)
 		if !strings.HasPrefix(joined, "..") {
 			return jsModulePath(joined)
@@ -116,6 +120,7 @@ func (ex *jsExtractor) resolveSpec(spec string) string {
 func (ex *jsExtractor) addImport(imp string) {
 	if imp != "" && imp != "." && imp != ".*" {
 		ex.res.Imports = append(ex.res.Imports, imp)
+		ex.res.ImportBare = append(ex.res.ImportBare, ex.bare)
 	}
 }
 
@@ -562,11 +567,45 @@ func jsCalls(src []byte, body *ts.Node) []Call {
 			add(n.ChildByFieldName("function"), n.ChildByFieldName("arguments"))
 		case "new_expression": // new Receipt(...) → constructor-ish call
 			add(n.ChildByFieldName("constructor"), n.ChildByFieldName("arguments"))
+		case "jsx_opening_element", "jsx_self_closing_element":
+			// <OrderList items={x} /> renders a component: a call with one
+			// props argument, or a class component's construction. Lowercase
+			// names are host elements (<div>), not code in the tree.
+			if c, ok := jsxComponent(n.ChildByFieldName("name"), src); ok {
+				calls = append(calls, c)
+			}
 		}
 		eachNamed(n, walk)
 	}
 	walk(body)
 	return calls
+}
+
+// jsxComponent names the component a JSX tag renders. Args is -1: props are
+// one object, but whether the component declares it is not knowable here.
+func jsxComponent(name *ts.Node, src []byte) (Call, bool) {
+	if name == nil {
+		return Call{}, false
+	}
+	c := Call{Args: -1}
+	switch name.Kind() {
+	case "identifier":
+		c.Name = text(name, src)
+	case "member_expression", "nested_identifier": // <Form.Field>
+		c.Name = text(name.ChildByFieldName("property"), src)
+		c.Recv = text(name.ChildByFieldName("object"), src)
+		if c.Name == "" { // nested_identifier has no fields in some grammars
+			t := text(name, src)
+			c.Name = t[strings.LastIndexByte(t, '.')+1:]
+			c.Recv = t[:max(0, strings.LastIndexByte(t, '.'))]
+		}
+	default:
+		return Call{}, false
+	}
+	if c.Name == "" || c.Name[0] < 'A' || c.Name[0] > 'Z' {
+		return Call{}, false
+	}
+	return c, true
 }
 
 // jsEntityRefs reads TypeORM-style @Entity decorators (Phase 7a): a string

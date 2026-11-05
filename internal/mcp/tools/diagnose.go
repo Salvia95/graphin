@@ -225,9 +225,9 @@ func diagHints(hdr *semantic.Header, expected string, mismatch bool,
 	}
 	if totals.Code > 0 {
 		out = append(out, fmt.Sprintf(
-			"%d code edges point at a node that is not in the index — a deleted target or an "+
-				"unresolved reference. Re-indexing usually clears them; a small, stable count is "+
-				"normal in a large tree.", totals.Code))
+			"%d code edges point at a node that is not in the index. Callers are re-resolved when "+
+				"a target is deleted or renamed, and all of them once at startup, so these should "+
+				"clear on the next restart; a count that survives one is worth reporting.", totals.Code))
 	}
 	if totals.DB > 0 {
 		out = append(out, fmt.Sprintf(

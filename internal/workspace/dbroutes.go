@@ -28,7 +28,11 @@ func (w *Workspace) routeFor(rel string) *parse.DBRoute {
 // parseFile is the single parse entry for the indexer: manifest-routed files
 // extract DB nodes, everything else parses by surface language.
 func (w *Workspace) parseFile(rel string, src []byte) (*parse.FileResult, error) {
-	return parse.FileWithRoute(rel, src, w.routeFor(rel))
+	res, err := parse.FileWithRoute(rel, src, w.routeFor(rel))
+	if err == nil {
+		w.applyTSAliases(res)
+	}
+	return res, err
 }
 
 // setDBStateFromScan picks the manifest (lexicographically first candidate;

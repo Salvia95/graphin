@@ -518,3 +518,20 @@ func TestCancelLogsReason(t *testing.T) {
 		}
 	}
 }
+
+// A deferred tool says so in its own _meta; an up-front one carries none, so
+// the server-level alwaysLoad decides for it.
+func TestToolsListMarksDeferredTools(t *testing.T) {
+	reg := NewRegistry()
+	reg.Register(&Tool{Name: "nav"})
+	reg.Register(&Tool{Name: "maint", Deferred: true})
+	s := NewServer(strings.NewReader(""), io.Discard, reg, "test", obs.Nop())
+	tools := s.toolsList()["tools"].([]map[string]any)
+	if _, ok := tools[0]["_meta"]; ok {
+		t.Fatalf("an up-front tool must carry no _meta: %v", tools[0])
+	}
+	m, ok := tools[1]["_meta"].(map[string]any)
+	if !ok || m["anthropic/alwaysLoad"] != false {
+		t.Fatalf("a deferred tool must carry anthropic/alwaysLoad=false: %v", tools[1])
+	}
+}
