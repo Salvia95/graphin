@@ -82,6 +82,14 @@ func (ix *Index) HasTerm(t string) bool {
 	return len(ix.postings[Stem(t)]) > 0
 }
 
+// HasDoc reports whether a document is indexed under docID.
+func (ix *Index) HasDoc(docID string) bool {
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	_, ok := ix.docs[docID]
+	return ok
+}
+
 // Delete removes the document if present.
 func (ix *Index) Delete(docID string) {
 	ix.mu.Lock()

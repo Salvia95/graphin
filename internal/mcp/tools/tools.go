@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,7 +40,7 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 
 	reg.Register(&mcp.Tool{
 		Name:        "search_hybrid",
-		Description: "Hybrid (exact/lexical/semantic) symbol search. Returns entry-point node IDs with the file and line each one starts at — enough to answer \"where is X\" without a second call — but no code bodies.",
+		Description: "Hybrid (exact/lexical/semantic) symbol search. Returns entry-point node IDs with the file and line each one starts at — enough to answer \"where is X\" without a second call — but no code bodies. When the match is deep in a long markdown section, hit_line is the line where it is; read_code with lines around it reads that part alone.",
 		InputSchema: objSchema(map[string]any{
 			"query": map[string]any{"type": "string", "description": "Natural language or symbol query."},
 			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results."},
@@ -107,7 +108,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Name: "read_code",
 		Description: "Read the exact source slice of one node, or of several at once with node_ids. " +
 			"A multi-node read never cuts inside a node: whole nodes come back in the order requested " +
-			"until the response budget runs out, and every node left out is listed with its reason.",
+			"until the response budget runs out, and every node left out is listed with its reason. " +
+			"To read only part of a long node, add lines with node_id: the lines are the file's own line numbers " +
+			"(a search hit's hit_line, a keyword hit's line), clipped to the node. A file's path is its node id, " +
+			"so node_id=<path> with lines reads a stretch of any indexed file.",
 		InputSchema: objSchema(map[string]any{
 			"node_id": map[string]any{"type": "string", "description": "Node ID to read."},
 			"node_ids": map[string]any{
@@ -115,6 +119,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 				"items":       map[string]any{"type": "string"},
 				"maxItems":    maxReadNodes,
 				"description": "Read several nodes in one call, in this order. Use instead of node_id, not with it.",
+			},
+			"lines": map[string]any{
+				"type":        "string",
+				"description": fmt.Sprintf("Only with node_id: read lines \"start-end\" (or one line \"N\") of the node's file, at most %d lines, clipped to the node.", workspace.MaxRangeLines),
 			},
 		}, nil),
 		Handler: readCodeHandler(ws),
@@ -288,6 +296,16 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			// (docs/eval/2026-08-07-adoption-diagnosis §권고 1).
 			if rel, line, ok := ws.NodeLocation(r.NodeID); ok {
 				fmt.Fprintf(&sb, ` file="%s" line="%d"`, mcp.EscapeAttr(rel), line)
+			}
+			// A long section is indexed in chunks, and a hit on one is
+			// reported as the section. line stays where the section starts —
+			// what read_code returns — and hit_line says where in it the
+			// match is, which in a section of a few thousand words is the
+			// difference between an answer and a long read.
+			if r.Via != "" {
+				if hl, ok := ws.ChunkLine(r.Via); ok {
+					fmt.Fprintf(&sb, ` hit_line="%d"`, hl)
+				}
 			}
 			sb.WriteString(" />")
 		}
@@ -706,6 +724,7 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
 		NodeID  string   `json:"node_id"`
 		NodeIDs []string `json:"node_ids"`
+		Lines   string   `json:"lines"`
 	}
 	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		if !ensureBootstrapped(ctx, ws) {
@@ -725,8 +744,17 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		case len(a.NodeIDs) > maxReadNodes:
 			return mcp.ErrorXML(mcp.ErrInternal,
 				fmt.Sprintf("node_ids holds %d ids, at most %d per call", len(a.NodeIDs), maxReadNodes), &st), true
+		case a.Lines != "" && a.NodeID == "":
+			return mcp.ErrorXML(mcp.ErrInternal, "lines reads part of one node: pass it with node_id, not node_ids", &st), true
 		}
 
+		if a.Lines != "" {
+			from, to, err := parseLines(a.Lines)
+			if err != nil {
+				return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+			}
+			return readRange(ws, a.NodeID, from, to)
+		}
 		if a.NodeID != "" {
 			return readOne(ws, a.NodeID)
 		}
@@ -740,6 +768,49 @@ func readOne(ws *workspace.Workspace, id string) (string, bool) {
 	cb, err := ws.ReadCode(id)
 	if err != nil {
 		st := ws.FSM.Status()
+		code, msg := readErr(err, id)
+		return mcp.ErrorXML(code, msg, &st), true
+	}
+	var sb strings.Builder
+	writeStatusPrefix(&sb, ws)
+	writeCodeBlock(&sb, cb)
+	body := sb.String()
+	return body + costLine(len(body)), false
+}
+
+// parseLines reads "start-end" or "N". A span over the cap is refused, not
+// clipped: which 200 of the lines asked for to return is the caller's choice.
+func parseLines(s string) (int, int, error) {
+	bad := fmt.Errorf("lines must be \"start-end\" or \"N\" with 1 <= start <= end, got %q", s)
+	a, b, isRange := strings.Cut(strings.TrimSpace(s), "-")
+	from, err := strconv.Atoi(strings.TrimSpace(a))
+	if err != nil {
+		return 0, 0, bad
+	}
+	to := from
+	if isRange {
+		if to, err = strconv.Atoi(strings.TrimSpace(b)); err != nil {
+			return 0, 0, bad
+		}
+	}
+	if from < 1 || to < from {
+		return 0, 0, bad
+	}
+	if n := to - from + 1; n > workspace.MaxRangeLines {
+		return 0, 0, fmt.Errorf("lines %q spans %d lines, at most %d per call", s, n, workspace.MaxRangeLines)
+	}
+	return from, to, nil
+}
+
+// readRange is readOne for part of a node: the same single <code_block>,
+// marked kind="range" so a reader never takes it for the whole node.
+func readRange(ws *workspace.Workspace, id string, from, to int) (string, bool) {
+	cb, err := ws.ReadRange(id, from, to)
+	if err != nil {
+		st := ws.FSM.Status()
+		if errors.Is(err, workspace.ErrRangeOutside) {
+			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
+		}
 		code, msg := readErr(err, id)
 		return mcp.ErrorXML(code, msg, &st), true
 	}
@@ -851,6 +922,9 @@ func writeCodeBlock(sb *strings.Builder, cb *workspace.CodeBlock) {
 		mcp.EscapeAttr(cb.ID), mcp.EscapeAttr(cb.RelPath), cb.StartLine, cb.EndLine, cb.Reparsed)
 	if cb.Partial {
 		sb.WriteString(` partial="true"`)
+	}
+	if cb.Range {
+		sb.WriteString(` kind="range"`)
 	}
 	sb.WriteString(">\n")
 	mcp.WriteCDATA(sb, cb.Code)

@@ -187,6 +187,37 @@ type Node struct {
 	// (read_code, explore_graph) and as a keyword line's owner. Only the
 	// file node of a grammar-parsed source file sets it: see appendCodeFileNode.
 	Unranked bool
+	// Excerpt is a markdown section's body — the text after its heading
+	// line, cut to excerptBytes — for the semantic summary. Without it a
+	// section's vector is built from its heading alone, and a section titled
+	// "운영 메모" can only ever match queries about operations notes.
+	Excerpt string
+	// Chunks are a long markdown section's continuation chunks (ordinal 2
+	// onward): what the ranked indexes hold for the part of the section past
+	// its first maxBodyTokens tokens. They are not nodes. See SectionChunk.
+	Chunks []SectionChunk
+}
+
+// SectionChunk is one continuation chunk of a long markdown section.
+//
+// BM25 indexes a node's first maxBodyTokens tokens and the vector index sees
+// an excerpt of its opening, so in a long section everything further down
+// was unreachable by search_hybrid — measured on nklcbdt, a sentence from
+// the back of a section over 400 tokens found that section in the top 5 32%
+// of the time, against 97% for one from the front. Splitting the section
+// into nodes would fix that and break what hangs off section ids (wiki pins,
+// rename detection, the flat-span rule that two reads never return the same
+// bytes). So the split lives only in the indexes: each chunk is its own BM25
+// document and vector, and a hit on it is reported as the section, with the
+// chunk's line as where the match is.
+type SectionChunk struct {
+	Ord       int // 2-based: ordinal 1 is the section's own index entry
+	Of        int // chunks in the section, counting the section itself
+	StartByte uint32
+	EndByte   uint32
+	StartLine uint32
+	Tokens    []string
+	Excerpt   string
 }
 
 // FileResult is the full extraction of one file.

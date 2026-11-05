@@ -89,6 +89,11 @@ type Workspace struct {
 
 	nodesMu sync.RWMutex
 	nodes   map[string]NodeMeta
+	// chunkLines holds the start line of every indexed section chunk
+	// (parse.SectionChunk), by chunk id, and chunkCount how many continuation
+	// chunks each section has. Guarded by nodesMu, refreshed with Track A.
+	chunkLines map[string]uint32
+	chunkCount map[string]int
 
 	// xrefDelta collects DB-registry movement during one watcher batch for
 	// cross-domain edge invalidation (Phase 7b). Non-nil only while
@@ -173,17 +178,19 @@ func New(cfg Config) *Workspace {
 	sym := lexical.NewSymbolTable()
 	ix := lexical.NewIndex()
 	return &Workspace{
-		Root:     cfg.Root,
-		Dir:      filepath.Join(cfg.Root, DataDirName),
-		FSM:      &FSM{},
-		Log:      cfg.Log,
-		Sym:      sym,
-		Lex:      ix,
-		Router:   &search.Router{Sym: sym, Lex: ix},
-		cfg:      cfg,
-		lexReady: make(chan struct{}),
-		merkle:   merkle.NewTree(),
-		nodes:    map[string]NodeMeta{},
+		Root:       cfg.Root,
+		Dir:        filepath.Join(cfg.Root, DataDirName),
+		FSM:        &FSM{},
+		Log:        cfg.Log,
+		Sym:        sym,
+		Lex:        ix,
+		Router:     &search.Router{Sym: sym, Lex: ix},
+		cfg:        cfg,
+		lexReady:   make(chan struct{}),
+		merkle:     merkle.NewTree(),
+		nodes:      map[string]NodeMeta{},
+		chunkLines: map[string]uint32{},
+		chunkCount: map[string]int{},
 	}
 }
 
@@ -311,6 +318,7 @@ func (w *Workspace) Bootstrap(ctx context.Context, modelType string, offline boo
 		}
 		w.forceEmbed = w.sem.StaleFiles(current)
 	}
+	w.reindexDocsIfStale()
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	deb := watch.NewDebouncer(0, 0) // spec defaults: 500ms quiet, 2s cap

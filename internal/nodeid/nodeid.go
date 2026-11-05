@@ -233,3 +233,48 @@ func itoa(n int) string {
 	}
 	return string(buf[i:])
 }
+
+// ChunkSep joins a markdown section's id and the ordinal of one of its
+// continuation chunks. A chunk is not a node: it is an extra entry in the
+// ranked indexes (BM25, vectors) standing for part of a long section, and a
+// search hit on it is reported as the section. Slugs never contain '~'
+// (only letters, digits, '_' and '-'), so a chunk id cannot be mistaken for
+// a section or collide with one.
+const ChunkSep = "~"
+
+// ChunkID names continuation chunk ord (2, 3, …) of section sectionID.
+// Ordinal 1 is the section itself.
+func ChunkID(sectionID string, ord int) string {
+	return sectionID + ChunkSep + itoa(ord)
+}
+
+// ChunkParent splits a chunk id into its section id and ordinal. Anything
+// that is not a chunk id — every node id — returns ok=false. Only the part
+// after the last '#' is examined: that is the slug, which is where '~' can
+// never occur on its own, while a path may legally hold one.
+func ChunkParent(id string) (section string, ord int, ok bool) {
+	hash := strings.LastIndexByte(id, '#')
+	if hash < 0 {
+		return "", 0, false
+	}
+	sep := strings.LastIndex(id[hash:], ChunkSep)
+	if sep < 0 {
+		return "", 0, false
+	}
+	sep += hash
+	n := 0
+	digits := id[sep+len(ChunkSep):]
+	if digits == "" {
+		return "", 0, false
+	}
+	for _, r := range digits {
+		if r < '0' || r > '9' {
+			return "", 0, false
+		}
+		n = n*10 + int(r-'0')
+	}
+	if n < 2 {
+		return "", 0, false
+	}
+	return id[:sep], n, true
+}

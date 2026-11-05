@@ -58,7 +58,7 @@ background:
 | `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). `target`: `code` \| `docs` \| `db` — see below. |
 | `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence`. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
 | `search_keyword` | Literal or regex matches over the same tree the index walks, ranked by match count, each matching line carrying the **node id** that owns it. Data files (json, jsonl, lock, sum, csv) rank after source and prose and come back `folded="data"` with path and count only; `path=` opens one. | `pattern` (required). `regex` (default false). `path` (rel-path substring). `top_k` (files, default 5). `context` (0–5 lines around each match, default 0). |
-| `read_code` | The exact source slice for one node, or for several at once. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. |
+| `read_code` | The exact source slice for one node, or for several at once — or just some lines of one. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. `lines` (`"start-end"`, at most 200) with `node_id` reads only those lines of it. |
 
 `diagnose_index` reports the index's own health — counts, edges whose target is
 missing, files that failed to parse, semantic search state, effective settings,
@@ -113,6 +113,11 @@ normal exploration.
   the ones that do and lists the rest as `<omitted reason="budget">` — re-request
   those in a second call. Every id you pass comes back either as a block or as an
   omission, so nothing disappears silently.
+- **`read_code(node_id, lines="120-180")`** reads only those lines — the file's own
+  line numbers, clipped to the node — and marks the block `kind="range"`. Use it
+  when a long markdown section came back from `search_hybrid` with a `hit_line`:
+  read around that line instead of the whole section. A file's path is its node
+  id, so the same call reads a stretch of a file around a `search_keyword` line.
 
 ## Asking a question in a sentence: use `target="code"`
 
@@ -222,6 +227,7 @@ their users. `search_keyword` points at the declaration.
 - **Don't use `read_code` as a file reader.** It returns one node's slice, not a
   whole file. (Config/plain-text files are indexed as single file-level nodes, so
   reading those *does* return the file — but code files give you the symbol.)
+  When you do need lines outside any symbol, read just those with `lines`.
 - **Don't crank `min_confidence` to the floor by default** — you'll get plausible-
   but-wrong edges. Lower it deliberately, for recall, not as a habit.
 - **Don't re-bootstrap in a loop** to "make it faster." Indexing finishes on its own.

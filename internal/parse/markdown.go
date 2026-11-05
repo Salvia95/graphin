@@ -2,8 +2,10 @@ package parse
 
 import (
 	pathpkg "path"
+	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/Salvia95/graphin/internal/lexical"
 	"github.com/Salvia95/graphin/internal/nodeid"
@@ -79,6 +81,7 @@ func extractMarkdown(src []byte, res *FileResult) {
 	file.BodyTokens = capTokens(src[:preEnd])
 	res.Nodes = append(res.Nodes, file)
 
+	lines := newLineIndex(src)
 	for i, h := range heads {
 		end := uint32(len(src))
 		if i+1 < len(heads) {
@@ -105,8 +108,113 @@ func extractMarkdown(src []byte, res *FileResult) {
 			Hash:        blake3.Sum256(src[h.start:end]),
 			RenameKey:   blake3.Sum256(src[bodyStart:end]),
 			Contains:    children[id],
+			Excerpt:     excerpt(src[bodyStart:end]),
+			Chunks:      sectionChunks(src, h.start, bodyStart, end, lines),
 		})
 	}
+}
+
+// excerptBytes bounds the text handed to the embedder. The encoder reads at
+// most 512 subword tokens (tokenizer.MaxSeqLen), which this comfortably
+// covers in Korean and English alike; the cap only keeps a giant paragraph
+// from being copied around for nothing.
+const excerptBytes = 1500
+
+// chunkTarget is where a chunk closes at the next paragraph break. It sits
+// below maxBodyTokens so a chunk usually ends on a blank line rather than
+// being cut mid-paragraph by the hard limit.
+const chunkTarget = 200
+
+func excerpt(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if len(s) <= excerptBytes {
+		return s
+	}
+	cut := excerptBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+// sectionChunks splits a section whose tokens exceed what one index entry
+// holds (maxBodyTokens) into chunks, and returns those after the first. The
+// first is the section's own entry, which already carries the opening.
+//
+// A chunk closes at the first blank line after it reaches chunkTarget
+// tokens, or before the line that would take it past maxBodyTokens. Lines
+// are never split, so every token of the section lands in some chunk — a
+// single line longer than maxBodyTokens is the one exception, and keeps its
+// first maxBodyTokens tokens.
+//
+// Boundaries ignore code fences on purpose: a chunk is never shown to
+// anyone, only searched, so a boundary inside a fenced block costs nothing.
+func sectionChunks(src []byte, start, bodyStart, end uint32, lines *lineIndex) []SectionChunk {
+	if len(lexical.TokenizeCapped(string(src[start:end]), maxBodyTokens+1)) <= maxBodyTokens {
+		return nil
+	}
+	type span struct{ s, e uint32 }
+	var spans []span
+	cur, cum := bodyStart, 0
+	off := bodyStart
+	for off < end {
+		nl := indexByteFrom(src[:end], int(off), '\n')
+		lineEnd := end
+		if nl >= 0 {
+			lineEnd = uint32(nl) + 1
+		}
+		line := src[off:lineEnd]
+		n := len(lexical.Tokenize(string(line)))
+		if cum > 0 && cum+n > maxBodyTokens {
+			spans = append(spans, span{cur, off})
+			cur, cum = off, 0
+		}
+		cum += n
+		off = lineEnd
+		if cum >= chunkTarget && n == 0 {
+			spans = append(spans, span{cur, off})
+			cur, cum = off, 0
+		}
+	}
+	if cur < end && cum > 0 {
+		spans = append(spans, span{cur, end})
+	} else if cur < end && len(spans) > 0 {
+		spans[len(spans)-1].e = end // trailing blank lines join the last chunk
+	}
+	if len(spans) < 2 {
+		return nil
+	}
+	out := make([]SectionChunk, 0, len(spans)-1)
+	for i, sp := range spans[1:] {
+		text := src[sp.s:sp.e]
+		out = append(out, SectionChunk{
+			Ord:       i + 2,
+			Of:        len(spans),
+			StartByte: sp.s,
+			EndByte:   sp.e,
+			StartLine: lines.lineOf(sp.s),
+			Tokens:    lexical.TokenizeCapped(string(text), maxBodyTokens),
+			Excerpt:   excerpt(text),
+		})
+	}
+	return out
+}
+
+// lineIndex maps byte offsets to 1-based line numbers for one file.
+type lineIndex struct{ starts []uint32 }
+
+func newLineIndex(src []byte) *lineIndex {
+	li := &lineIndex{starts: []uint32{0}}
+	for i, c := range src {
+		if c == '\n' {
+			li.starts = append(li.starts, uint32(i+1))
+		}
+	}
+	return li
+}
+
+func (li *lineIndex) lineOf(off uint32) uint32 {
+	return uint32(sort.Search(len(li.starts), func(i int) bool { return li.starts[i] > off }))
 }
 
 // capTokens is TokenizeCapped with a non-nil result. attachBodyTokens skips

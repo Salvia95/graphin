@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Salvia95/graphin/internal/lexical"
@@ -34,6 +35,13 @@ func Summarize(pkg string, n parse.Node) string {
 	if len(n.Supers) > 0 {
 		sb.WriteString("; extends ")
 		sb.WriteString(strings.Join(n.Supers, " "))
+	}
+	// A section is prose: its heading names it, its body says what it is
+	// about. The heading alone made "운영 메모" unfindable by anything it
+	// actually describes.
+	if n.Kind == nodeid.KindSection && n.Excerpt != "" {
+		sb.WriteString("; content ")
+		sb.WriteString(n.Excerpt)
 	}
 	// File nodes have no signature; their content tokens carry the meaning
 	// (§보완 A: config keys, doc headings).
@@ -94,6 +102,29 @@ func summarizeDB(pkg string, n parse.Node) string {
 		k := min(40, len(n.BodyTokens))
 		sb.WriteString("; content ")
 		sb.WriteString(strings.Join(n.BodyTokens[:k], " "))
+	}
+	return sb.String()
+}
+
+// SummarizeChunk is the passage for one continuation chunk of a long section
+// (parse.SectionChunk). It repeats the section's heading so that a chunk from
+// the middle still says which subject it belongs to, and numbers it so the
+// vector of part 3 is not mistaken for the whole.
+func SummarizeChunk(pkg string, n parse.Node, c parse.SectionChunk) string {
+	var sb strings.Builder
+	sb.WriteString(n.Kind)
+	sb.WriteString(" ")
+	sb.WriteString(n.DisplayName)
+	fmt.Fprintf(&sb, " (%d/%d)", c.Ord, c.Of)
+	if pkg != "" {
+		sb.WriteString(" in ")
+		sb.WriteString(pkg)
+	}
+	sb.WriteString(": ")
+	sb.WriteString(strings.Join(lexical.SplitIdentifier(n.SimpleName), " "))
+	if c.Excerpt != "" {
+		sb.WriteString("; content ")
+		sb.WriteString(c.Excerpt)
 	}
 	return sb.String()
 }

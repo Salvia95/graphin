@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Salvia95/graphin/internal/lexical"
+	"github.com/Salvia95/graphin/internal/nodeid"
 )
 
 // MatchType tags how a result matched. Raw scores are never exposed.
@@ -25,6 +26,10 @@ type Result struct {
 	NodeID string
 	Rank   int
 	Match  MatchType
+	// Via is the section chunk that won this result, when it was not the
+	// node's own index entry (nodeid.ChunkParent) — where in a long section
+	// the match is. Empty otherwise.
+	Via string
 }
 
 // Semantic is implemented by the vector engine once it is warmed up.
@@ -327,13 +332,14 @@ func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result
 	}
 	var out []Result
 	used := map[string]bool{}
-	add := func(id string, mt MatchType) {
+	addVia := func(id string, mt MatchType, via string) {
 		if used[id] || len(out) >= topK || !filter.ok(id) {
 			return
 		}
 		used[id] = true
-		out = append(out, Result{NodeID: id, Rank: len(out) + 1, Match: mt})
+		out = append(out, Result{NodeID: id, Rank: len(out) + 1, Match: mt, Via: via})
 	}
+	add := func(id string, mt MatchType) { addVia(id, mt, "") }
 
 	// Tier-0 short-circuit: exact matches never depend on ranking engines.
 	for _, id := range r.Sym.Lookup(query) {
@@ -372,9 +378,10 @@ func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result
 		if filter != nil {
 			n = fetchSize(topK, filter)
 		}
-		hits, matched := r.Lex.SearchMatched(lexical.Tokenize(query), n)
-		for _, h := range hits {
-			add(h.DocID, MatchLexical)
+		hits, matched := r.Lex.SearchMatched(lexical.Tokenize(query), n*chunkFetchFactor)
+		parents, via := foldChunks(lexIDs(hits), n)
+		for _, id := range parents {
+			addVia(id, MatchLexical, via[id])
 		}
 		absent, unnamed := r.identStates(query)
 		terms, content := r.termStates(query)
@@ -397,16 +404,26 @@ func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result
 		}
 		return f
 	}
-	lexHits, matched := r.Lex.SearchMatched(lexical.Tokenize(query), fetch)
-	for i, h := range lexHits {
-		f := at(h.DocID)
+	lexHits, matched := r.Lex.SearchMatched(lexical.Tokenize(query), fetch*chunkFetchFactor)
+	lexIDsFolded, lexVia := foldChunks(lexIDs(lexHits), fetch)
+	semIDs, semVia := foldChunks(r.Sem.Search(query, fetch*chunkFetchFactor), fetch)
+	via := map[string]string{}
+	lexRank := map[string]int{}
+	for i, id := range lexIDsFolded {
+		f := at(id)
 		f.score += 1.0 / float64(k+i+1)
 		f.lex = true
+		lexRank[id] = i
+		via[id] = lexVia[id]
 	}
-	for i, id := range r.Sem.Search(query, fetch) {
+	for i, id := range semIDs {
 		f := at(id)
 		f.score += 1.0 / float64(k+i+1)
 		f.sem = true
+		// The engine that ranked the node higher says where the match is.
+		if lr, ok := lexRank[id]; !ok || i < lr {
+			via[id] = semVia[id]
+		}
 	}
 
 	ids := make([]string, 0, len(scores))
@@ -424,15 +441,59 @@ func (r *Router) SearchStats(query string, topK, k int, filter Filter) ([]Result
 		f := scores[id]
 		switch {
 		case f.lex && f.sem:
-			add(id, MatchBoth)
+			addVia(id, MatchBoth, via[id])
 		case f.sem:
-			add(id, MatchSemantic)
+			addVia(id, MatchSemantic, via[id])
 		default:
-			add(id, MatchLexical)
+			addVia(id, MatchLexical, via[id])
 		}
 	}
 	absent, unnamed := r.identStates(query)
 	terms, content := r.termStates(query)
 	return out, Stats{LexicalMatched: matched, SemanticReady: true, AbsentIdents: absent, UnnamedIdents: unnamed,
 		Quoted: quotedQuery(query), ContentTerms: content, AbsentTerms: terms}
+}
+
+// chunkFetchFactor widens each engine's fetch so that, after a long section's
+// chunks fold into one result, the list still holds as many distinct nodes as
+// it did before chunks existed. Without chunks the folded list is the plain
+// list cut to the same length, so the ranking is unchanged — both engines
+// return a stable order whose prefix does not depend on how many were asked
+// for.
+const chunkFetchFactor = 4
+
+// foldChunks maps a ranked list of index entries to the nodes they stand for:
+// a section chunk becomes its section, each node keeps the rank of its best
+// entry, and the list is cut to limit nodes. via records, for a node whose
+// best entry was a chunk, which chunk that was.
+func foldChunks(ids []string, limit int) ([]string, map[string]string) {
+	out := make([]string, 0, min(len(ids), limit))
+	via := map[string]string{}
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if len(out) >= limit {
+			break
+		}
+		node := id
+		if sec, _, ok := nodeid.ChunkParent(id); ok {
+			node = sec
+		}
+		if seen[node] {
+			continue
+		}
+		seen[node] = true
+		if node != id {
+			via[node] = id
+		}
+		out = append(out, node)
+	}
+	return out, via
+}
+
+func lexIDs(hits []lexical.Hit) []string {
+	ids := make([]string, len(hits))
+	for i, h := range hits {
+		ids[i] = h.DocID
+	}
+	return ids
 }

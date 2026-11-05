@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	pathpkg "path"
@@ -163,6 +164,9 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 			}
 			if force || changedIDs[n.ID] {
 				w.semSink.Enqueue(n.ID, semantic.Summarize(res.Package, n))
+				for _, c := range n.Chunks {
+					w.semSink.Enqueue(nodeid.ChunkID(n.ID, c.Ord), semantic.SummarizeChunk(res.Package, n, c))
+				}
 			}
 		}
 		for _, id := range diff.Removed {
@@ -192,9 +196,11 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 			DisplayName: n.DisplayName,
 			Partial:     res.Partial,
 		}
+		w.setChunkMetaLocked(n)
 	}
 	for _, id := range diff.Removed {
 		delete(w.nodes, id)
+		w.dropChunkMetaLocked(id)
 	}
 	w.nodesMu.Unlock()
 
@@ -207,10 +213,12 @@ func (w *Workspace) applyFileResult(res *parse.FileResult) merkle.FileDiff {
 		w.Sym.Put(n.ID, n.SimpleName)
 		tokens := lexical.BuildDocTokens(n.SimpleName, n.ID, signatureText(n))
 		w.Lex.Upsert(n.ID, append(tokens, n.BodyTokens...)) // §보완 B
+		w.indexChunks(n)
 	}
 	for _, id := range diff.Removed {
 		w.Sym.Delete(id)
 		w.Lex.Delete(id)
+		w.dropChunkDocs(id, 2)
 	}
 	return diff
 }
@@ -232,9 +240,11 @@ func (w *Workspace) removeFileLocked(rel string) {
 	w.nodesMu.Lock()
 	for _, id := range ids {
 		delete(w.nodes, id)
+		w.dropChunkMetaLocked(id)
 	}
 	w.nodesMu.Unlock()
 	for _, id := range ids {
+		w.dropChunkDocs(id, 2)
 		w.Sym.Delete(id)
 		w.Lex.Delete(id)
 		if w.semSink != nil {
@@ -372,6 +382,7 @@ func (w *Workspace) initialScan(ctx context.Context) {
 		w.indexMu.Unlock()
 	}
 	w.persistIndexes()
+	w.writeDocsMarker()
 	w.FSM.SetProgress(100)
 	// Flip lexical-ready and release deferred watcher batches: every scan
 	// result (including any stale in-flight read) is now applied, so replayed
@@ -530,45 +541,16 @@ type CodeBlock struct {
 	Code      string
 	Reparsed  bool
 	Partial   bool
+	Range     bool // a ReadRange slice, not the whole node
 }
 
 // ReadCode slices a node's exact source. If the file hash no longer matches
 // the index, the file is reparsed inline and the fresh slice returned with
 // Reparsed=true; NODE_GONE only if the node vanished (§2.1.2 Auto-Reparse).
 func (w *Workspace) ReadCode(id string) (*CodeBlock, error) {
-	meta, ok := w.nodeMeta(id)
-	if !ok {
-		return nil, ErrNodeNotFound
-	}
-	abs := filepath.Join(w.Root, filepath.FromSlash(meta.RelPath))
-	src, err := os.ReadFile(abs)
+	meta, src, reparsed, err := w.loadNode(id)
 	if err != nil {
-		w.indexMu.Lock()
-		w.removeFileLocked(meta.RelPath)
-		w.indexMu.Unlock()
-		return nil, ErrNodeGone
-	}
-
-	reparsed := false
-	if merkle.Hex(merkle.Sum(src)) != meta.FileHash {
-		r, perr := w.parseFile(meta.RelPath, src)
-		if perr != nil {
-			return nil, ErrNodeGone
-		}
-		w.indexMu.Lock()
-		w.applyFileResult(r)
-		if w.graph != nil {
-			w.graph.Flush()
-		}
-		w.indexMu.Unlock()
-		reparsed = true
-		if meta, ok = w.nodeMeta(id); !ok || meta.RelPath != r.RelPath {
-			return nil, ErrNodeGone
-		}
-	}
-
-	if int(meta.EndByte) > len(src) || meta.StartByte > meta.EndByte {
-		return nil, ErrNodeGone
+		return nil, err
 	}
 	slice := src[meta.StartByte:meta.EndByte]
 	startLine := 1 + bytes.Count(src[:meta.StartByte], []byte("\n"))
@@ -582,4 +564,102 @@ func (w *Workspace) ReadCode(id string) (*CodeBlock, error) {
 		Reparsed:  reparsed,
 		Partial:   meta.Partial,
 	}, nil
+}
+
+// MaxRangeLines caps one line-range read (docs/keyword-plan.md P2).
+const MaxRangeLines = 200
+
+// ErrRangeOutside: the requested lines do not overlap the node at all.
+var ErrRangeOutside = errors.New("lines lie outside the node")
+
+// ReadRange reads whole lines from..to (1-based, inclusive, file line
+// numbers) of the file that holds node id, clipped to the lines the node
+// spans. It is how a caller reads the part of a long section that a search
+// hit pointed into (hit_line), or a stretch of a file through its file node,
+// without taking the whole node. The returned block's StartLine/EndLine are
+// the lines actually returned, after clipping.
+//
+// Unlike ReadCode the slice is line-aligned: a node that starts mid-line
+// still yields that whole first line, because a range is asked for in lines.
+func (w *Workspace) ReadRange(id string, from, to int) (*CodeBlock, error) {
+	meta, src, reparsed, err := w.loadNode(id)
+	if err != nil {
+		return nil, err
+	}
+	nodeFirst := 1 + bytes.Count(src[:meta.StartByte], []byte("\n"))
+	body := src[meta.StartByte:meta.EndByte]
+	nodeLast := nodeFirst + bytes.Count(bytes.TrimSuffix(body, []byte("\n")), []byte("\n"))
+	from, to = max(from, nodeFirst), min(to, nodeLast)
+	if from > to {
+		return nil, fmt.Errorf("%w: node %s spans lines %d-%d", ErrRangeOutside, id, nodeFirst, nodeLast)
+	}
+
+	// Walk to the byte offsets of line from and of the end of line to.
+	start, line := 0, 1
+	for line < from {
+		i := bytes.IndexByte(src[start:], '\n')
+		if i < 0 {
+			return nil, ErrNodeGone
+		}
+		start += i + 1
+		line++
+	}
+	end := start
+	for ; line <= to; line++ {
+		i := bytes.IndexByte(src[end:], '\n')
+		if i < 0 {
+			end = len(src)
+			break
+		}
+		end += i + 1
+	}
+	return &CodeBlock{
+		ID:        id,
+		RelPath:   meta.RelPath,
+		StartLine: from,
+		EndLine:   to,
+		Code:      strings.TrimSuffix(string(src[start:end]), "\n"),
+		Reparsed:  reparsed,
+		Range:     true,
+	}, nil
+}
+
+// loadNode resolves id to its metadata and the current bytes of its file,
+// reparsing inline when the file changed since it was indexed.
+func (w *Workspace) loadNode(id string) (NodeMeta, []byte, bool, error) {
+	meta, ok := w.nodeMeta(id)
+	if !ok {
+		return meta, nil, false, ErrNodeNotFound
+	}
+	abs := filepath.Join(w.Root, filepath.FromSlash(meta.RelPath))
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		w.indexMu.Lock()
+		w.removeFileLocked(meta.RelPath)
+		w.indexMu.Unlock()
+		return meta, nil, false, ErrNodeGone
+	}
+
+	reparsed := false
+	if merkle.Hex(merkle.Sum(src)) != meta.FileHash {
+		r, perr := w.parseFile(meta.RelPath, src)
+		if perr != nil {
+			return meta, nil, false, ErrNodeGone
+		}
+		w.indexMu.Lock()
+		w.applyFileResult(r)
+		if w.graph != nil {
+			w.graph.Flush()
+		}
+		w.indexMu.Unlock()
+		reparsed = true
+		if meta, ok = w.nodeMeta(id); !ok || meta.RelPath != r.RelPath {
+			return meta, nil, false, ErrNodeGone
+		}
+	}
+
+	if int(meta.EndByte) > len(src) || meta.StartByte > meta.EndByte {
+		return meta, nil, false, ErrNodeGone
+	}
+	return meta, src, reparsed, nil
 }
