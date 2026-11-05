@@ -22,6 +22,7 @@
 | v0.4.16 | `1cfa521` | **full** (1.4.4) — 대장의 첫 풀셋 행, 36태스크 × 3런 | 97/108 (89.8%) — 첫 실행 통과 | 93.0s (`rag-lock-steal`) | 4/108 (verdict `invented`는 0) | 0/108 | $14.27 |
 | v0.4.17 | `46f1638` | smoke (1.4.4) — **CC 2.1.282, modern 시대로 붙은 첫 게이트** | **5/6 (83.3%)** — 첫 실행 통과. 미스 1은 `rag-hop-stem-sides`(`bm25.go` must-cite 누락, graphin 15콜로 정상 탐색) | 58.7s (`rag-lock-steal`) | 0/6 | 0/6 | $1.09 |
 | v0.4.18 | `91ff765` | smoke (**1.5.0**) — **`claude-sonnet-5-5` · effort high**, 모델·effort를 프론트매터에서 읽는 첫 게이트 | **5/6 (83.3%)** — 첫 실행 통과. 미스 1은 `rag-semantic-gate`(답 내용은 맞고 `internal/workspace/gate.go` 인용 누락 — 5.5의 실패 모양) | 25.9s (`rag-lock-steal`) | 0/6 | 0/6 | $0.46 |
+| v0.4.19 | `6e4ef04` | smoke (1.5.0) — `claude-sonnet-5-5` · effort high, CC 2.1.318 | **6/6 (100%)** — 첫 실행 통과. `search_keyword` 줄 해석이 바뀐 첫 게이트(코드 파일 노드·겹침 해석). "id 없는 히트" 1은 `context` 범위 초과 오류 응답을 채점기가 그렇게 센 것 | 41.1s (`rag-semantic-gate`) | 0/6 | 0/6 | $0.69 |
 
 **모델 (2026-10-02 소급 기록).** 위 행들은 모두 별칭 `sonnet`으로 돌았고 meta에는 별칭만
 남았다. 이 머신의 평가 세션 로그(`~/.claude/projects/-tmp-graphin-rag-*`)로 확인하면
