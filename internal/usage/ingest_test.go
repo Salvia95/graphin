@@ -248,6 +248,32 @@ func TestClassifyBashVariants(t *testing.T) {
 		{`go test ./...`, false, ""},
 		{`echo "grep is not run here"`, false, ""},
 		{`/usr/bin/rg foo`, true, "foo"},
+		// Operators inside quotes are part of the pattern, not the command
+		// line: the alternation used to be cut at its first `|`.
+		{`grep -rn "Hash\|stale\|Stale" internal/graph/engine.go | head -40`, true, `Hash\|stale\|Stale`},
+		{`rg 'a|b' src || true`, true, "a|b"},
+		{`grep -E "x;y&&z" f.txt`, true, "x;y&&z"},
+		{`echo "a | grep b"`, false, ""},
+		{"cd /tmp && grep -n \"multi\nline\" f", true, "multi\nline"},
+		// Backslashes resolve as the shell resolves them.
+		{`grep foo\|bar f`, true, "foo|bar"},
+		{`grep "say \"hi\"" f`, true, `say "hi"`},
+		{`grep 'a\|b' f`, true, `a\|b`},
+		{`grep -e "" f`, true, ""},
+		{`rg -n '' notes.md | sed -n 1,5p`, true, ""},
+		// A command substitution runs even inside double quotes.
+		{`echo "chunks: $(printf '%s' "$H" | rg -o '/chunks/[^"]+\.js' | wc -l)"`, true, `/chunks/[^"]+\.js`},
+		{`echo "n=$(ls | wc -l) (files)" && rg needle`, true, "needle"},
+		{`echo "$((1 + 2))" ; grep -n "x(y)" f`, true, "x(y)"},
+		// Heredoc bodies are a program's input, not commands.
+		{"python3 - <<'EOF'\nimport subprocess\nsubprocess.run(['grep', 'x'])\nEOF", false, ""},
+		{"cat <<-EOF | head\n\tgrep inside\n\tEOF\nrg after", true, "after"},
+		{"cat > f.py <<EOF && grep -n done f.py\nprint('grep no')\nEOF", true, "done"},
+		{`grep -c "x" <<< "$s"`, true, "x"},
+		// A shell's -c script is a command line of its own.
+		{`bash -c 'cd web && pnpm test 2>&1 | rg "Test Files|Tests"'`, true, "Test Files|Tests"},
+		{`timeout 60 sh -ec "grep -rn needle src"`, true, "needle"},
+		{`bash -c 'echo hi'`, false, ""},
 	}
 	for _, tc := range cases {
 		search, pattern := classifyBash(tc.cmd)

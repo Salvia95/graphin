@@ -432,10 +432,26 @@ var searchCommands = map[string]bool{
 // search pattern. The command is split per pipeline/&&/;/|| segment; the full
 // command line is never stored.
 func classifyBash(cmd string) (bool, string) {
+	return classifyBashDepth(cmd, 0)
+}
+
+// shells whose -c argument is itself a command line: `bash -c 'cd x && rg y'`
+// runs rg although the whole script is one quoted word.
+var shells = map[string]bool{"bash": true, "sh": true, "zsh": true, "dash": true}
+
+func classifyBashDepth(cmd string, depth int) (bool, string) {
 	for _, seg := range splitSegments(cmd) {
 		argv := fields(seg)
 		if len(argv) == 0 {
 			continue
+		}
+		if depth < 2 {
+			if script, ok := shellScript(argv); ok {
+				if s, p := classifyBashDepth(script, depth+1); s {
+					return s, p
+				}
+				continue
+			}
 		}
 		prog := filepath.Base(argv[0])
 		rest := argv[1:]
@@ -473,46 +489,224 @@ func classifyBash(cmd string) (bool, string) {
 	return false, ""
 }
 
-func splitSegments(cmd string) []string {
-	seps := []string{"&&", "||", "|", ";", "\n"}
-	segs := []string{cmd}
-	for _, sep := range seps {
-		var next []string
-		for _, s := range segs {
-			next = append(next, strings.Split(s, sep)...)
+// shellScript finds a `<shell> -c <script>` anywhere in argv — directly, or
+// behind a wrapper (`timeout 60 bash -c …`, `job.sh run x -- bash -c …`) —
+// and returns the script. Combined flags count when they end in c (-lc, -ec).
+func shellScript(argv []string) (string, bool) {
+	for k := 0; k+2 < len(argv); k++ {
+		if !shells[filepath.Base(argv[k])] {
+			continue
 		}
-		segs = next
+		f := argv[k+1]
+		if len(f) >= 2 && f[0] == '-' && f[1] != '-' && strings.HasSuffix(f, "c") {
+			return argv[k+2], true
+		}
 	}
+	return "", false
+}
+
+// splitSegments cuts a command line into the simple commands the shell would
+// run: at list and pipeline operators (&&, ||, |, ;, newline) outside quotes
+// and not behind a backslash, and around each $(...) — a command
+// substitution is a command of its own even inside double quotes
+// (`echo "n: $(rg -o x | wc -l)"` runs rg). Heredoc bodies are dropped: they
+// are input to a program (`python3 - <<'EOF'`), not commands. Segments keep
+// their quotes and escapes for fields to resolve.
+//
+// It used to split on the raw text first. That cut `grep "a\|b"` inside its
+// quotes, so the event kept only the first alternative with a stray backslash
+// — and more than half of real Bash searches carry a `|` in the pattern
+// (docs/usage-spec.md §3).
+func splitSegments(cmd string) []string {
+	var segs []string
+	var cur strings.Builder
+	cut := func() {
+		segs = append(segs, cur.String())
+		cur.Reset()
+	}
+	// One frame per open $(: the quote state it interrupted, and how many
+	// plain parentheses are open inside it so that only its own ) closes it.
+	type frame struct {
+		quote  rune
+		parens int
+	}
+	var stack []frame
+	var quote rune
+	var heredocs []string // delimiters whose bodies start at the next newline
+	rs := []rune(cmd)
+	for i := 0; i < len(rs); i++ {
+		r := rs[i]
+		switch {
+		case quote == '\'': // single quotes: no escapes, only the closing quote
+			if r == '\'' {
+				quote = 0
+			}
+		case r == '\\':
+			cur.WriteRune(r)
+			if i+1 < len(rs) {
+				i++
+				r = rs[i]
+			}
+		case r == '$' && i+1 < len(rs) && rs[i+1] == '(':
+			cut()
+			stack = append(stack, frame{quote: quote})
+			quote = 0
+			i++
+			continue
+		case quote == '"':
+			if r == '"' {
+				quote = 0
+			}
+		case r == '\'' || r == '"':
+			quote = r
+		case r == '(' && len(stack) > 0:
+			stack[len(stack)-1].parens++
+		case r == ')' && len(stack) > 0:
+			top := &stack[len(stack)-1]
+			if top.parens > 0 {
+				top.parens--
+				break
+			}
+			cut()
+			quote = top.quote
+			stack = stack[:len(stack)-1]
+			continue
+		case r == '<' && i+1 < len(rs) && rs[i+1] == '<' && (i+2 >= len(rs) || rs[i+2] != '<'):
+			if delim, end := heredocDelim(rs, i+2); delim != "" {
+				heredocs = append(heredocs, delim)
+				cur.WriteString(string(rs[i:end]))
+				i = end - 1
+				continue
+			}
+		case r == '\n' && len(heredocs) > 0:
+			cut()
+			i = skipHeredocs(rs, i+1, heredocs) - 1
+			heredocs = nil
+			continue
+		case r == '|' || r == ';' || r == '\n' || r == '&' && i+1 < len(rs) && rs[i+1] == '&':
+			cut()
+			if (r == '|' || r == '&') && i+1 < len(rs) && rs[i+1] == r {
+				i++ // the second rune of || or &&
+			}
+			continue
+		}
+		cur.WriteRune(r)
+	}
+	cut()
 	return segs
 }
 
-// fields is a shell-aware-enough tokenizer: whitespace split with single and
-// double quotes grouping and stripping. No escapes, no expansion — patterns
-// are what we're after, not faithful shell semantics.
+// heredocDelim reads the delimiter word of a heredoc whose `<<` ends just
+// before rs[i]: an optional `-`, blanks, then a bare, 'quoted' or "quoted"
+// word. It returns the word and the index just past it, or "" when no word
+// follows.
+func heredocDelim(rs []rune, i int) (string, int) {
+	if i < len(rs) && rs[i] == '-' {
+		i++
+	}
+	for i < len(rs) && (rs[i] == ' ' || rs[i] == '\t') {
+		i++
+	}
+	var w strings.Builder
+	var quote rune
+	for ; i < len(rs); i++ {
+		r := rs[i]
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+			} else {
+				w.WriteRune(r)
+			}
+			continue
+		}
+		if r == '\'' || r == '"' {
+			quote = r
+			continue
+		}
+		if r == ' ' || r == '\t' || r == '\n' || strings.ContainsRune("|&;<>()", r) {
+			break
+		}
+		w.WriteRune(r)
+	}
+	return w.String(), i
+}
+
+// skipHeredocs returns the index just past the bodies of the given heredocs,
+// which start at rs[i] and follow one another; each ends at a line that is
+// its delimiter (leading tabs allowed, for <<-). An unterminated body runs to
+// the end of the command, as in the shell.
+func skipHeredocs(rs []rune, i int, delims []string) int {
+	for _, d := range delims {
+		for i < len(rs) {
+			j := i
+			for j < len(rs) && rs[j] != '\n' {
+				j++
+			}
+			line := strings.TrimLeft(string(rs[i:j]), "\t")
+			i = j + 1
+			if line == d {
+				break
+			}
+		}
+	}
+	if i > len(rs) {
+		return len(rs)
+	}
+	return i
+}
+
+// fields is a shell-aware-enough tokenizer: whitespace split, quotes grouping
+// and stripping, and backslashes resolved the way the shell resolves them —
+// so the pattern is the argument grep actually received. Outside quotes a
+// backslash makes the next rune literal; inside double quotes it does so only
+// for " \ $ and `, and stays otherwise (`"a\|b"` reaches grep as `a\|b`);
+// inside single quotes it is an ordinary rune. No expansion.
 func fields(s string) []string {
 	var out []string
 	var cur strings.Builder
 	var quote rune
+	started := false // a quoted empty string ("") is still an argument
 	flush := func() {
-		if cur.Len() > 0 {
+		if started {
 			out = append(out, cur.String())
 			cur.Reset()
+			started = false
 		}
 	}
-	for _, r := range s {
+	rs := []rune(s)
+	for i := 0; i < len(rs); i++ {
+		r := rs[i]
 		switch {
-		case quote != 0:
-			if r == quote {
+		case quote == '\'':
+			if r == '\'' {
 				quote = 0
 			} else {
 				cur.WriteRune(r)
 			}
+		case quote == '"':
+			switch {
+			case r == '"':
+				quote = 0
+			case r == '\\' && i+1 < len(rs) && strings.ContainsRune("\"\\$`", rs[i+1]):
+				i++
+				cur.WriteRune(rs[i])
+			default:
+				cur.WriteRune(r)
+			}
+		case r == '\\':
+			started = true
+			if i+1 < len(rs) {
+				i++
+				cur.WriteRune(rs[i])
+			}
 		case r == '\'' || r == '"':
 			quote = r
+			started = true
 		case r == ' ' || r == '\t':
 			flush()
 		default:
 			cur.WriteRune(r)
+			started = true
 		}
 	}
 	flush()
