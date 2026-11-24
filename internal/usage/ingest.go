@@ -259,9 +259,13 @@ func basePayload(root, tool string, input map[string]any, resp json.RawMessage) 
 		}
 		return p
 	case "explore_graph":
-		return map[string]any{"node_id": str("node_id"), "direction": str("direction")}
+		p := map[string]any{"direction": str("direction")}
+		refPayload(p, str("symbol"), str("node_id"), resp)
+		return p
 	case "read_code":
-		return map[string]any{"node_id": str("node_id")}
+		p := map[string]any{}
+		refPayload(p, str("symbol"), str("node_id"), resp)
+		return p
 	case "bootstrap_workspace", "run_local_benchmark":
 		return map[string]any{}
 	case "Grep":
@@ -378,6 +382,41 @@ func responseHintKind(resp json.RawMessage) (string, bool) {
 		return "empty", true
 	}
 	return "other", true
+}
+
+var resolvedIDAttr = regexp.MustCompile(`<resolved [^>]*\bid="([^"]+)"`)
+
+// refPayload records what an explore or read was about. node_id is the unit
+// the server resolved the call to — the id the search funnel compares with
+// earlier result ids — and ref is the name the agent typed, kept only when it
+// was not that id. Calls written against node_id log exactly as before.
+func refPayload(p map[string]any, symbol, nodeID string, resp json.RawMessage) {
+	ref := symbol
+	if ref == "" {
+		ref = nodeID
+	}
+	id := ref
+	if m := resolvedIDAttr.FindStringSubmatch(responseText(resp)); m != nil {
+		id = trunc(m[1])
+	}
+	p["node_id"] = id
+	if ref != id {
+		p["ref"] = ref
+	}
+}
+
+// responseText joins every string field of a tool response.
+func responseText(resp json.RawMessage) string {
+	if len(resp) == 0 {
+		return ""
+	}
+	var v any
+	if json.Unmarshal(resp, &v) != nil {
+		return ""
+	}
+	var texts []string
+	collectStrings(v, &texts, 0)
+	return strings.Join(texts, "\n")
 }
 
 func responseNodeIDs(resp json.RawMessage) []string {

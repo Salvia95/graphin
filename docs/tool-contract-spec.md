@@ -198,9 +198,17 @@ func resolveRef(ws *workspace.Workspace, in string) (Ref, error)
    후보로 담는다(`ws.Router.SearchFilteredStats(in, 5, nil)` 재사용). 에이전트는 다른 도구 없이
    다음 입력을 고를 수 있다.
 
-후보가 2개 이상이면 **고르지 않는다.** 단, 후보가 정확히 둘이고 하나가 테스트 파일
-(`_test.go`, `test_*.py`, `*.spec.ts` 등 기존 `nodeid` 판정)이면 비-테스트를 고르고
-`<resolved_from candidates="2" chose="non-test" />`를 남긴다 — 그 외 자동 선택은 없다.
+후보가 2개 이상이면 **고르지 않는다.** 단, 비-테스트 후보가 정확히 하나이고 나머지가 모두
+테스트 파일(`_test.go`, `test_*.py`, `*.spec.ts`, `src/test/` 등 — `isTestPath`)이면 그 하나를
+고르고 `<resolved ... candidates="N" chose="non-test" />`를 남긴다 — 그 외 자동 선택은 없다.
+
+**구현(2단계):** `internal/mcp/tools/resolve.go`, `internal/workspace/resolve.go`.
+이름이 아닌 id로 들어오지 않은 호출은 응답 맨 앞에 `<resolved ref=".." id=".." />`를 붙여, 에이전트가
+해석된 단위를 인용할 수 있게 한다. 정확한 id 입력은 이 줄이 없어 기존 응답과 같다. 모호하면
+`AMBIGUOUS_REF` + `<candidates>`, 미해결이면 기존 `NODE_NOT_FOUND` 줄 그대로 + `<suggestions>`.
+다중 읽기에서 모호한 ref는 `<omitted reason="ambiguous">`. usage 로그는 해석된 id를 `node_id`로,
+입력한 이름을 `ref`로 기록해 search funnel 지표가 이어진다. `eval-rag.py`의 `invented_ids`는
+`node_id` 입력만 센다 — `symbol`로 이름을 넘기는 것은 이제 정당한 입력이라 셀 대상이 아니다.
 
 ```xml
 <ambiguous ref="Close" candidates="14">

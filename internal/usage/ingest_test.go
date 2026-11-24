@@ -416,3 +416,18 @@ func TestIngestKeywordSearchPayload(t *testing.T) {
 		t.Fatalf("files/result_count = %v/%v, want 2/1", p["files"], p["result_count"])
 	}
 }
+
+// A call that named a unit by symbol logs the id it resolved to, so the
+// search funnel can still match it against earlier results; the typed name
+// rides along as ref. A node_id call logs exactly as before.
+func TestRefPayloadRecordsResolvedID(t *testing.T) {
+	resp := json.RawMessage(`{"content":[{"type":"text","text":"<resolved ref=\"Cancel\" id=\"order.OrderService.Cancel\" />\n<graph_context target=\"order.OrderService.Cancel\">"}]}`)
+	p := basePayload("/w", "mcp__graphin__explore_graph", map[string]any{"symbol": "Cancel", "direction": "used_by"}, resp)
+	if p["node_id"] != "order.OrderService.Cancel" || p["ref"] != "Cancel" || p["direction"] != "used_by" {
+		t.Fatalf("symbol call: %v", p)
+	}
+	p = basePayload("/w", "mcp__graphin__read_code", map[string]any{"node_id": "order.refund"}, nil)
+	if p["node_id"] != "order.refund" || p["ref"] != nil {
+		t.Fatalf("node_id call must log unchanged: %v", p)
+	}
+}

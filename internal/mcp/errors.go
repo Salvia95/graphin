@@ -15,6 +15,9 @@ const (
 	// internally; this surfaces only for a call that may already have
 	// written, which the caller has to look at before repeating.
 	ErrLeaderChanged = "LEADER_CHANGED"
+	// ErrAmbiguousRef: a name given in place of a node id matched several
+	// units. The response lists them; the server does not pick one.
+	ErrAmbiguousRef = "AMBIGUOUS_REF"
 	// ErrInternal covers unexpected failures outside the five spec codes.
 	ErrInternal = "INTERNAL"
 )

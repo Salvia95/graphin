@@ -94,13 +94,14 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Name:        "explore_graph",
 		Description: "Explore uses/used_by edges of a node with confidence scores. Paginated, 20 edges per page.",
 		InputSchema: objSchema(map[string]any{
-			"node_id":   map[string]any{"type": "string", "description": "Node ID from search_hybrid."},
+			"symbol":    map[string]any{"type": "string", "description": refParamDesc},
+			"node_id":   map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
 			"direction": map[string]any{"type": "string", "enum": []string{"uses", "used_by", "both"}, "default": "both"},
 			"cursor":    map[string]any{"type": "string", "description": "Pagination cursor from a previous page."},
 			"min_confidence": map[string]any{
 				"type": "number", "default": 0.85, "description": "Exclude edges below this confidence. Default 0.85 drops the 0.80 heuristic tier (higher precision, ~17% fewer lines, <2%p recall cost per docs/eval); lower to 0.75 for max recall.",
 			},
-		}, []string{"node_id"}),
+		}, nil),
 		Handler: exploreHandler(ws),
 	})
 
@@ -113,7 +114,14 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			"(a search hit's hit_line, a keyword hit's line), clipped to the node. A file's path is its node id, " +
 			"so node_id=<path> with lines reads a stretch of any indexed file.",
 		InputSchema: objSchema(map[string]any{
-			"node_id": map[string]any{"type": "string", "description": "Node ID to read."},
+			"symbol": map[string]any{"type": "string", "description": refParamDesc},
+			"symbols": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"maxItems":    maxReadNodes,
+				"description": "Read several units in one call, in this order; each is a symbol as above. Use instead of symbol, not with it.",
+			},
+			"node_id": map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
 			"node_ids": map[string]any{
 				"type":        "array",
 				"items":       map[string]any{"type": "string"},
@@ -647,6 +655,7 @@ func truncRunes(s string, max int) string {
 
 func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
+		Symbol        string   `json:"symbol"`
 		NodeID        string   `json:"node_id"`
 		Direction     string   `json:"direction"`
 		Cursor        string   `json:"cursor"`
@@ -668,11 +677,25 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			minConf = float32(*a.MinConfidence)
 		}
 
-		page, err := ws.Explore(a.NodeID, a.Direction, a.Cursor, minConf)
+		ref, msg := pickRef(a.Symbol, a.NodeID)
+		if msg != "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
+		}
+		if ref == "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, "symbol is required", &st), true
+		}
+		res := resolveRef(ws, ref)
+		if res.id == "" {
+			return refFailure(ws, ref, res), true
+		}
+
+		page, err := ws.Explore(res.id, a.Direction, a.Cursor, minConf)
 		if err != nil {
 			st := ws.FSM.Status()
 			if errors.Is(err, workspace.ErrNodeNotFound) {
-				return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+a.NodeID, &st), true
+				return mcp.ErrorXML(mcp.ErrNodeNotFound, "unknown node: "+ref, &st), true
 			}
 			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
 		}
@@ -682,6 +705,7 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			sb.WriteString(st.XML())
 			sb.WriteString("\n")
 		}
+		sb.WriteString(resolvedNote(ref, res))
 		fmt.Fprintf(&sb, `<graph_context target="%s">`, mcp.EscapeAttr(page.Target))
 		writeEdges := func(tag string, edges []workspaceEdge) {
 			if len(edges) == 0 {
@@ -741,6 +765,8 @@ const maxReadNodes = 20
 
 func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 	type args struct {
+		Symbol  string   `json:"symbol"`
+		Symbols []string `json:"symbols"`
 		NodeID  string   `json:"node_id"`
 		NodeIDs []string `json:"node_ids"`
 		Lines   string   `json:"lines"`
@@ -753,6 +779,17 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		_ = json.Unmarshal(raw, &a)
 
 		st := ws.FSM.Status()
+		one, msg := pickRef(a.Symbol, a.NodeID)
+		if msg != "" {
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
+		}
+		a.NodeID = one
+		if len(a.Symbols) > 0 && len(a.NodeIDs) > 0 {
+			return mcp.ErrorXML(mcp.ErrInternal, "pass symbols or node_ids, not both", &st), true
+		}
+		if len(a.Symbols) > 0 {
+			a.NodeIDs = a.Symbols
+		}
 		switch {
 		case a.NodeID != "" && len(a.NodeIDs) > 0:
 			// Guessing which one the caller meant is exactly the kind of
@@ -783,7 +820,12 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 
 // readOne keeps the single-node contract byte for byte: one <code_block>, and
 // a hard error when the node cannot be read.
-func readOne(ws *workspace.Workspace, id string) (string, bool) {
+func readOne(ws *workspace.Workspace, ref string) (string, bool) {
+	res := resolveRef(ws, ref)
+	if res.id == "" {
+		return refFailure(ws, ref, res), true
+	}
+	id := res.id
 	cb, err := ws.ReadCode(id)
 	if err != nil {
 		st := ws.FSM.Status()
@@ -792,6 +834,7 @@ func readOne(ws *workspace.Workspace, id string) (string, bool) {
 	}
 	var sb strings.Builder
 	writeStatusPrefix(&sb, ws)
+	sb.WriteString(resolvedNote(ref, res))
 	writeCodeBlock(&sb, cb)
 	body := sb.String()
 	return body + costLine(len(body)), false
@@ -826,7 +869,12 @@ func parseLines(s string) (int, int, error) {
 
 // readRange is readOne for part of a node: the same single <code_block>,
 // marked kind="range" so a reader never takes it for the whole node.
-func readRange(ws *workspace.Workspace, id string, from, to int) (string, bool) {
+func readRange(ws *workspace.Workspace, ref string, from, to int) (string, bool) {
+	res := resolveRef(ws, ref)
+	if res.id == "" {
+		return refFailure(ws, ref, res), true
+	}
+	id := res.id
 	cb, err := ws.ReadRange(id, from, to)
 	if err != nil {
 		st := ws.FSM.Status()
@@ -838,6 +886,7 @@ func readRange(ws *workspace.Workspace, id string, from, to int) (string, bool) 
 	}
 	var sb strings.Builder
 	writeStatusPrefix(&sb, ws)
+	sb.WriteString(resolvedNote(ref, res))
 	writeCodeBlock(&sb, cb)
 	body := sb.String()
 	return body + costLine(len(body)), false
@@ -858,7 +907,14 @@ func readMany(ws *workspace.Workspace, ids []string) (string, bool) {
 		reason string // omission reason when block is empty
 	}
 	items := make([]item, 0, len(ids))
-	for _, id := range ids {
+	for _, ref := range ids {
+		id := ref
+		if res := resolveRef(ws, ref); res.id != "" {
+			id = res.id
+		} else if !res.unresolved {
+			items = append(items, item{id: ref, reason: "ambiguous"})
+			continue
+		}
 		cb, err := ws.ReadCode(id)
 		if err != nil {
 			items = append(items, item{id: id, reason: omitReason(err)})
@@ -961,6 +1017,23 @@ func omitLineLen(id, reason string) int {
 	var b strings.Builder
 	writeOmitted(&b, id, reason)
 	return b.Len()
+}
+
+// refParamDesc is the shared description of a ref parameter.
+const refParamDesc = "The unit to use: a name (cancelOrder), a qualified name (OrderService.cancel), " +
+	"a file path, path:line for the unit enclosing that line, or an exact id from a previous result. " +
+	"A name shared by several units returns them as candidates instead of guessing."
+
+// pickRef merges the ref parameter with its compatibility alias.
+func pickRef(symbol, nodeID string) (string, string) {
+	symbol, nodeID = strings.TrimSpace(symbol), strings.TrimSpace(nodeID)
+	if symbol != "" && nodeID != "" && symbol != nodeID {
+		return "", "pass symbol or node_id, not both"
+	}
+	if symbol != "" {
+		return symbol, ""
+	}
+	return nodeID, ""
 }
 
 func readErr(err error, id string) (string, string) {
