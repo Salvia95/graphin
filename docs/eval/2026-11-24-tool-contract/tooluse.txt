@@ -1,0 +1,24 @@
+== full-A: 72 runs, $4.41
+  calls/run median 6.0  bytes/run median 14061
+  graphin nav calls 109  host calls 345  runs with no graphin call 27
+  hybrid keyword-list 13/28 (46%)  keyword prose 0/63 (0%)
+  NODE_NOT_FOUND 1  AMBIGUOUS_REF 0  symbol inputs 0  detail=full asked 0
+  after a search with results: graphin follow-up 24%  host tool 69%  nothing 7%  (n=85)
+  by tool: {'Read': 156, 'Grep': 124, 'mcp__graphin__search_keyword': 63, 'Bash': 52, 'mcp__graphin__search_hybrid': 28, 'mcp__graphin__read_code': 18, 'Glob': 13, 'ToolSearch': 2}
+  e.g. keyword-list: ['file watcher detects change and triggers reindex', 'file watcher detects file change and triggers reindex', 'diagnose index embedding model mismatch stored vectors']
+== full-B: 72 runs, $4.76
+  calls/run median 6.0  bytes/run median 14050
+  graphin nav calls 167  host calls 287  runs with no graphin call 3
+  hybrid keyword-list 14/50 (28%)  keyword prose 0/86 (0%)
+  NODE_NOT_FOUND 3  AMBIGUOUS_REF 0  symbol inputs 31  detail=full asked 38
+  after a search with results: graphin follow-up 13%  host tool 80%  nothing 7%  (n=124)
+  by tool: {'Read': 146, 'Grep': 104, 'mcp__graphin__search_keyword': 86, 'mcp__graphin__search_hybrid': 50, 'mcp__graphin__read_code': 23, 'Bash': 22, 'Glob': 15, 'mcp__graphin__explore_graph': 8, 'ToolSearch': 2}
+  e.g. keyword-list: ['file watcher detects file change and triggers reindexing', 'file watcher detects changed file and triggers reindex', 'search_hybrid tool handler']
+== full-C: 72 runs, $4.96
+  calls/run median 6.0  bytes/run median 19689
+  graphin nav calls 197  host calls 225  runs with no graphin call 3
+  hybrid keyword-list 13/52 (25%)  keyword prose 0/105 (0%)
+  NODE_NOT_FOUND 4  AMBIGUOUS_REF 0  symbol inputs 40  detail=full asked 36
+  after a search with results: graphin follow-up 14%  host tool 66%  nothing 20%  (n=141)
+  by tool: {'Read': 105, 'mcp__graphin__search_keyword': 105, 'Grep': 82, 'mcp__graphin__search_hybrid': 52, 'mcp__graphin__read_code': 27, 'Bash': 21, 'Glob': 17, 'mcp__graphin__explore_graph': 13, 'ToolSearch': 2}
+  e.g. keyword-list: ['file watcher detects file change and triggers reindexing', 'file watcher detects changed file and triggers re-indexing', 'search_hybrid tool handler']

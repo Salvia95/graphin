@@ -13,7 +13,7 @@
 | 7 | `b0be8f5` | `search_keyword detail=full` |
 | 8 | `ca63e00` | `search_hybrid detail=full` |
 | 9 | — | skill·agent·README 갱신 |
-| 10 | 대기 | §5 측정 후 기본값 전환 결정 |
+| 10 | 측정 완료 | [결과](eval/2026-11-24-tool-contract/findings.md): **연쇄 응답은 opt-in 유지** — 기본값(C)은 B보다 정답 1:8(p=0.039)·바이트 +40% |
 
 실측 응답 크기(이 저장소, 의미 모델 꺼짐): search_hybrid 5건 ids 1.2KB → full 4.4KB, top_k=20 full 6.5KB(스니펫 접힘);
 search_keyword 5파일 2.3KB → 5.2KB; explore_graph 20엣지 3.0KB → 7.4KB; read_code full은 이웃 블록 ≈0.8KB 추가.
