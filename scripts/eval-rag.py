@@ -233,7 +233,7 @@ SEARCH_TOOLS = {"mcp__graphin__search_hybrid", "mcp__graphin__search_keyword"}
 # and nothing about any retriever. What the scorer then measures is what
 # graphin adds over a competent grep loop, on questions graphin's own golden
 # set considers fair.
-ARMS = ("graphin", "grep")
+ARMS = ("graphin", "grep", "bare")
 GREP_ARM_TOOLS = ["Read", "Grep", "Glob", "Bash"]
 GREP_ARM_DENIED = DENIED_TOOLS  # the MCP tools never load: no --mcp-config
 
@@ -327,6 +327,40 @@ Structure the final message as:
 
 A pile of file paths is not an answer. Neither is a summary with no citations.
 """
+
+# ---------------------------------------------------------------- bare arm
+#
+# The plugin case (docs/tool-contract-spec.md §0, §5): graphin's MCP tools
+# injected into a subagent that has never heard of graphin — no graphin-rag
+# prompt, no skill. The tool descriptions are the only guidance it gets, so
+# this arm measures them. It takes the graphin arm's tools and the grep arm's
+# contract: the same end states, citation, budget and report rules, with the
+# grep-specific sentences made neutral and nothing said about any retriever.
+_BARE_TOOLS_GREP = """# Tools
+
+You have `Grep`, `Glob`, `Read` and `Bash`. The current working directory is the
+whole corpus: everything you may consult is under it, and nothing outside it
+counts as evidence. Search with `Grep` (or `grep`/`rg` through `Bash`), narrow
+with `Glob`, and open files with `Read`. Prefer a specific pattern — an
+identifier, an exact string — over a broad one, and prefer reading the matched
+region over reading the whole file."""
+_BARE_TOOLS = """# Tools
+
+Use the tools in your roster. The current working directory is the whole
+corpus: everything you may consult is under it, and nothing outside it counts
+as evidence. Prefer a specific search over a broad one, and reading the part
+that matched over reading a whole file."""
+_BARE_LOOP_GREP = """2. **Search by the shape of what you know.** Exact text you can quote: grep the
+   text. A symbol name: grep the identifier. A sentence about behavior: grep the
+   words the code itself would use, then read what matched."""
+_BARE_LOOP = """2. **Search by the shape of what you know.** Exact text you can quote, a symbol
+   name, and a description of behavior are different kinds of question; pick
+   the search that fits the kind you have."""
+assert _BARE_TOOLS_GREP in GREP_AGENT_PROMPT and _BARE_LOOP_GREP in GREP_AGENT_PROMPT
+BARE_AGENT_PROMPT = (GREP_AGENT_PROMPT.replace(_BARE_TOOLS_GREP, _BARE_TOOLS)
+                     .replace(_BARE_LOOP_GREP, _BARE_LOOP)
+                     .replace("Retrieve the lines that show it", "Retrieve the code that shows it"))
+
 
 # Both arms are confined to the snapshot by this PreToolUse hook (1.4.1), on
 # top of the post-hoc `escaped` verdict. It was the grep arm's alone while the
@@ -663,6 +697,8 @@ def agent_frontmatter():
 def compose_prompt(arm="graphin"):
     if arm == "grep":
         return GREP_AGENT_PROMPT
+    if arm == "bare":
+        return BARE_AGENT_PROMPT
     with open(AGENT_MD, encoding="utf-8") as f:
         agent = strip_frontmatter(f.read())
     with open(SKILL_MD, encoding="utf-8") as f:
@@ -740,7 +776,7 @@ def run(args):
         tasks = tasks[:args.max_tasks]
     if not tasks:
         raise SystemExit("no tasks selected")
-    if args.arm == "graphin" and not os.access(args.bin, os.X_OK):
+    if args.arm != "grep" and not os.access(args.bin, os.X_OK):
         raise SystemExit(f"no graphin binary at {args.bin} — run `make build` or pass --bin")
 
     out = args.out
@@ -777,7 +813,7 @@ def run(args):
 
         # The grep arm never indexes: the corpus it searches is the bare tree,
         # with no .graphin/ directory for a shell loop to stumble into.
-        if args.arm == "graphin":
+        if args.arm != "grep":
             print(f"indexing snapshot ({origin}) …", flush=True)
             preindex(args.bin, snap, args.semantic, args.index_timeout)
 
@@ -791,10 +827,10 @@ def run(args):
             snaps.append(s2)
         cfgs = []
         for i, s in enumerate(snaps):
-            if args.arm != "graphin":
+            if args.arm == "grep":
                 cfgs.append(None)
                 continue
-            argv = [args.bin, "--workspace", s, "--offline"]
+            argv = [args.bin, "--workspace", s, "--offline"] + list(args.server_arg)
             if not args.semantic:
                 argv += ["--ort-lib", "/nonexistent-ort"]
             else:
@@ -847,11 +883,15 @@ def run(args):
         if args.arm == "grep":
             agent_sha = hashlib.sha256(GREP_AGENT_PROMPT.encode()).hexdigest()
             skill_sha = "-"
+        elif args.arm == "bare":
+            agent_sha = hashlib.sha256(BARE_AGENT_PROMPT.encode()).hexdigest()
+            skill_sha = "-"
         else:
             agent_sha, skill_sha = sha256_file(AGENT_MD), sha256_file(SKILL_MD)
         meta = {
             "rubric_version": RUBRIC_VERSION,
             "arm": args.arm,
+            "bin": args.bin, "server_args": list(args.server_arg),
             "graphin_commit": commit, "worktree_dirty": dirty, "corpus": origin,
             "model": model, "effort": effort,
             "model_source": "flag" if args.model else "frontmatter",
@@ -1153,8 +1193,9 @@ def keyword_next_of(entry, following):
         if n == "mcp__graphin__search_hybrid":
             return "hybrid"
         if n == "mcp__graphin__read_code":
-            asked = set(inp.get("node_ids") or
-                        ([inp["node_id"]] if inp.get("node_id") else []))
+            asked = set(inp.get("node_ids") or inp.get("symbols") or
+                        ([inp.get("node_id") or inp.get("symbol")]
+                         if inp.get("node_id") or inp.get("symbol") else []))
             return "read_code" if asked & ids else "read_code_other"
         if n == "mcp__graphin__explore_graph":
             return "explore"
@@ -1591,12 +1632,17 @@ def main():
     rp.add_argument("--arm", choices=list(ARMS), default="graphin",
                     help="graphin (default): the graphin-rag agent with its skill and MCP "
                          "server; grep: the control group — same tasks, same contract, "
-                         "host Read/Grep/Glob/Bash only, confined to the snapshot")
+                         "host Read/Grep/Glob/Bash only, confined to the snapshot; bare: "
+                         "graphin's MCP tools with a neutral prompt and no skill — the "
+                         "plugin-injected subagent, guided by the tool descriptions alone")
     rp.add_argument("--jobs", type=int, default=1,
                     help="parallel workers, each on its own snapshot copy")
     rp.add_argument("--runs", type=int, default=1)
     rp.add_argument("--max-tasks", type=int, default=0)
     rp.add_argument("--bin", default=os.path.join(REPO, "bin/graphin"))
+    rp.add_argument("--server-arg", action="append", default=[],
+                    help="extra graphin server argument, repeatable "
+                         "(e.g. --server-arg=--default-detail=full)")
     rp.add_argument("--ref", default="HEAD")
     rp.add_argument("--worktree", action="store_true")
     rp.add_argument("--semantic", action="store_true",
