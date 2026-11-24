@@ -270,3 +270,40 @@ func TestExploreGraphFullFoldsInsteadOfDroppingEdges(t *testing.T) {
 		t.Fatalf("response is %d bytes, over %d", len(full), mcp.MaxResponseBytes)
 	}
 }
+
+// A full read names who calls the unit and what it calls, so the agent can
+// continue from it; the default read is the source alone, as before.
+func TestReadCodeFullNamesNeighbors(t *testing.T) {
+	root := mkRefWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	plain, _ := c.tool("read_code", map[string]any{"symbol": "OrderService.Cancel"})
+	same, _ := c.tool("read_code", map[string]any{"symbol": "OrderService.Cancel", "detail": "code"})
+	if plain != same || strings.Contains(plain, "<neighbors") {
+		t.Fatalf("detail=code must be the unchanged default:\n%s\n---\n%s", plain, same)
+	}
+
+	full, isErr := c.tool("read_code", map[string]any{"symbol": "OrderService.Cancel", "detail": "full"})
+	if isErr {
+		t.Fatalf("read_code full: %s", full)
+	}
+	if !strings.Contains(full, "func (s *OrderService) Cancel") || !strings.Contains(full, "<neighbors>") {
+		t.Fatalf("want the source then neighbors:\n%s", full)
+	}
+	uses := full[strings.Index(full, "<uses"):]
+	if !strings.Contains(uses, `name="refund"`) || !strings.Contains(uses, `ref_line="7"`) {
+		t.Fatalf("the dependency refund, called on line 7, must be named:\n%s", full)
+	}
+
+	caller, _ := c.tool("read_code", map[string]any{"symbol": "refund", "detail": "full"})
+	if !strings.Contains(caller, "<used_by") || !strings.Contains(caller, `name="OrderService.Cancel"`) {
+		t.Fatalf("refund's caller must be named:\n%s", caller)
+	}
+
+	// A batch spends its budget on code; neighbors are a single-read aid.
+	batch, _ := c.tool("read_code", map[string]any{"symbols": []string{"refund", "Store.Close"}, "detail": "full"})
+	if strings.Contains(batch, "<neighbors") {
+		t.Fatalf("a multi-unit read must not carry neighbors:\n%s", batch)
+	}
+}

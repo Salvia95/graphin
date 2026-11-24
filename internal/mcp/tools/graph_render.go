@@ -196,3 +196,62 @@ func renderGraphAt(ws *workspace.Workspace, head string, page *graph.Page, direc
 	sb.WriteString("\n</graph_context>")
 	return sb.String()
 }
+
+// maxNeighbors is how many callers and how many dependencies a full read
+// names. Enough to keep going from the unit; a full list is explore's job.
+const maxNeighbors = 5
+
+// writeNeighbors appends who calls a unit and what it calls, so a read is a
+// place to continue from rather than a dead end. Skipped, and said to be,
+// when the code already fills the response: the code is what was asked for.
+func writeNeighbors(sb *strings.Builder, ws *workspace.Workspace, id string) {
+	var nb strings.Builder
+	nb.WriteString("\n<neighbors>")
+	section := func(dir string) {
+		page, err := ws.Explore(id, dir, "", 0.85)
+		if err != nil {
+			return
+		}
+		edges, holderIsNeighbour := page.Uses, false
+		if dir == "used_by" {
+			edges, holderIsNeighbour = page.UsedBy, true
+		}
+		if len(edges) == 0 {
+			return
+		}
+		more := page.HasMore || len(edges) > maxNeighbors
+		if len(edges) > maxNeighbors {
+			edges = edges[:maxNeighbors]
+		}
+		fmt.Fprintf(&nb, "\n  <%s shown=\"%d\" more=\"%t\">", dir, len(edges), more)
+		for _, e := range edges {
+			fmt.Fprintf(&nb, "\n    <node id=\"%s\" name=\"%s\" type=\"%s\" confidence=\"%.2f\"",
+				mcp.EscapeAttr(e.NodeID), mcp.EscapeAttr(displayName(ws, e.NodeID)), e.Type, e.Confidence)
+			if rel, line, ok := ws.NodeLocation(e.NodeID); ok {
+				fmt.Fprintf(&nb, ` file="%s" line="%d"`, mcp.EscapeAttr(rel), line)
+			}
+			holder, mentioned := id, e.NodeID
+			if holderIsNeighbour {
+				holder, mentioned = e.NodeID, id
+			}
+			if refLineApplies(ws, e, holder) {
+				if line, _, ok := ws.RefLine(holder, refName(ws, mentioned)); ok {
+					fmt.Fprintf(&nb, ` ref_line="%d"`, line)
+				}
+			}
+			nb.WriteString(" />")
+		}
+		fmt.Fprintf(&nb, "\n  </%s>", dir)
+	}
+	section("used_by")
+	section("uses")
+	nb.WriteString("\n</neighbors>")
+	if nb.Len() == len("\n<neighbors>\n</neighbors>") {
+		return
+	}
+	if sb.Len()+nb.Len() > keywordBudget {
+		sb.WriteString("\n<folded what=\"neighbors\" />")
+		return
+	}
+	sb.WriteString(nb.String())
+}

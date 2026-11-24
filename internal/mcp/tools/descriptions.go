@@ -75,6 +75,8 @@ Do not use it to find where something is (search first), or to read a whole code
 
 Input: symbol = a name (cancelOrder), a qualified name (OrderService.cancel), a file path, or path:line for the unit enclosing that line; symbols = up to 20 of those, read in order. lines = "120-180" reads only that stretch of a long unit (at most 200 lines; the file's own line numbers). A name shared by several units returns them as candidates instead of guessing.
 
-Returns: the source with its file and line range. Several units come back whole, in the order asked; any that did not fit are listed with the reason, to request again.`
+Returns: the source with its file and line range. Several units come back whole, in the order asked; any that did not fit are listed with the reason, to request again. detail="full" on a single read adds up to 5 callers and 5 dependencies, each with its location and the line where the reference is written, so you can continue from the unit.`
 
 const descExploreDetail = `ids (default): id, kind of reference, confidence and location per neighbour. full: also each neighbour's name and signature, and the line where the reference is written — use it to judge callers without reading each one.`
+
+const descReadDetail = `code (default): the source only. full: for a single unit, also up to 5 callers and 5 dependencies with their locations — a place to continue from.`

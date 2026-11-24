@@ -116,6 +116,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 				"type":        "string",
 				"description": fmt.Sprintf("Only with symbol: read lines \"start-end\" (or one line \"N\") — the file's own line numbers, at most %d, clipped to the unit.", workspace.MaxRangeLines),
 			},
+			"detail": map[string]any{
+				"type": "string", "enum": []string{detailCode, detailFull}, "default": detailCode,
+				"description": descReadDetail,
+			},
 		}, nil),
 		Handler: readCodeHandler(ws),
 	})
@@ -713,6 +717,7 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		NodeID  string   `json:"node_id"`
 		NodeIDs []string `json:"node_ids"`
 		Lines   string   `json:"lines"`
+		Detail  string   `json:"detail"`
 	}
 	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		if !ensureBootstrapped(ctx, ws) {
@@ -726,6 +731,11 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		if msg != "" {
 			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
 		}
+		detail, msg := parseDetail(a.Detail, detailCode, detailFull)
+		if msg != "" {
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
+		}
+		full := detail == detailFull
 		a.NodeID = one
 		if len(a.Symbols) > 0 && len(a.NodeIDs) > 0 {
 			return mcp.ErrorXML(mcp.ErrInternal, "pass symbols or node_ids, not both", &st), true
@@ -752,10 +762,10 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			if err != nil {
 				return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
 			}
-			return readRange(ws, a.NodeID, from, to)
+			return readRange(ws, a.NodeID, from, to, full)
 		}
 		if a.NodeID != "" {
-			return readOne(ws, a.NodeID)
+			return readOne(ws, a.NodeID, full)
 		}
 		return readMany(ws, a.NodeIDs)
 	}
@@ -763,7 +773,7 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 
 // readOne keeps the single-node contract byte for byte: one <code_block>, and
 // a hard error when the node cannot be read.
-func readOne(ws *workspace.Workspace, ref string) (string, bool) {
+func readOne(ws *workspace.Workspace, ref string, full bool) (string, bool) {
 	res := resolveRef(ws, ref)
 	if res.id == "" {
 		return refFailure(ws, ref, res), true
@@ -779,6 +789,9 @@ func readOne(ws *workspace.Workspace, ref string) (string, bool) {
 	writeStatusPrefix(&sb, ws)
 	sb.WriteString(resolvedNote(ref, res))
 	writeCodeBlock(&sb, cb)
+	if full {
+		writeNeighbors(&sb, ws, id)
+	}
 	body := sb.String()
 	return body + costLine(len(body)), false
 }
@@ -812,7 +825,7 @@ func parseLines(s string) (int, int, error) {
 
 // readRange is readOne for part of a node: the same single <code_block>,
 // marked kind="range" so a reader never takes it for the whole node.
-func readRange(ws *workspace.Workspace, ref string, from, to int) (string, bool) {
+func readRange(ws *workspace.Workspace, ref string, from, to int, full bool) (string, bool) {
 	res := resolveRef(ws, ref)
 	if res.id == "" {
 		return refFailure(ws, ref, res), true
@@ -831,6 +844,9 @@ func readRange(ws *workspace.Workspace, ref string, from, to int) (string, bool)
 	writeStatusPrefix(&sb, ws)
 	sb.WriteString(resolvedNote(ref, res))
 	writeCodeBlock(&sb, cb)
+	if full {
+		writeNeighbors(&sb, ws, id)
+	}
 	body := sb.String()
 	return body + costLine(len(body)), false
 }
