@@ -16,6 +16,7 @@
 | 10 | 측정 완료 | [결과](eval/2026-11-24-tool-contract/findings.md): **연쇄 응답은 opt-in 유지** — 기본값(C)은 B보다 정답 1:8(p=0.039)·바이트 +40% |
 | 11 | `392d066` | 해석기 빈틈 수정 — 테이블 맨 이름(RLS 묶음과의 겹침), `path:start-end` |
 | 12 | 재측정 완료 | 3런: 정답 A 98 · B 97(p=1.0) — **정답률은 같고 채택(graphin 안 쓴 런 32 → 9)·입력 오용(49% → 24%)이 바뀐다** |
+| 13 | `342d29c` | 토큰 정정 뒤 설명 축소 — 1턴 고정비 +12% → +1.6%. [재측정](eval/2026-11-24-tool-contract-short/findings.md): 개선 재현, 게이트 비용 ×1.10(n.s.)은 graphin이 Read를 대체하지 않고 보태서 |
 
 실측 응답 크기(이 저장소, 의미 모델 꺼짐): search_hybrid 5건 ids 1.2KB → full 4.4KB, top_k=20 full 6.5KB(스니펫 접힘);
 search_keyword 5파일 2.3KB → 5.2KB; explore_graph 20엣지 3.0KB → 7.4KB; read_code full은 이웃 블록 ≈0.8KB 추가.

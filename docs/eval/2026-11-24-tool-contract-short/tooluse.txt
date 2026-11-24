@@ -1,0 +1,31 @@
+== tok-gate-A: 108 runs, $6.48
+  calls/run median 5.0  bytes/run median 12370
+  graphin nav calls 166  host calls 465  runs with no graphin call 40
+  hybrid keyword-list 18/41 (44%)  keyword prose 0/95 (0%)
+  NODE_NOT_FOUND 2  AMBIGUOUS_REF 0  symbol inputs 0  detail=full asked 0
+  after a search with results: graphin follow-up 22%  host tool 69%  nothing 10%  (n=125)
+  by tool: {'Read': 208, 'Grep': 180, 'mcp__graphin__search_keyword': 95, 'Bash': 57, 'mcp__graphin__search_hybrid': 41, 'mcp__graphin__read_code': 30, 'Glob': 20, 'ToolSearch': 3, 'mcp__graphin__diagnose_index': 1}
+  e.g. keyword-list: ['file watcher detects change and triggers reindex', 'file watcher detects change and triggers reindex', 'wiki pin section hash two hashes']
+== tok-gate-B2: 108 runs, $6.98
+  calls/run median 6.0  bytes/run median 14538
+  graphin nav calls 186  host calls 498  runs with no graphin call 19
+  hybrid keyword-list 13/58 (22%)  keyword prose 0/92 (0%)
+  NODE_NOT_FOUND 1  AMBIGUOUS_REF 0  symbol inputs 36  detail=full asked 21
+  after a search with results: graphin follow-up 21%  host tool 78%  nothing 1%  (n=141)
+  by tool: {'Read': 221, 'Grep': 185, 'mcp__graphin__search_keyword': 92, 'Bash': 73, 'mcp__graphin__search_hybrid': 58, 'mcp__graphin__read_code': 28, 'Glob': 19, 'mcp__graphin__explore_graph': 8, 'ToolSearch': 3, 'mcp__graphin__diagnose_index': 1}
+  e.g. keyword-list: ['file watcher detects changed file and triggers re-indexing', 'file watcher detects file change and triggers reindexing', 'file watcher detects file change and triggers reindexing']
+== tok-hard-A: 36 runs, $3.49
+  calls/run median 10.0  bytes/run median 24157
+  graphin nav calls 122  host calls 228  runs with no graphin call 4
+  hybrid keyword-list 1/15 (7%)  keyword prose 0/82 (0%)
+  NODE_NOT_FOUND 0  AMBIGUOUS_REF 0  symbol inputs 0  detail=full asked 0
+  after a search with results: graphin follow-up 25%  host tool 60%  nothing 16%  (n=89)
+  by tool: {'Read': 135, 'mcp__graphin__search_keyword': 82, 'Grep': 57, 'mcp__graphin__read_code': 24, 'Bash': 23, 'mcp__graphin__search_hybrid': 15, 'Glob': 13, 'mcp__graphin__explore_graph': 1}
+  e.g. keyword-list: ['index_scope exclude pattern removes already indexed files']
+== tok-hard-B2: 36 runs, $3.34
+  calls/run median 9.0  bytes/run median 23684
+  graphin nav calls 112  host calls 222  runs with no graphin call 11
+  hybrid keyword-list 0/14 (0%)  keyword prose 0/48 (0%)
+  NODE_NOT_FOUND 0  AMBIGUOUS_REF 1  symbol inputs 50  detail=full asked 13
+  after a search with results: graphin follow-up 28%  host tool 71%  nothing 2%  (n=58)
+  by tool: {'Read': 120, 'Grep': 51, 'mcp__graphin__search_keyword': 48, 'Bash': 34, 'mcp__graphin__read_code': 30, 'mcp__graphin__explore_graph': 20, 'Glob': 17, 'mcp__graphin__search_hybrid': 14}

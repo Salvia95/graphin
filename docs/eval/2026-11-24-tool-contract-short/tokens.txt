@@ -1,0 +1,13 @@
+arm            runs  pass  base tok  input tok  output turns   bytes  tok/pass  $/run $ total
+tok-gate-A      108    97     18859      87674    1774     6   12370    116461  0.054    6.48
+tok-gate-B2     108    99     19153      96620    1886     7   14538    121898  0.059    6.98
+  tok-gate-B2 vs tok-gate-A input : lower 12 · higher 24 · tie 0  p=0.065  median ×1.10
+  tok-gate-B2 vs tok-gate-A cost  : lower 18 · higher 18 · tie 0  p=1.000  median ×1.09
+  tok-gate-B2 vs tok-gate-A turns : lower 9 · higher 19 · tie 8  p=0.087  median ×1.17
+
+arm            runs  pass  base tok  input tok  output turns   bytes  tok/pass  $/run $ total
+tok-hard-A       36    25     18879     169220    2848    11   24157    245904  0.099    3.49
+tok-hard-B2      36    26     19172     151412    2498    10   23684    213247  0.090    3.34
+  tok-hard-B2 vs tok-hard-A input : lower 7 · higher 5 · tie 0  p=0.774  median ×0.89
+  tok-hard-B2 vs tok-hard-A cost  : lower 8 · higher 4 · tie 0  p=0.388  median ×0.91
+  tok-hard-B2 vs tok-hard-A turns : lower 6 · higher 4 · tie 2  p=0.754  median ×0.91
