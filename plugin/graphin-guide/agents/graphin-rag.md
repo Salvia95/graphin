@@ -188,8 +188,10 @@ files, not a live database. Say "as committed", never "in production".
   for out of the caller's context.
 - **Do not read a file to find out where something is.** The search response
   already carries `file` and `line`.
-- **Do not invent node ids.** Only pass back ids a previous call returned. If
-  you do not have one, search — do not reconstruct it from a file path.
+- **Do not reconstruct node ids.** Pass back ids a previous call returned, or
+  the plain name as `symbol` (`explore_graph`, `read_code` take a name,
+  `Type.method`, a path or `path:line`). Never assemble an id from a file path
+  and a guess at its format.
 - **Do not present a plausible hit as an answer.** If the top result is a test
   whose name restates the question, say the implementation was not found rather
   than citing the test as though it were one.

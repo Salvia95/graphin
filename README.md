@@ -150,9 +150,9 @@ lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직
 | 도구 | 역할 |
 |---|---|
 | `bootstrap_workspace` | 최초 인덱싱 + watcher 기동 (`model_type`: `english_optimal` \| `multilingual_cjk`) |
-| `search_hybrid` | Tier-0 정확 일치 → BM25 ∥ 벡터 RRF(k=60) 병합. 원시 점수 비노출. 결과마다 시작 `file`·`line`을 함께 준다 — "어디 있나"는 한 콜로 끝난다 |
-| `explore_graph` | 결정론 정렬(confidence↓ → 동일 패키지 → FQN), 20엣지/페이지 seek-key 커서 |
-| `read_code` | 바이트 오프셋 슬라이싱. 파일 해시 불일치 시 인라인 재파싱(`reparsed="true"`) |
+| `search_hybrid` | Tier-0 정확 일치 → BM25 ∥ 벡터 RRF(k=60) 병합. 원시 점수 비노출. 결과마다 시작 `file`·`line`을 함께 준다 — "어디 있나"는 한 콜로 끝난다. `detail="full"`이면 시그니처·매칭 주변 줄, 1위의 본문과 호출자까지 |
+| `explore_graph` | 결정론 정렬(confidence↓ → 동일 패키지 → FQN), 20엣지/페이지 seek-key 커서. 입력은 node id 외에 이름·`Type.method`·경로·`path:line`(`symbol`). `detail="full"`이면 이웃마다 시그니처와 참조가 적힌 줄 |
+| `read_code` | 바이트 오프셋 슬라이싱. 파일 해시 불일치 시 인라인 재파싱(`reparsed="true"`). 입력은 `explore_graph`와 같고, `detail="full"`이면 호출자·피호출자 5개씩 |
 | `diagnose_index` | 인덱스 자체의 건강 — 노드/엣지/샤드 카운트, 끊어진 엣지(코드/DB 분리), partial 노드, 역인덱스 통계, 의미 검색 상태와 `vectors.bin` 모델 불일치, 유효 기동 플래그, `.graphin` 용량. 조치가 필요한 것만 `<hint>`으로 낸다 |
 | `run_local_benchmark` | Grep Full / Grep -C20 / graphin 3-시나리오 바이트·토큰 절감 리포트 |
 

@@ -1,6 +1,22 @@
 # 도구 계약 재설계 — 서브에이전트가 skill 없이 쓰는 graphin
 
-상태: 초안 (2026-11-24) · 대상: `search_hybrid`, `search_keyword`, `explore_graph`, `read_code`
+상태: S1·S2·S3 구현 완료, 연쇄 응답은 opt-in (2026-11-24) · 대상: `search_hybrid`, `search_keyword`, `explore_graph`, `read_code`
+
+| 단계 | 커밋 | 내용 |
+|---|---|---|
+| 1 | `7442b57` | hint가 다른 도구 없이도 따를 수 있게 |
+| 2 | `ba08557` | `symbol`/`symbols` — 이름·`Type.method`·경로·`path:line` 입력, `AMBIGUOUS_REF` |
+| 3 | `555fe8b` | 네 도구 설명 교체 (`internal/mcp/tools/descriptions.go`) |
+| 4 | `91ff28d` | `Signature`/`Snippet`/`RefLine`/`NodeLines` |
+| 5 | `66a45ba` | `explore_graph detail=full` |
+| 6 | `644d626` | `read_code detail=full` |
+| 7 | `b0be8f5` | `search_keyword detail=full` |
+| 8 | `ca63e00` | `search_hybrid detail=full` |
+| 9 | — | skill·agent·README 갱신 |
+| 10 | 대기 | §5 측정 후 기본값 전환 결정 |
+
+실측 응답 크기(이 저장소, 의미 모델 꺼짐): search_hybrid 5건 ids 1.2KB → full 4.4KB, top_k=20 full 6.5KB(스니펫 접힘);
+search_keyword 5파일 2.3KB → 5.2KB; explore_graph 20엣지 3.0KB → 7.4KB; read_code full은 이웃 블록 ≈0.8KB 추가.
 
 ## 0. 왜
 

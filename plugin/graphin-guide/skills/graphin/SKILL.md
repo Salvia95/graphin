@@ -29,9 +29,13 @@ You almost never need to read a file top to bottom.
 3. read_code(node_id)                     → the exact source of ONE node
 ```
 
-Each step hands you **node IDs**. A node ID is the currency of graphin — it flows
-from search into explore into read. You never invent an ID; you only ever pass
-back an ID that a previous call returned.
+Each step hands you **node IDs**, and an ID a previous call returned is always the
+surest thing to pass on. But `explore_graph` and `read_code` also take the name you
+already have as `symbol`: `cancelPayment`, `OrderService.cancelPayment`, a file path,
+or `path:line` for the unit enclosing that line. A name several units share comes
+back as `AMBIGUOUS_REF` with the candidates — pick one — and an unknown name comes
+back with search suggestions. What you must not do is reconstruct an ID's internal
+format from a path: pass the name instead.
 
 Stop as early as you can. If `search_hybrid` names the right symbol and you only
 needed to know *where* it is, you're done — don't read the code just because you
@@ -55,10 +59,10 @@ background:
 | Tool | What it gives you | Params that matter |
 |---|---|---|
 | `bootstrap_workspace` | Starts indexing + live file watching. | `model_type`: `english_optimal` \| `multilingual_cjk` (pick by the language of code/comments). `offline`: for air-gapped setups. |
-| `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies. | `query` (required, natural language or a symbol name). `top_k` (default 5, max 20). `target`: `code` \| `docs` \| `db` — see below. |
-| `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence` and the `file`/`line` it is at — enough to cite a hop without searching for it. Paginated. | `node_id` (required). `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. |
+| `search_hybrid` | Entry-point **node IDs** for a query, each with the `file` and `line` it starts at. Exact matches, keyword (BM25), and semantic results are blended and ranked. No code bodies unless `detail="full"`. | `query` (required: one identifier, or one sentence about behavior — not a keyword list). `top_k` (default 5, max 20). `target`: `code` \| `docs` \| `db` — see below. `detail`: `ids` (default) \| `full`. |
+| `explore_graph` | The graph neighborhood of a node: what it **uses** and what **uses it**, each with a `confidence` and the `file`/`line` it is at — enough to cite a hop without searching for it. Paginated. | `symbol` (a name, `Type.method`, path or `path:line`) or `node_id`. `direction`: `uses` \| `used_by` \| `both` (default `both`). `min_confidence` (default `0.85`). `cursor` for the next page. `detail`: `ids` (default) \| `full`. |
 | `search_keyword` | Literal or regex matches over the same tree the index walks, ranked by match count, each matching line carrying the **node id** that owns it. Data files (json, jsonl, lock, sum, csv) rank after source and prose and come back `folded="data"` with path and count only; `path=` opens one. | `pattern` (required). `regex` (default false). `path` (rel-path substring). `top_k` (files, default 5). `context` (0–5 lines around each match, default 0). |
-| `read_code` | The exact source slice for one node, or for several at once — or just some lines of one. | `node_id`, **or** `node_ids` (up to 20, read in the order given). Not both. `lines` (`"start-end"`, at most 200) with `node_id` reads only those lines of it. |
+| `read_code` | The exact source slice for one node, or for several at once — or just some lines of one. | `symbol` / `node_id`, **or** `symbols` / `node_ids` (up to 20, read in the order given). Not both. `lines` (`"start-end"`, at most 200) with a single unit reads only those lines of it. `detail`: `code` (default) \| `full`. |
 
 `diagnose_index` reports the index's own health — counts, edges whose target is
 missing, files that failed to parse, semantic search state, effective settings,
@@ -118,6 +122,22 @@ normal exploration.
   when a long markdown section came back from `search_hybrid` with a `hit_line`:
   read around that line instead of the whole section. A file's path is its node
   id, so the same call reads a stretch of a file around a `search_keyword` line.
+
+## One call instead of three: `detail="full"`
+
+Each navigation tool can return the next step's answer with its own. Ask for it
+when you would otherwise follow up immediately:
+
+| Tool | `detail="full"` adds |
+|---|---|
+| `search_hybrid` | every result's kind, signature and the lines around the match; the top result's body (whole when short, a window marked `partial="true"` otherwise) and up to 3 callers |
+| `search_keyword` | the name, kind, signature and line range of the unit each match is in; 2 lines of context unless `context` is set |
+| `explore_graph` | each neighbour's name and signature, and `ref_line`/`ref_text` — the line where the call or reference is written |
+| `read_code` | for a single unit, up to 5 callers and 5 dependencies with their locations and call lines |
+
+It costs bytes — a full search is roughly three times an id-only one — and a
+response that would overflow folds the least useful part and says so in
+`<folded what="…">`. The default stays id-only for now.
 
 ## Asking a question in a sentence: use `target="code"`
 
@@ -221,9 +241,10 @@ their users. `search_keyword` points at the declaration.
 
 ## When NOT to use it (anti-patterns)
 
-- **Don't invent node IDs.** Only pass IDs that search/explore returned. A guessed
-  ID will miss.
-- **Don't skip search and guess.** If you don't have an ID, start at `search_hybrid`.
+- **Don't reconstruct node IDs.** Pass an ID a call returned, or the plain name as
+  `symbol`. An ID assembled from a path and a guess at the format will miss.
+- **Don't pick a candidate at random.** An `AMBIGUOUS_REF` lists every unit with
+  that name and its file; choose by file, or qualify the name (`Type.method`).
 - **Don't use `read_code` as a file reader.** It returns one node's slice, not a
   whole file. (Config/plain-text files are indexed as single file-level nodes, so
   reading those *does* return the file — but code files give you the symbol.)
