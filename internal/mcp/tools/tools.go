@@ -323,13 +323,19 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 // Both are invisible in the result list itself: an empty list says nothing
 // about which retriever to try next, and a full list drawn from a third of the
 // repository looks exactly like a full list drawn from four nodes.
+// exactTextSearch is how a hint points at literal search. It names this
+// server's tool but does not depend on it: a subagent is often given only some
+// of graphin's tools, and a hint it cannot follow is a dead end. The tool name
+// stays in because eval-rag counts hints by it.
+const exactTextSearch = "an exact-text search (search_keyword if you have it, otherwise grep)"
+
 func searchHint(stats search.Stats, returned, indexed int, target string) string {
 	// A quoted query is an instruction, not a question: the caller wants the
 	// text, and the ranking can only ever match its words. Said first, whatever
 	// came back — a full list of word-matches is the misleading case.
 	if stats.Quoted {
 		return "the query is a quoted string, and the ranking matched its words, not the text. " +
-			"search_keyword finds the exact string; unquote it if you meant the words"
+			exactTextSearch + " finds the string itself; unquote it if you meant the words"
 	}
 	// Checked before the empty case, because it is the one that actually
 	// fires. A query naming a symbol that is not here still comes back full:
@@ -337,11 +343,11 @@ func searchHint(stats search.Stats, returned, indexed int, target string) string
 	if len(stats.UnnamedIdents) > 0 {
 		return fmt.Sprintf("%s appears in the code but no indexed symbol is named it — a package-level "+
 			"constant or a name the parser does not lift into a node. The ranking can only answer with its "+
-			"users; search_keyword points at the declaration",
+			"users; "+exactTextSearch+" for it finds the declaration",
 			strings.Join(quoteAll(stats.UnnamedIdents), ", "))
 	}
 	if len(stats.AbsentIdents) > 0 {
-		return fmt.Sprintf("no indexed symbol spells %s. search_keyword still finds it as text "+
+		return fmt.Sprintf("no indexed symbol spells %s. "+exactTextSearch+" still finds it as text "+
 			"(a string built at runtime, a config key, a file the parser skipped); if that is empty too, "+
 			"it is not in this workspace", strings.Join(quoteAll(stats.AbsentIdents), ", "))
 	}
@@ -352,11 +358,11 @@ func searchHint(stats search.Stats, returned, indexed int, target string) string
 	// it. Two content words is the floor so a one-word query cannot trip it.
 	if n := len(stats.AbsentTerms); n > 0 && stats.ContentTerms >= 2 && n*2 >= stats.ContentTerms {
 		return fmt.Sprintf("%d of the query's %d words are in no indexed document (%s), so the ranking "+
-			"matched the rest. search_keyword reads the files the index skipped; otherwise rephrase "+
+			"matched the rest. "+exactTextSearch+" reads the files the index skipped; otherwise rephrase "+
 			"with the words the code uses", n, stats.ContentTerms, strings.Join(quoteAll(stats.AbsentTerms), ", "))
 	}
 	if returned == 0 {
-		h := "no ranked result. search_keyword finds an exact string the ranking cannot; " +
+		h := "no ranked result. If you know exact text from the code, " + exactTextSearch + " finds it; " +
 			"otherwise name the symbol rather than describing it"
 		if target != "" {
 			h += `, or drop target="` + target + `" — it may have excluded the answer`
@@ -365,7 +371,7 @@ func searchHint(stats search.Stats, returned, indexed int, target string) string
 	}
 	if m := stats.LexicalMatched; indexed > 0 && m >= broadMatchFloor && m*100/indexed >= broadMatchPercent {
 		return fmt.Sprintf("this query touched %d of %d indexed nodes, so the ranking did most of the "+
-			"deciding. Narrow it, or use search_keyword if you know the exact text", m, indexed)
+			"deciding. Narrow it, or if you know exact text from the code, use "+exactTextSearch, m, indexed)
 	}
 	return ""
 }
@@ -464,7 +470,8 @@ func waitSemantic(ctx context.Context, d time.Duration, ready, stop func() bool)
 }
 
 func keywordEmptyHint(regex bool) string {
-	h := "no line contains this text. If it is a name, search_hybrid finds the symbol; if it is a " +
+	h := "no line contains this text. If it is a concept, or a name you are not sure of, a meaning " +
+		"search (search_hybrid if you have it) fits better than exact text; if it is a " +
 		"message, try a shorter fragment that is unlikely to change"
 	if !regex {
 		h += "; if part of it varies at runtime, regex=true matches around the variable part"

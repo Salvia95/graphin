@@ -154,6 +154,14 @@ Returns: the source with file and line range, plus the names and file:line of up
 현행 hint는 다른 도구 이름을 지시한다. 해당 도구가 주입되지 않은 에이전트에게는 따를 수 없는
 지시다. 능력으로 바꾼다.
 
+**구현 결정(1단계):** 도구 이름을 완전히 빼지 않고 조건부로 남긴다 —
+`an exact-text search (search_keyword if you have it, otherwise grep)` (`exactTextSearch` 상수).
+도구가 없는 에이전트도 다음 수가 있고, `eval-rag.py`가 hint를 도구 이름으로 세는 지표
+(`hints_seen`/followed)와 `eval-recall.py`의 hint 분류 문구("quoted string", "no indexed symbol",
+"in no indexed document", "no ranked result", "touched")가 그대로 유지된다.
+`TestHintsNeverDependOnAnotherGraphinTool`이 이 규칙을 고정한다. 아래 표는 방향이고, 최종 문구는
+코드가 기준이다.
+
 | 위치 | 현행 | 초안 |
 |---|---|---|
 | `searchHint` quoted | `search_keyword finds the exact string` | `an exact-text search (grep, or this server's keyword search) finds the string itself` |

@@ -124,3 +124,32 @@ func TestKeywordEmptyHintMentionsRegexOnlyForLiterals(t *testing.T) {
 		t.Fatalf("a regex miss must not suggest regex: %q", h)
 	}
 }
+
+// A subagent is often given only some of graphin's tools. Every hint that
+// points at another graphin tool must also say what to do without it, or the
+// hint is a dead end for that agent.
+func TestHintsNeverDependOnAnotherGraphinTool(t *testing.T) {
+	hints := map[string]string{
+		"quoted":  searchHint(search.Stats{Quoted: true}, 5, 1000, ""),
+		"unnamed": searchHint(search.Stats{UnnamedIdents: []string{"X"}}, 5, 1000, ""),
+		"absent":  searchHint(search.Stats{AbsentIdents: []string{"X"}}, 5, 1000, ""),
+		"vocab":   searchHint(search.Stats{ContentTerms: 2, AbsentTerms: []string{"a", "b"}}, 5, 1000, ""),
+		"empty":   searchHint(search.Stats{}, 0, 1000, ""),
+		"broad":   searchHint(search.Stats{LexicalMatched: 900}, 5, 1000, ""),
+		"keyword": keywordEmptyHint(false),
+	}
+	tools := []string{"search_keyword", "search_hybrid", "explore_graph", "read_code"}
+	for name, h := range hints {
+		if h == "" {
+			t.Fatalf("%s: hint did not fire", name)
+		}
+		for _, tool := range tools {
+			if !strings.Contains(h, tool) {
+				continue
+			}
+			if !strings.Contains(h, tool+" if you have it") {
+				t.Errorf("%s: names %s without a way forward when it is absent: %q", name, tool, h)
+			}
+		}
+	}
+}
