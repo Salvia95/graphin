@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Salvia95/graphin/internal/bench"
-	"github.com/Salvia95/graphin/internal/graph"
 	"github.com/Salvia95/graphin/internal/keyword"
 	"github.com/Salvia95/graphin/internal/mcp"
 	"github.com/Salvia95/graphin/internal/nodeid"
@@ -86,6 +85,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			"cursor": map[string]any{"type": "string", "description": "next_cursor from the previous page."},
 			"min_confidence": map[string]any{
 				"type": "number", "default": 0.85, "description": descExploreMinConfidence,
+			},
+			"detail": map[string]any{
+				"type": "string", "enum": []string{detailIDs, detailFull}, "default": detailIDs,
+				"description": descExploreDetail,
 			},
 		}, nil),
 		Handler: exploreHandler(ws),
@@ -641,6 +644,7 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Direction     string   `json:"direction"`
 		Cursor        string   `json:"cursor"`
 		MinConfidence *float64 `json:"min_confidence"`
+		Detail        string   `json:"detail"`
 	}
 	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		if !ensureBootstrapped(ctx, ws) {
@@ -648,6 +652,11 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		var a args
 		_ = json.Unmarshal(raw, &a)
+		detail, msg := parseDetail(a.Detail, detailIDs, detailFull)
+		if msg != "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
+		}
 		switch a.Direction {
 		case "uses", "used_by", "both":
 		default:
@@ -681,62 +690,15 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			return mcp.ErrorXML(mcp.ErrInternal, err.Error(), &st), true
 		}
 
-		var sb strings.Builder
+		var head strings.Builder
 		if st := ws.FSM.Status(); st.State != "ready" {
-			sb.WriteString(st.XML())
-			sb.WriteString("\n")
+			head.WriteString(st.XML())
+			head.WriteString("\n")
 		}
-		sb.WriteString(resolvedNote(ref, res))
-		fmt.Fprintf(&sb, `<graph_context target="%s">`, mcp.EscapeAttr(page.Target))
-		writeEdges := func(tag string, edges []workspaceEdge) {
-			if len(edges) == 0 {
-				return
-			}
-			fmt.Fprintf(&sb, "\n  <%s>", tag)
-			for _, e := range edges {
-				fmt.Fprintf(&sb, "\n    <node id=\"%s\" type=\"%s\" confidence=\"%.2f\"",
-					mcp.EscapeAttr(e.NodeID), e.Type, e.Confidence)
-				// Where each neighbour is, as search_hybrid says it: a hop
-				// can then be cited (or read with lines) without a search
-				// to find its file. Multi-hop answers failed on exactly
-				// that — the second file found, named, and never cited.
-				// A target not in the index has no location; its absence
-				// says so.
-				if rel, line, ok := ws.NodeLocation(e.NodeID); ok {
-					fmt.Fprintf(&sb, ` file="%s" line="%d"`, mcp.EscapeAttr(rel), line)
-				}
-				sb.WriteString(" />")
-			}
-			fmt.Fprintf(&sb, "\n  </%s>", tag)
-		}
-		if a.Direction != "used_by" {
-			writeEdges("uses", toEdges(page.Uses))
-		}
-		if a.Direction != "uses" {
-			writeEdges("used_by", toEdges(page.UsedBy))
-		}
-		if page.HasMore {
-			sb.WriteString("\n  <has_more>true</has_more>")
-			fmt.Fprintf(&sb, "\n  <next_cursor>%s</next_cursor>", mcp.EscapeText(page.NextCursor))
-		}
-		sb.WriteString("\n</graph_context>")
-		body := sb.String()
+		head.WriteString(resolvedNote(ref, res))
+		body := renderGraph(ws, head.String(), page, a.Direction, detail)
 		return body + costLine(len(body)), false
 	}
-}
-
-type workspaceEdge struct {
-	NodeID     string
-	Type       string
-	Confidence float32
-}
-
-func toEdges(in []graph.EdgeOut) []workspaceEdge {
-	out := make([]workspaceEdge, len(in))
-	for i, e := range in {
-		out[i] = workspaceEdge{NodeID: e.NodeID, Type: e.Type, Confidence: e.Confidence}
-	}
-	return out
 }
 
 // maxReadNodes bounds a multi-node read. It matches explore_graph's page size,

@@ -1,10 +1,13 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Salvia95/graphin/internal/mcp"
 )
 
 // mkRefWorkspace is a small Go module with the shapes a name can take:
@@ -182,4 +185,88 @@ func attr(t *testing.T, text, tag, name string) string {
 	}
 	v := el[j+len(key):]
 	return v[:strings.IndexByte(v, '"')]
+}
+
+// detail="full" says where each reference is written, so a caller can be
+// judged without reading it; the default stays the id-only response.
+func TestExploreGraphFullDetail(t *testing.T) {
+	root := mkRefWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	ids, _ := c.tool("explore_graph", map[string]any{"symbol": "refund", "direction": "used_by"})
+	same, _ := c.tool("explore_graph", map[string]any{"symbol": "refund", "direction": "used_by", "detail": "ids"})
+	if ids != same {
+		t.Fatalf("detail=ids must be the default response:\n%s\n---\n%s", ids, same)
+	}
+	if strings.Contains(ids, "ref_line") || strings.Contains(ids, "signature") {
+		t.Fatalf("the default response must not carry full detail:\n%s", ids)
+	}
+
+	full, isErr := c.tool("explore_graph", map[string]any{"symbol": "refund", "direction": "used_by", "detail": "full"})
+	if isErr {
+		t.Fatalf("explore_graph full: %s", full)
+	}
+	for _, want := range []string{
+		`detail="full"`,
+		`signature="func refund(id string)"`, // the target
+		`name="OrderService.Cancel"`,         // the caller, by name
+		`signature="func (s *OrderService) Cancel(id string) error"`,
+		`ref_line="7"`, `ref_text="refund(id)"`, // where the call is written
+	} {
+		if !strings.Contains(full, want) {
+			t.Fatalf("full detail lacks %s:\n%s", want, full)
+		}
+	}
+
+	// uses: the reference is written in the target itself.
+	uses, _ := c.tool("explore_graph", map[string]any{"symbol": "OrderService.Cancel", "direction": "uses", "detail": "full"})
+	if !strings.Contains(uses, `ref_line="7"`) {
+		t.Fatalf("a dependency's ref_line is in the target's body:\n%s", uses)
+	}
+	if text, isErr := c.tool("explore_graph", map[string]any{"symbol": "refund", "detail": "everything"}); !isErr ||
+		!strings.Contains(text, "unknown detail") {
+		t.Fatalf("unknown detail must be refused:\n%s", text)
+	}
+}
+
+// A full page that would overflow the response folds reference text, then
+// signatures — and never drops an edge to fit.
+func TestExploreGraphFullFoldsInsteadOfDroppingEdges(t *testing.T) {
+	root := t.TempDir()
+	var sb strings.Builder
+	sb.WriteString("package fan\n\nfunc target(a int) int { return a }\n\n")
+	long := strings.Repeat("x", 60)
+	for i := 0; i < 20; i++ {
+		fmt.Fprintf(&sb, "func caller%02d_%s(%sA int, %sB string, %sC bool) int {\n", i, long, long, long, long)
+		fmt.Fprintf(&sb, "\treturn target(%sA) + target(len(%sB)) + %d // %s\n}\n\n", long, long, i, strings.Repeat("y", 80))
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/fan\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "fan"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "fan", "fan.go"), []byte(sb.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	full, isErr := c.tool("explore_graph", map[string]any{"symbol": "target", "direction": "used_by", "detail": "full"})
+	if isErr {
+		t.Fatalf("explore_graph: %s", full)
+	}
+	if n := strings.Count(full, "<node "); n != 20 {
+		t.Fatalf("want all 20 callers, got %d:\n%s", n, full)
+	}
+	if !strings.Contains(full, "<folded what=") {
+		t.Fatalf("an overflowing page must say what it folded:\n%s", full)
+	}
+	if strings.Contains(full, "ref_text=") || !strings.Contains(full, "ref_line=") {
+		t.Fatalf("reference text folds first; the line number stays:\n%.2000s", full)
+	}
+	if len(full) > mcp.MaxResponseBytes {
+		t.Fatalf("response is %d bytes, over %d", len(full), mcp.MaxResponseBytes)
+	}
 }

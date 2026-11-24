@@ -57,7 +57,7 @@ func idOf(t *testing.T, ws *Workspace, name string) string {
 func TestSignatures(t *testing.T) {
 	ws := summaryWS(t)
 	cases := map[string]string{
-		"Cancel":       "func (s *OrderService) Cancel( id string, reason string, ) error",
+		"Cancel": "func (s *OrderService) Cancel( id string, reason string, ) error",
 		// The Go parser spans a type from its name, not the type keyword.
 		"OrderService": "OrderService struct",
 		"refund":       "func refund(id string)",

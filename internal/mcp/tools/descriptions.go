@@ -59,7 +59,7 @@ Do not use it to find where something is — give it a name you already have; an
 Input: symbol = a name (cancelOrder), a qualified name (OrderService.cancel), a file path, or path:line for the unit enclosing that line. A name shared by several units returns them as candidates instead of guessing.
 direction: used_by = callers and references (impact), uses = dependencies, both (default) = uses first, then used_by. When you need callers, ask for used_by: under both, a busy function's callers can fall onto the next page.
 
-Returns: up to 20 neighbours per page, each with its id, the kind of reference (call, import, extends, implements, reference, foreign_key, contains), a confidence and the file:line where the neighbour starts. Confidence: 1.00 certain from syntax; 0.95 same package; 0.90 through an import; 0.80 a same-name guess, hidden unless min_confidence is lowered. has_more with next_cursor means more exist — a short list is not proof of few callers.
+Returns: up to 20 neighbours per page, each with its id, the kind of reference (call, import, extends, implements, reference, foreign_key, contains), a confidence and the file:line where the neighbour starts. Confidence: 1.00 certain from syntax; 0.95 same package; 0.90 through an import; 0.80 a same-name guess, hidden unless min_confidence is lowered. has_more with next_cursor means more exist — a short list is not proof of few callers. detail="full" adds each neighbour's name, signature and the line where the reference is written (ref_line, ref_text), so callers can be judged without reading them.
 
 Limits: references are known for Java, Kotlin, Python, JavaScript/TypeScript, Go, Markdown links and committed DB schemas. Dynamic dispatch, reflection and string-built calls are invisible: no edge is not proof of no relationship.`
 
@@ -76,3 +76,5 @@ Do not use it to find where something is (search first), or to read a whole code
 Input: symbol = a name (cancelOrder), a qualified name (OrderService.cancel), a file path, or path:line for the unit enclosing that line; symbols = up to 20 of those, read in order. lines = "120-180" reads only that stretch of a long unit (at most 200 lines; the file's own line numbers). A name shared by several units returns them as candidates instead of guessing.
 
 Returns: the source with its file and line range. Several units come back whole, in the order asked; any that did not fit are listed with the reason, to request again.`
+
+const descExploreDetail = `ids (default): id, kind of reference, confidence and location per neighbour. full: also each neighbour's name and signature, and the line where the reference is written — use it to judge callers without reading each one.`

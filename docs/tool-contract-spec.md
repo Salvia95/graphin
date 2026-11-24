@@ -293,6 +293,11 @@ func (w *Workspace) RefLine(holderID, targetName string) (line int, text string,
 | 기본 페이지 | 20 | 20 유지. 12KB를 넘으면 signature부터 접는다(§3.5) |
 | `detail=ids` | — | 현행 응답과 바이트 단위 동일(입력 해석만 확장) |
 
+**구현(5단계):** 참조 줄은 자식 요소가 아니라 `ref_line`/`ref_text` **속성**으로 낸다 — 이웃 한 개가
+한 줄로 유지된다. 실측: 이 저장소에서 20개 이웃 full 페이지 ≈ 7.4KB(ids 3.0KB). 서명 200자·참조 160자
+상한에서 최악이 12KB 근처라, 넘으면 `ref_text` → `signature` 순으로 접고 `<folded what=..>`를 남긴다.
+`contains`·`foreign_key` 엣지와 DB 노드는 참조 줄을 찾지 않는다.
+
 `ref_line` 기준: `used_by` 이웃은 **이웃(호출자) 안에서** 대상 이름이 나오는 줄,
 `uses` 이웃은 **대상 안에서** 이웃 이름이 나오는 줄. 두 경우 모두 "참조가 적힌 곳"으로 의미가
 같다.
@@ -350,6 +355,10 @@ func (w *Workspace) RefLine(holderID, targetName string) (line int, text string,
 를 붙이고 나머지 도구는 현행대로 둔다.
 
 ## 4. 단계
+
+**결정(2026-11-24):** 연쇄 응답(`detail=full`)은 먼저 **opt-in**으로 구현하고, §5 측정이 승인 기준을 넘은
+뒤에 기본값으로 바꾼다. 그때까지 각 도구의 기본값은 현행 응답(`ids`/`code`/`context=0`)이다.
+
 
 | 단계 | 내용 | 기본 응답 변화 | 위험 |
 |---|---|---|---|
