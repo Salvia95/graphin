@@ -23,7 +23,7 @@ Query: ONE identifier (parseConfig, OrderService.cancel) or ONE sentence describ
   bad:  "lock release write fail"   (a keyword list — write it as a sentence)
   bad:  "\"lock released\""          (quoted text — that is an exact-text search)
 
-Returns: up to top_k ranked units (function, class, method, doc section, DB table), each with its id, name, match type and the file:line where it starts — enough to answer "where is X". No code: read the unit to see its body. For a long doc section, hit_line is the line the match is on.
+Returns: up to top_k ranked units (function, class, method, doc section, DB table), each with its id, name, match type and the file:line where it starts — enough to answer "where is X". For a long doc section, hit_line is the line the match is on. No code by default; detail="full" adds each result's kind, signature and the lines around the match, plus the top result's body and up to 3 callers — so most "where/how" questions end in this one call.
 
 Good to know: a sentence-shaped question also matches documentation; set target="code" for implementation only. Ranks are best guesses — a match_type of exact or both is stronger evidence than a single engine.`
 
@@ -82,3 +82,5 @@ const descExploreDetail = `ids (default): id, kind of reference, confidence and 
 const descReadDetail = `code (default): the source only. full: for a single unit, also up to 5 callers and 5 dependencies with their locations — a place to continue from.`
 
 const descSearchKeywordDetail = `ids (default): each match with its line and the id of the unit it is in. full: also that unit's name, kind, signature and line range, and 2 lines of context unless context is set.`
+
+const descSearchHybridDetail = `ids (default): id, name and location per result. full: also kind, signature and the lines around the match; the top result brings its body (or the part around the match) and up to 3 callers.`

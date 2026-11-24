@@ -38,6 +38,13 @@ type Store struct{}
 
 func (s *Store) Close() {}
 `,
+		"order/api.go": `package order
+
+func Handle(id string) error {
+	svc := &OrderService{}
+	return svc.Cancel(id)
+}
+`,
 		"fakes/fakes_test.go": `package fakes
 
 func refund(id string) {}
@@ -338,5 +345,78 @@ func TestSearchKeywordFullNamesTheOwner(t *testing.T) {
 	// An explicit context wins over the full default.
 	if text, _ := c.tool("search_keyword", map[string]any{"pattern": "refund(id)", "detail": "full", "context": 0}); strings.Contains(text, "window=") {
 		t.Fatalf("context=0 must suppress the window:\n%s", text)
+	}
+}
+
+// detail="full" answers "where/how" in one call: what each result is, the
+// lines around the match, and the top result's body and callers.
+func TestSearchHybridFull(t *testing.T) {
+	root := mkRefWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	plain, _ := c.tool("search_hybrid", map[string]any{"query": "refund"})
+	same, _ := c.tool("search_hybrid", map[string]any{"query": "refund", "detail": "ids"})
+	if plain != same || strings.Contains(plain, "<body") || strings.Contains(plain, "signature=") {
+		t.Fatalf("detail=ids must be the unchanged default:\n%s\n---\n%s", plain, same)
+	}
+
+	full, isErr := c.tool("search_hybrid", map[string]any{"query": "Cancel", "target": "code", "detail": "full"})
+	if isErr {
+		t.Fatalf("search_hybrid full: %s", full)
+	}
+	top := full[strings.Index(full, "<node "):]
+	top = top[:strings.Index(top, "</node>")]
+	for _, want := range []string{
+		`display_name="OrderService.Cancel"`, `kind="method"`,
+		`signature="func (s *OrderService) Cancel(id string) error"`,
+		`<body lines="6-9">`, "refund(id)",
+		`<callers shown="1" more="false">`, `name="Handle"`, `file="order/api.go"`, `ref_line="5"`,
+	} {
+		if !strings.Contains(top, want) {
+			t.Fatalf("top result lacks %s:\n%s", want, full)
+		}
+	}
+	if strings.Count(full, "<node id=") > 1 && !strings.Contains(full, "<snippet lines=") {
+		t.Fatalf("results below the top must carry a snippet:\n%s", full)
+	}
+	if !strings.Contains(full, `detail="full"`) {
+		t.Fatalf("a full response echoes its detail:\n%s", full)
+	}
+}
+
+// A long top result comes back as a window, marked partial, never whole.
+func TestSearchHybridFullWindowsALongBody(t *testing.T) {
+	root := t.TempDir()
+	var sb strings.Builder
+	sb.WriteString("package big\n\nfunc HugeHandler() {\n")
+	for i := 0; i < 300; i++ {
+		fmt.Fprintf(&sb, "\tstep%03d()\n", i)
+	}
+	sb.WriteString("}\n")
+	for i := 0; i < 300; i++ {
+		fmt.Fprintf(&sb, "func step%03d() {}\n", i)
+	}
+	for rel, body := range map[string]string{"go.mod": "module example.com/big\n\ngo 1.22\n", "big/big.go": sb.String()} {
+		p := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	full, isErr := c.tool("search_hybrid", map[string]any{"query": "HugeHandler", "detail": "full"})
+	if isErr {
+		t.Fatalf("search_hybrid: %s", full)
+	}
+	if !strings.Contains(full, `partial="true" unit_lines="3-304"`) {
+		t.Fatalf("a long body must come back as a marked window:\n%.1500s", full)
+	}
+	if len(full) > mcp.MaxResponseBytes {
+		t.Fatalf("response is %d bytes, over %d", len(full), mcp.MaxResponseBytes)
 	}
 }

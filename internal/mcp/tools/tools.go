@@ -47,6 +47,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 				"type": "string", "enum": []string{"code", "docs", "db"},
 				"description": descSearchHybridTarget,
 			},
+			"detail": map[string]any{
+				"type": "string", "enum": []string{detailIDs, detailFull}, "default": detailIDs,
+				"description": descSearchHybridDetail,
+			},
 		}, []string{"query"}),
 		Handler: searchHandler(ws),
 	})
@@ -221,6 +225,7 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Query  string `json:"query"`
 		TopK   int    `json:"top_k"`
 		Target string `json:"target"`
+		Detail string `json:"detail"`
 	}
 	return func(ctx context.Context, raw json.RawMessage) (string, bool) {
 		if !ensureBootstrapped(ctx, ws) {
@@ -230,6 +235,11 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		if err := json.Unmarshal(raw, &a); err != nil || strings.TrimSpace(a.Query) == "" {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, "query is required", &st), true
+		}
+		detail, msg := parseDetail(a.Detail, detailIDs, detailFull)
+		if msg != "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
 		}
 		if a.TopK <= 0 {
 			a.TopK = 5
@@ -275,20 +285,26 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		// thousand are the same response otherwise, and only one of them means
 		// "this query named something".
 		if target != "" {
-			fmt.Fprintf(&sb, `<results semantic_ready="%t" target="%s" candidates="%d">`,
+			fmt.Fprintf(&sb, `<results semantic_ready="%t" target="%s" candidates="%d"`,
 				semReady, mcp.EscapeAttr(target), stats.LexicalMatched)
 		} else {
-			fmt.Fprintf(&sb, `<results semantic_ready="%t" candidates="%d">`, semReady, stats.LexicalMatched)
+			fmt.Fprintf(&sb, `<results semantic_ready="%t" candidates="%d"`, semReady, stats.LexicalMatched)
 		}
+		if detail == detailFull {
+			sb.WriteString(` detail="full"`)
+		}
+		sb.WriteString(">")
 		if msg := ws.SemUnavailable(); msg != "" {
 			fmt.Fprintf(&sb, "\n  <model_status code=%q hint=\"semantic search unavailable; lexical fallback active\" />",
 				mcp.ErrModelUnavailable)
 		}
+		hits := make([]searchHit, 0, len(results))
 		for _, r := range results {
 			display := ws.DisplayName(r.NodeID)
 			if display == "" {
 				display = ws.Sym.SimpleName(r.NodeID)
 			}
+			var sb strings.Builder
 			sb.WriteString("\n  ")
 			fmt.Fprintf(&sb, `<node id="%s" display_name="%s" rank="%d" match_type="%s"`,
 				mcp.EscapeAttr(r.NodeID), mcp.EscapeAttr(display), r.Rank, r.Match)
@@ -304,17 +320,21 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			// what read_code returns — and hit_line says where in it the
 			// match is, which in a section of a few thousand words is the
 			// difference between an answer and a long read.
+			hit := searchHit{id: r.NodeID}
 			if r.Via != "" {
 				if hl, ok := ws.ChunkLine(r.Via); ok {
 					fmt.Fprintf(&sb, ` hit_line="%d"`, hl)
+					hit.hitLine = hl
 				}
 			}
-			sb.WriteString(" />")
+			hit.open = sb.String()
+			hits = append(hits, hit)
 		}
+		var tail string
 		if h := searchHint(stats, len(results), ws.Lex.Len(), target); h != "" {
-			fmt.Fprintf(&sb, "\n  <hint>%s</hint>", mcp.EscapeText(h))
+			tail = fmt.Sprintf("\n  <hint>%s</hint>", mcp.EscapeText(h))
 		}
-		body := sb.String() + "\n</results>"
+		body := renderSearch(ws, sb.String(), hits, tail, detail == detailFull)
 		return body + costLine(len(body)), false
 	}
 }
