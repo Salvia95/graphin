@@ -836,9 +836,16 @@ def run(args):
             else:
                 argv += ["--semantic-wait", SEMANTIC_WAIT]
             p = os.path.join(out, f"mcp-config-{i}.json")
+            server = {"type": "stdio", "command": argv[0], "args": argv[1:]}
+            # The bare arm stands for the shipped plugin, whose .mcp.json loads
+            # graphin's tools up front: without it the tools sit behind tool
+            # search and their descriptions — what this arm measures — are
+            # never seen (docs/effort-adoption-bench-design.md §alwaysLoad).
+            # The graphin arm keeps its recorded setup.
+            if args.arm == "bare":
+                server["alwaysLoad"] = True
             with open(p, "w") as f:
-                json.dump({"mcpServers": {"graphin": {
-                    "type": "stdio", "command": argv[0], "args": argv[1:]}}}, f)
+                json.dump({"mcpServers": {"graphin": server}}, f)
             cfgs.append(p)
 
         # Not --bare: bare never reads OAuth, and this machine authenticates
@@ -892,6 +899,7 @@ def run(args):
             "rubric_version": RUBRIC_VERSION,
             "arm": args.arm,
             "bin": args.bin, "server_args": list(args.server_arg),
+            "always_load": args.arm == "bare",
             "graphin_commit": commit, "worktree_dirty": dirty, "corpus": origin,
             "model": model, "effort": effort,
             "model_source": "flag" if args.model else "frontmatter",
