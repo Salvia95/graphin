@@ -42,7 +42,7 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Description: descSearchHybrid,
 		InputSchema: objSchema(map[string]any{
 			"query": map[string]any{"type": "string", "description": descSearchHybridQuery},
-			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results (default 5, max 20)."},
+			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results (max 20)."},
 			"target": map[string]any{
 				"type": "string", "enum": []string{"code", "docs", "db"},
 				"description": descSearchHybridTarget,
@@ -62,12 +62,12 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 			"pattern": map[string]any{"type": "string", "description": descSearchKeywordPattern},
 			"regex": map[string]any{
 				"type": "boolean", "default": false,
-				"description": "Treat pattern as an RE2 regular expression. Off by default so dots and brackets in a name match literally.",
+				"description": "Treat pattern as RE2.",
 			},
 			"path": map[string]any{
-				"type": "string", "description": "Only files whose path contains this substring, e.g. \"internal/auth\" or \".yaml\".",
+				"type": "string", "description": "Only paths containing this.",
 			},
-			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max files (default 5, max 20)."},
+			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max files (max 20)."},
 			"context": map[string]any{
 				"type": "integer", "default": 0, "minimum": 0, "maximum": keywordMaxContext,
 				"description": descSearchKeywordContext,
@@ -85,12 +85,12 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 		Description: descExploreGraph,
 		InputSchema: objSchema(map[string]any{
 			"symbol":  map[string]any{"type": "string", "description": refParamDesc},
-			"node_id": map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
+			"node_id": map[string]any{"type": "string", "description": "Alias of symbol."},
 			"direction": map[string]any{
 				"type": "string", "enum": []string{"uses", "used_by", "both"}, "default": "both",
 				"description": descExploreDirection,
 			},
-			"cursor": map[string]any{"type": "string", "description": "next_cursor from the previous page."},
+			"cursor": map[string]any{"type": "string", "description": "next_cursor of the last page."},
 			"min_confidence": map[string]any{
 				"type": "number", "default": 0.85, "description": descExploreMinConfidence,
 			},
@@ -111,18 +111,18 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 				"type":        "array",
 				"items":       map[string]any{"type": "string"},
 				"maxItems":    maxReadNodes,
-				"description": "Up to 20 units, each as symbol above, read in this order. Use instead of symbol, not with it.",
+				"description": "Up to 20 units, in order.",
 			},
-			"node_id": map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
+			"node_id": map[string]any{"type": "string", "description": "Alias of symbol."},
 			"node_ids": map[string]any{
 				"type":        "array",
 				"items":       map[string]any{"type": "string"},
 				"maxItems":    maxReadNodes,
-				"description": "Same as symbols; kept for compatibility.",
+				"description": "Alias of symbols.",
 			},
 			"lines": map[string]any{
 				"type":        "string",
-				"description": fmt.Sprintf("Only with symbol: read lines \"start-end\" (or one line \"N\") — the file's own line numbers, at most %d, clipped to the unit.", workspace.MaxRangeLines),
+				"description": fmt.Sprintf("\"a-b\" file lines of one unit, at most %d.", workspace.MaxRangeLines),
 			},
 			"detail": map[string]any{
 				"type": "string", "enum": []string{detailCode, detailFull}, "default": detailCode,
@@ -1036,9 +1036,7 @@ func omitLineLen(id, reason string) int {
 }
 
 // refParamDesc is the shared description of a ref parameter.
-const refParamDesc = "The unit to use: a name (cancelOrder), a qualified name (OrderService.cancel), " +
-	"a file path, path:line for the unit enclosing that line (path:start-end for a range), or an exact id from a previous result. " +
-	"A name shared by several units returns them as candidates instead of guessing."
+const refParamDesc = "Name, Type.method, path, or path:line."
 
 // pickRef merges the ref parameter with its compatibility alias.
 func pickRef(symbol, nodeID string) (string, string) {

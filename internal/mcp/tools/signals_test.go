@@ -155,8 +155,10 @@ func TestHintsNeverDependOnAnotherGraphinTool(t *testing.T) {
 }
 
 // The navigation tools' descriptions are often all a subagent has. None may
-// name another graphin tool (it may not have been given one), and each must
-// say when not to use it and show the input shape.
+// name another graphin tool (it may not have been given one), each must say
+// when to reach for something else, and the two searches must each show an
+// input that belongs to the other. They are paid for on every turn, so their
+// total size is capped as well.
 func TestDescriptionsStandAlone(t *testing.T) {
 	descs := map[string]string{
 		"search_hybrid":  descSearchHybrid,
@@ -164,33 +166,41 @@ func TestDescriptionsStandAlone(t *testing.T) {
 		"explore_graph":  descExploreGraph,
 		"read_code":      descReadCode,
 	}
-	params := []string{descSearchHybridQuery, descSearchHybridTarget, descSearchKeywordPattern,
-		descSearchKeywordContext, descExploreDirection, descExploreMinConfidence, descExploreDetail, descReadDetail, descSearchKeywordDetail, descSearchHybridDetail, refParamDesc}
+	params := []string{descSearchHybridQuery, descSearchHybridTarget, descSearchHybridDetail,
+		descSearchKeywordPattern, descSearchKeywordContext, descSearchKeywordDetail,
+		descExploreDirection, descExploreMinConfidence, descExploreDetail, descReadDetail, refParamDesc}
+	total := 0
 	for name, d := range descs {
+		total += len(d)
 		for other := range descs {
 			if other != name && strings.Contains(d, other) {
 				t.Errorf("%s description names %s", name, other)
 			}
 		}
-		for _, must := range []string{"Use it", "Do not use it", "Returns:"} {
-			if !strings.Contains(d, must) {
-				t.Errorf("%s description lacks %q", name, must)
-			}
+		if !strings.Contains(d, "instead") && !strings.Contains(d, "search first") {
+			t.Errorf("%s description does not say when to use something else", name)
+		}
+		if !strings.Contains(d, "Returns") {
+			t.Errorf("%s description does not say what comes back", name)
 		}
 	}
 	for _, p := range params {
+		total += len(p)
 		for other := range descs {
 			if strings.Contains(p, other) {
 				t.Errorf("parameter description names %s: %q", other, p)
 			}
 		}
 	}
-	// The two searches are told apart by their input shape; each shows a bad
-	// example of the other's.
-	if !strings.Contains(descSearchHybrid, "bad:") || !strings.Contains(descSearchKeyword, "bad:") {
-		t.Error("search descriptions must show bad inputs")
+	if !strings.Contains(descSearchHybrid, "Not a keyword list") || !strings.Contains(descSearchKeyword, "Not a question") {
+		t.Error("each search must show the input shape that belongs to the other")
 	}
 	if !strings.Contains(descSearchKeyword, "grep instead") {
 		t.Error("search_keyword must say when grep is the better tool")
+	}
+	// The first long version cost +10-15% input tokens per run for no
+	// accuracy change (docs/eval/2026-11-24-tool-contract).
+	if total > 4000 {
+		t.Errorf("navigation descriptions total %d bytes; keep them under 4000 — they are paid on every turn", total)
 	}
 }
