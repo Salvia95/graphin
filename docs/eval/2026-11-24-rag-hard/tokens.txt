@@ -1,0 +1,10 @@
+arm            runs  pass  base tok  input tok  output turns   bytes  tok/pass  $/run $ total
+hard-A           36    25     18880     174840    2818    10   25416    238966  0.109    3.67
+hard-B           36    26     21151     171136    2594    10   21828    235183  0.096    3.61
+hard-G           36    28     19818     173278    2708    10   22282    221328  0.117    3.84
+  hard-B vs hard-A input : lower 6 · higher 6 · tie 0  p=1.000  median ×0.98
+  hard-B vs hard-A cost  : lower 6 · higher 6 · tie 0  p=1.000  median ×0.88
+  hard-B vs hard-A turns : lower 5 · higher 5 · tie 2  p=1.000  median ×1.05
+  hard-G vs hard-A input : lower 4 · higher 8 · tie 0  p=0.388  median ×0.99
+  hard-G vs hard-A cost  : lower 3 · higher 9 · tie 0  p=0.146  median ×1.07
+  hard-G vs hard-A turns : lower 4 · higher 4 · tie 4  p=1.000  median ×1.00

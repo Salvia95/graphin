@@ -1,0 +1,10 @@
+arm            runs  pass  base tok  input tok  output turns   bytes  tok/pass  $/run $ total
+full-A           72    61     18858      98023    1748     7   14061    128439  0.056    4.41
+full-B           72    65     21096     113064    1832     7   14050    133771  0.060    4.76
+full-C           72    57     21095     109010    1825     7   19689    147382  0.064    4.96
+  full-B vs full-A input : lower 7 · higher 29 · tie 0  p=0.000  median ×1.15
+  full-B vs full-A cost  : lower 11 · higher 25 · tie 0  p=0.029  median ×1.07
+  full-B vs full-A turns : lower 12 · higher 14 · tie 10  p=0.845  median ×1.00
+  full-C vs full-A input : lower 13 · higher 23 · tie 0  p=0.132  median ×1.11
+  full-C vs full-A cost  : lower 11 · higher 25 · tie 0  p=0.029  median ×1.14
+  full-C vs full-A turns : lower 15 · higher 13 · tie 8  p=0.851  median ×1.00

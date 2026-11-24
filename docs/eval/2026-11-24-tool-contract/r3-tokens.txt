@@ -1,0 +1,6 @@
+arm            runs  pass  base tok  input tok  output turns   bytes  tok/pass  $/run $ total
+r3-A            108    98     18857     100502    1828     7   13147    121101  0.056    6.76
+r3-B            108    97     21131     110086    1785     7   14756    136035  0.059    6.96
+  r3-B vs r3-A input : lower 8 · higher 28 · tie 0  p=0.001  median ×1.10
+  r3-B vs r3-A cost  : lower 17 · higher 19 · tie 0  p=0.868  median ×1.05
+  r3-B vs r3-A turns : lower 14 · higher 13 · tie 9  p=1.000  median ×1.00
