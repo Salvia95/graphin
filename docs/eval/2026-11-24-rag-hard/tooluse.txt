@@ -1,0 +1,16 @@
+== hard-A: 36 runs, $3.67
+  calls/run median 9.0  bytes/run median 25416
+  graphin nav calls 103  host calls 245  runs with no graphin call 6
+  hybrid keyword-list 2/18 (11%)  keyword prose 0/61 (0%)
+  NODE_NOT_FOUND 0  AMBIGUOUS_REF 0  symbol inputs 0  detail=full asked 0
+  after a search with results: graphin follow-up 27%  host tool 66%  nothing 7%  (n=74)
+  by tool: {'Read': 135, 'Grep': 63, 'mcp__graphin__search_keyword': 61, 'Bash': 32, 'mcp__graphin__read_code': 24, 'mcp__graphin__search_hybrid': 18, 'Glob': 15}
+  e.g. keyword-list: ['Engine.Flush resolve pending records', 'usage report adoption fallback classify graphin tool call']
+== hard-B: 36 runs, $3.61
+  calls/run median 9.5  bytes/run median 21828
+  graphin nav calls 147  host calls 203  runs with no graphin call 11
+  hybrid keyword-list 1/15 (7%)  keyword prose 0/68 (0%)
+  NODE_NOT_FOUND 0  AMBIGUOUS_REF 1  symbol inputs 64  detail=full asked 26
+  after a search with results: graphin follow-up 29%  host tool 62%  nothing 9%  (n=79)
+  by tool: {'Read': 113, 'mcp__graphin__search_keyword': 68, 'Grep': 47, 'mcp__graphin__read_code': 42, 'Bash': 27, 'mcp__graphin__explore_graph': 22, 'Glob': 16, 'mcp__graphin__search_hybrid': 15, 'read_code': 1}
+  e.g. keyword-list: ['usage report classifies graphin tool calls as adoption or fallback']
