@@ -327,7 +327,7 @@ jobs:
             range="${SHA}~1..${SHA}"
           fi
           fail=0
-          for c in $(git log --format=%H "$range" -- scripts/eval-rag.py eval/rag); do
+          for c in $(git log --format=%H "$range" -- scripts/eval-rag.py eval/rag eval/rag-hard); do
             if ! git show -s --format=%B "$c" | grep -q '^Rag-Bench-Approved-By:'; then
               echo "::error::commit $c touches the rag-bench rubric/golden set without a 'Rag-Bench-Approved-By:' trailer (docs/rag-bench-spec.md §8)"
               fail=1

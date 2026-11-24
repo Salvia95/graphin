@@ -3,8 +3,10 @@
   "approved_by": "salvia95",
   "date": "2026-11-24",
   "files": {
-    "scripts/eval-rag.py": "6b735cdfb5d7216ab9868743affcc263e50517c43f58e712b3512ba4216c3a1c",
+    "scripts/eval-rag.py": "b8b66d6a4c83c60e49292b82bcc9f248dfabe6ebed4dd0eeb615de86fb1fde3f",
     "eval/rag/tasks.jsonl": "09736d58774e7f4604dc67cec791df0eeeadb16c7338202c31491b6b3f1bc7de",
-    "eval/rag/expected.jsonl": "d7ee79724716819cb42dcc4c7b711a177c061cb6cee0eeed54f752b1f164e932"
+    "eval/rag/expected.jsonl": "d7ee79724716819cb42dcc4c7b711a177c061cb6cee0eeed54f752b1f164e932",
+    "eval/rag-hard/tasks.jsonl": "418190eb4d4ce7b4cc91b941ed58a9ee2dd2f9dfe6efbf876af35e01ba2afb0f",
+    "eval/rag-hard/expected.jsonl": "e075039adaa4e91ad66e062ba018918f8b416ff955cffb54d3b4fcc40491ccd5"
   }
 }

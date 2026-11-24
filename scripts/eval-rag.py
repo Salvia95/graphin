@@ -186,7 +186,20 @@ WAIVE_EXEMPT = ("internal/console/", "internal/usage/", "internal/wiki/")
 # move only with the owner's explicit approval. rubric.lock records the
 # approved hashes; `verify-lock` runs in CI and in the release gate, and a
 # drifted file fails both until `lock --approved-by` re-records it.
-GUARDED = ("scripts/eval-rag.py", "eval/rag/tasks.jsonl", "eval/rag/expected.jsonl")
+GUARDED = ("scripts/eval-rag.py", "eval/rag/tasks.jsonl", "eval/rag/expected.jsonl",
+           "eval/rag-hard/tasks.jsonl", "eval/rag-hard/expected.jsonl")
+
+# Task sets. rag is the release-gate set; rag-hard holds tasks chosen to be
+# hard without graphin (long call chains, impact analysis, schema navigation)
+# so an accuracy comparison is not pinned at the ceiling the gate set sits
+# near (docs/eval/2026-11-24-tool-contract). Same schema, same scorer, never
+# part of the gate.
+SETS = ("rag", "rag-hard")
+
+
+def set_files(name):
+    d = os.path.join(REPO, "eval", name)
+    return os.path.join(d, "tasks.jsonl"), os.path.join(d, "expected.jsonl")
 LOCK_PATH = os.path.join(REPO, "eval/rag/rubric.lock")
 
 TIERS = ("answered", "multi-hop", "not-here", "out-of-reach", "budget-pressure",
@@ -472,9 +485,10 @@ def sha256_file(path):
     return h.hexdigest()
 
 
-def load_set():
-    tasks = load_jsonl(os.path.join(REPO, "eval/rag/tasks.jsonl"))
-    expected = load_jsonl(os.path.join(REPO, "eval/rag/expected.jsonl"))
+def load_set(name="rag"):
+    tp, ep = set_files(name)
+    tasks = load_jsonl(tp)
+    expected = load_jsonl(ep)
     tids = [t["id"] for t in tasks]
     eids = [e["id"] for e in expected]
     if tids != eids:
@@ -487,8 +501,8 @@ def load_set():
 
 # ---------------------------------------------------------------- validate
 
-def validate():
-    tasks, expected = load_set()
+def validate(name="rag"):
+    tasks, expected = load_set(name)
     errs = []
     for t in tasks:
         e = expected[t["id"]]
@@ -529,7 +543,7 @@ def validate():
     if errs:
         print("\n".join(errs))
         return 1
-    print(f"ok — {len(tasks)} tasks, ids aligned, paths and evidence exist")
+    print(f"ok — {name}: {len(tasks)} tasks, ids aligned, paths and evidence exist")
     return 0
 
 
@@ -758,7 +772,9 @@ def run(args):
               f"score refuses until {args.out}/summary.json exists")
         return 0
 
-    tasks, expected = load_set()
+    tasks, expected = load_set(args.set)
+    if args.subset == "smoke" and args.set != "rag":
+        raise SystemExit("the smoke subset belongs to the rag set")
     if args.subset == "smoke":
         by_id = {t["id"]: t for t in tasks}
         missing = [i for i in SMOKE_TASKS if i not in by_id]
@@ -897,7 +913,7 @@ def run(args):
             agent_sha, skill_sha = sha256_file(AGENT_MD), sha256_file(SKILL_MD)
         meta = {
             "rubric_version": RUBRIC_VERSION,
-            "arm": args.arm,
+            "arm": args.arm, "set": args.set,
             "bin": args.bin, "server_args": list(args.server_arg),
             "always_load": args.arm == "bare",
             "graphin_commit": commit, "worktree_dirty": dirty, "corpus": origin,
@@ -911,8 +927,8 @@ def run(args):
             "agent_sha": agent_sha, "skill_sha": skill_sha,
             "prompt_sha": hashlib.sha256(prompt.encode()).hexdigest(),
             "taskset_sha": hashlib.sha256(
-                open(os.path.join(REPO, "eval/rag/tasks.jsonl"), "rb").read() +
-                open(os.path.join(REPO, "eval/rag/expected.jsonl"), "rb").read()
+                open(set_files(args.set)[0], "rb").read() +
+                open(set_files(args.set)[1], "rb").read()
             ).hexdigest(),
             "tasks": [t["id"] for t in tasks],
             "subset": args.subset, "jobs": jobs,
@@ -1377,7 +1393,8 @@ def score(args):
                          f"whose runner behaved differently from {RUBRIC_VERSION} "
                          f"(compatible: {', '.join(RUN_COMPAT)}) — re-run instead of "
                          "comparing across runner eras")
-    tasks, expected = load_set()
+    # A run scores against the set it ran on; runs before sets existed are rag.
+    tasks, expected = load_set(meta.get("set", "rag"))
     tasks = {t["id"]: t for t in tasks}
     files = set(open(os.path.join(out, "files.txt")).read().splitlines())
 
@@ -1628,10 +1645,13 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("validate", help="schema + path + evidence checks, no LLM")
+    vp = sub.add_parser("validate", help="schema + path + evidence checks, no LLM")
+    vp.add_argument("--set", choices=SETS, default="rag")
 
     rp = sub.add_parser("run", help="execute the agent over every selected task")
     rp.add_argument("--out", required=True, help="output dir (fresh per run)")
+    rp.add_argument("--set", choices=SETS, default="rag",
+                    help="task set: rag (the gate set, default) or rag-hard")
     rp.add_argument("--tier", default="all",
                     help=f"comma list from {', '.join(TIERS)} (default: all)")
     rp.add_argument("--subset", choices=["all", "smoke"], default="all",
@@ -1692,7 +1712,7 @@ def main():
 
     args = ap.parse_args()
     if args.cmd == "validate":
-        return validate()
+        return validate(args.set)
     if args.cmd == "run":
         return run(args)
     if args.cmd == "lock":
