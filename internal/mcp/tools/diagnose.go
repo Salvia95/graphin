@@ -164,6 +164,9 @@ func writeConfig(sb *strings.Builder, cfg workspace.ConfigView) {
 	writeCfgAttr(sb, "offline", strconv.FormatBool(cfg.Offline), strconv.FormatBool(def.Offline))
 	writeCfgAttr(sb, "model_dir", cfg.ModelDir, def.ModelDir)
 	writeCfgAttr(sb, "ort_lib", cfg.OrtLib, def.OrtLib)
+	if cfg.DefaultDetail != def.DefaultDetail {
+		writeCfgAttr(sb, "default_detail", cfg.DefaultDetail, def.DefaultDetail)
+	}
 	fmt.Fprintf(sb, " ort_version=%q />\n", provision.ORTVersion)
 }
 

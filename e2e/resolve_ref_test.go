@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Salvia95/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/workspace"
 )
 
 // mkRefWorkspace is a small Go module with the shapes a name can take:
@@ -418,5 +419,38 @@ func TestSearchHybridFullWindowsALongBody(t *testing.T) {
 	}
 	if len(full) > mcp.MaxResponseBytes {
 		t.Fatalf("response is %d bytes, over %d", len(full), mcp.MaxResponseBytes)
+	}
+}
+
+// -default-detail=full makes chained answers the default for every
+// navigation tool; a call can still ask for the id-only response.
+func TestDefaultDetailFull(t *testing.T) {
+	root := mkRefWorkspace(t)
+	c := newClientWith(t, root, func(cfg *workspace.Config) { cfg.DefaultDetail = "full" })
+	c.bootstrapAndWait(root)
+
+	checks := []struct {
+		tool string
+		args map[string]any
+		want string
+	}{
+		{"search_hybrid", map[string]any{"query": "Cancel"}, "<body lines="},
+		{"search_keyword", map[string]any{"pattern": "refund(id)"}, `owner="OrderService.Cancel"`},
+		{"explore_graph", map[string]any{"symbol": "refund", "direction": "used_by"}, "ref_line="},
+		{"read_code", map[string]any{"symbol": "refund"}, "<neighbors>"},
+	}
+	for _, ck := range checks {
+		text, isErr := c.tool(ck.tool, ck.args)
+		if isErr || !strings.Contains(text, ck.want) {
+			t.Fatalf("%s with default full must carry %s:\n%s", ck.tool, ck.want, text)
+		}
+	}
+	ids, _ := c.tool("search_hybrid", map[string]any{"query": "Cancel", "detail": "ids"})
+	if strings.Contains(ids, "<body") {
+		t.Fatalf("an explicit detail=ids must still win:\n%s", ids)
+	}
+	code, _ := c.tool("read_code", map[string]any{"symbol": "refund", "detail": "code"})
+	if strings.Contains(code, "<neighbors") {
+		t.Fatalf("an explicit detail=code must still win:\n%s", code)
 	}
 }

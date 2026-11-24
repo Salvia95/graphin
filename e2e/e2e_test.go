@@ -45,7 +45,17 @@ type rpcResp struct {
 
 func newClient(t *testing.T, root string) *client {
 	t.Helper()
-	ws := workspace.New(workspace.Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"})
+	return newClientWith(t, root, nil)
+}
+
+// newClientWith is newClient with startup flags changed by tweak.
+func newClientWith(t *testing.T, root string, tweak func(*workspace.Config)) *client {
+	t.Helper()
+	cfg := workspace.Config{Root: root, Log: obs.Nop(), OrtLib: "/nonexistent-ort"}
+	if tweak != nil {
+		tweak(&cfg)
+	}
+	ws := workspace.New(cfg)
 	reg := mcp.NewRegistry()
 	tools.Register(reg, ws)
 

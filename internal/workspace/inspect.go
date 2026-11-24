@@ -102,6 +102,7 @@ type ConfigView struct {
 	SemanticMaxNodes int
 	SemanticWait     time.Duration
 	Offline          bool
+	DefaultDetail    string
 }
 
 // DefaultConfig returns the built-in startup defaults. cmd/graphin's flag
@@ -127,8 +128,13 @@ func (w *Workspace) EffectiveConfig() ConfigView {
 		SemanticMaxNodes: w.cfg.SemanticMaxNodes,
 		SemanticWait:     w.cfg.SemanticWait,
 		Offline:          w.cfg.Offline,
+		DefaultDetail:    w.cfg.DefaultDetail,
 	}
 }
+
+// DefaultDetail is the detail level a tool uses when a call names none; ""
+// means the tool's own default.
+func (w *Workspace) DefaultDetail() string { return w.cfg.DefaultDetail }
 
 // GateInfo reads the persisted semantic node-count gate marker.
 func (w *Workspace) GateInfo() (nodes, max int, gated bool) {

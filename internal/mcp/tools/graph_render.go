@@ -21,6 +21,15 @@ const (
 	detailCode = "code"
 )
 
+// detailFor resolves a call's detail: what the call named, else the
+// server's configured default when that is full, else the tool's own.
+func detailFor(ws *workspace.Workspace, s string, allowed ...string) (string, string) {
+	if strings.TrimSpace(s) == "" && ws.DefaultDetail() == detailFull {
+		s = detailFull
+	}
+	return parseDetail(s, allowed...)
+}
+
 func parseDetail(s string, allowed ...string) (string, string) {
 	s = strings.TrimSpace(s)
 	if s == "" {

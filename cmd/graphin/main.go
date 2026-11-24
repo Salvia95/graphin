@@ -90,12 +90,18 @@ func main() {
 			"make search_hybrid wait up to this long for the embedding model to finish loading "+
 				"instead of answering lexically meanwhile (0 = never wait). For measurement harnesses "+
 				"that spawn a fresh server per run; production leaves it at 0.")
+		defaultDetail = flag.String("default-detail", def.DefaultDetail,
+			"detail the navigation tools answer with when a call names none: empty keeps each tool's "+
+				"id-only default, full makes chained answers the default (for the tool-contract eval)")
 		verbose = flag.Bool("verbose", false, "mirror JSONL logs to stderr")
 	)
 	flag.Parse()
 
 	if *root == "" {
 		fatalf("--workspace is required")
+	}
+	if *defaultDetail != "" && *defaultDetail != "full" {
+		fatalf("--default-detail must be empty or full, got %q", *defaultDetail)
 	}
 	abs, err := filepath.Abs(*root)
 	if err != nil {
@@ -128,6 +134,7 @@ func main() {
 		OrtLib:           *ortLib,
 		SemanticMaxNodes: *semMaxNodes,
 		SemanticWait:     *semWait,
+		DefaultDetail:    *defaultDetail,
 		Log:              lg,
 	})
 	defer ws.Close()

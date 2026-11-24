@@ -64,7 +64,12 @@ type Config struct {
 	// never waits; measurement harnesses that spawn a server per run set it
 	// so a "hybrid" arm is hybrid from its first call.
 	SemanticWait time.Duration
-	Log          *obs.Logger
+	// DefaultDetail is the detail a navigation tool answers with when the
+	// call names none. "" keeps each tool's own default (the id-only
+	// response); "full" makes chained answers the default — the setting the
+	// tool-contract eval compares (docs/tool-contract-spec.md §5).
+	DefaultDetail string
+	Log           *obs.Logger
 }
 
 // Workspace holds all engines for one indexed source tree.

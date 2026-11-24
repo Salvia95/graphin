@@ -236,7 +236,7 @@ func searchHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, "query is required", &st), true
 		}
-		detail, msg := parseDetail(a.Detail, detailIDs, detailFull)
+		detail, msg := detailFor(ws, a.Detail, detailIDs, detailFull)
 		if msg != "" {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
@@ -517,7 +517,7 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, "pattern is required", &st), true
 		}
-		detail, msg := parseDetail(a.Detail, detailIDs, detailFull)
+		detail, msg := detailFor(ws, a.Detail, detailIDs, detailFull)
 		if msg != "" {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
@@ -705,7 +705,7 @@ func exploreHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		var a args
 		_ = json.Unmarshal(raw, &a)
-		detail, msg := parseDetail(a.Detail, detailIDs, detailFull)
+		detail, msg := detailFor(ws, a.Detail, detailIDs, detailFull)
 		if msg != "" {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
@@ -780,7 +780,7 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		if msg != "" {
 			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
 		}
-		detail, msg := parseDetail(a.Detail, detailCode, detailFull)
+		detail, msg := detailFor(ws, a.Detail, detailCode, detailFull)
 		if msg != "" {
 			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
 		}
