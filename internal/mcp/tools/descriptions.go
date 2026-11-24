@@ -44,7 +44,7 @@ Pattern: a short fragment copied from code, 1–5 words, the part least likely t
   bad:  "retry config backoff"         (a keyword list — pick the one exact string)
 Matching is literal and case-insensitive. regex=true takes RE2 for a part that varies: "timeout after \d+s".
 
-Returns: up to top_k files ranked by match count; per file up to 3 matching lines, each with its line number and the id of the unit it is in (a line outside every function resolves to the file, whose id is its path). context=N adds the N lines around each match. Data files (json, lock, csv) are listed by path and count only; pass path= to see their lines. Works while the project is still being indexed.`
+Returns: up to top_k files ranked by match count; per file up to 3 matching lines, each with its line number and the id of the unit it is in (a line outside every function resolves to the file, whose id is its path). context=N adds the N lines around each match. detail="full" also names the function or class each match is in, with its signature and line range, and shows 2 lines of context unless you set context. Data files (json, lock, csv) are listed by path and count only; pass path= to see their lines. Works while the project is still being indexed.`
 
 const descSearchKeywordPattern = `Exact text from the code, 1–5 words, case-insensitive. Not a question or a keyword list.`
 
@@ -80,3 +80,5 @@ Returns: the source with its file and line range. Several units come back whole,
 const descExploreDetail = `ids (default): id, kind of reference, confidence and location per neighbour. full: also each neighbour's name and signature, and the line where the reference is written — use it to judge callers without reading each one.`
 
 const descReadDetail = `code (default): the source only. full: for a single unit, also up to 5 callers and 5 dependencies with their locations — a place to continue from.`
+
+const descSearchKeywordDetail = `ids (default): each match with its line and the id of the unit it is in. full: also that unit's name, kind, signature and line range, and 2 lines of context unless context is set.`

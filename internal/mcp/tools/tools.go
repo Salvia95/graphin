@@ -68,6 +68,10 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 				"type": "integer", "default": 0, "minimum": 0, "maximum": keywordMaxContext,
 				"description": descSearchKeywordContext,
 			},
+			"detail": map[string]any{
+				"type": "string", "enum": []string{detailIDs, detailFull}, "default": detailIDs,
+				"description": descSearchKeywordDetail,
+			},
 		}, []string{"pattern"}),
 		Handler: keywordHandler(ws),
 	})
@@ -420,6 +424,9 @@ const (
 	// matches in five files is already past the response cap, which is why
 	// the handler budgets per file rather than trusting the arithmetic.
 	keywordMaxContext = 5
+	// keywordFullContext is the window detail=full shows when the caller
+	// did not pick one.
+	keywordFullContext = 2
 	// keywordBudget is what one keyword response may spend before it starts
 	// folding files. Below MaxResponseBytes so the server's Truncate never
 	// fires on this path — a truncated window is worse than an omitted file,
@@ -481,13 +488,28 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		Regex   bool   `json:"regex"`
 		Path    string `json:"path"`
 		TopK    int    `json:"top_k"`
-		Context int    `json:"context"`
+		Context *int   `json:"context"`
+		Detail  string `json:"detail"`
 	}
 	return func(_ context.Context, raw json.RawMessage) (string, bool) {
 		var a args
 		if err := json.Unmarshal(raw, &a); err != nil || strings.TrimSpace(a.Pattern) == "" {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal, "pattern is required", &st), true
+		}
+		detail, msg := parseDetail(a.Detail, detailIDs, detailFull)
+		if msg != "" {
+			st := ws.FSM.Status()
+			return mcp.ErrorXML(mcp.ErrInternal, msg, &st), true
+		}
+		full := detail == detailFull
+		// A full answer shows each match in place unless the caller chose a
+		// window: the line alone rarely says enough to act on.
+		ctxLines := 0
+		if a.Context != nil {
+			ctxLines = *a.Context
+		} else if full {
+			ctxLines = keywordFullContext
 		}
 		if a.TopK <= 0 {
 			a.TopK = 5
@@ -498,7 +520,7 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		// Out of range is refused, not clamped: a caller who asked for ten
 		// lines and silently got five would read the window as the whole
 		// neighbourhood — the same rule that rejects an unknown target.
-		if a.Context < 0 || a.Context > keywordMaxContext {
+		if ctxLines < 0 || ctxLines > keywordMaxContext {
 			st := ws.FSM.Status()
 			return mcp.ErrorXML(mcp.ErrInternal,
 				fmt.Sprintf("context must be between 0 and %d", keywordMaxContext), &st), true
@@ -510,7 +532,7 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		opts.PathContains = strings.TrimSpace(a.Path)
 		opts.MaxLines, opts.MaxFiles = keywordMaxLines, a.TopK
-		opts.ContextLines = a.Context
+		opts.ContextLines = ctxLines
 
 		// Deliberately not gated on bootstrap. This retriever reads the tree,
 		// not the index, so it is the one search that still answers while the
@@ -546,12 +568,16 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		// outside the graph — those read the same otherwise.
 		fmt.Fprintf(&sb, `<results retriever="keyword" mode="%s" files="%d" node_ids="%t"`,
 			mode, len(hits), ws.Bootstrapped())
-		if a.Context > 0 {
+		if ctxLines > 0 {
 			// Only when asked: the default response stays byte-for-byte what
 			// it was, which is what the e2e tests pin.
-			fmt.Fprintf(&sb, ` context="%d"`, a.Context)
+			fmt.Fprintf(&sb, ` context="%d"`, ctxLines)
+		}
+		if full {
+			sb.WriteString(` detail="full"`)
 		}
 		sb.WriteString(">")
+		owners := map[string]string{}
 		const footer = "\n</results>"
 		// Data files win a match-count ranking by repetition, not relevance:
 		// a scores.json that names a task forty times outranks the function
@@ -590,6 +616,9 @@ func keywordHandler(ws *workspace.Workspace) mcp.ToolHandler {
 				fb.WriteString("\n    ")
 				if id != "" {
 					fmt.Fprintf(&fb, `<node id="%s" line="%d" match_type="keyword"`, mcp.EscapeAttr(id), ln.No)
+					if full {
+						fb.WriteString(ownerAttrs(ws, id, owners))
+					}
 				} else {
 					fmt.Fprintf(&fb, `<node line="%d" match_type="keyword"`, ln.No)
 				}

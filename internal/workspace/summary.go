@@ -224,3 +224,12 @@ func clip(s string, max int) string {
 	r := []rune(s)
 	return string(r[:max]) + "…"
 }
+
+// NodeLines returns the file lines a unit spans.
+func (w *Workspace) NodeLines(id string) (from, to int, ok bool) {
+	cb, err := w.ReadCode(id)
+	if err != nil {
+		return 0, 0, false
+	}
+	return cb.StartLine, cb.EndLine, true
+}

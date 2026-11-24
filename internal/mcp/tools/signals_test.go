@@ -165,7 +165,7 @@ func TestDescriptionsStandAlone(t *testing.T) {
 		"read_code":      descReadCode,
 	}
 	params := []string{descSearchHybridQuery, descSearchHybridTarget, descSearchKeywordPattern,
-		descSearchKeywordContext, descExploreDirection, descExploreMinConfidence, descExploreDetail, descReadDetail, refParamDesc}
+		descSearchKeywordContext, descExploreDirection, descExploreMinConfidence, descExploreDetail, descReadDetail, descSearchKeywordDetail, refParamDesc}
 	for name, d := range descs {
 		for other := range descs {
 			if other != name && strings.Contains(d, other) {

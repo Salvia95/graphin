@@ -307,3 +307,36 @@ func TestReadCodeFullNamesNeighbors(t *testing.T) {
 		t.Fatalf("a multi-unit read must not carry neighbors:\n%s", batch)
 	}
 }
+
+// detail="full" says which function a string is in and shows it in place;
+// the default stays the bare matched line.
+func TestSearchKeywordFullNamesTheOwner(t *testing.T) {
+	root := mkRefWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	plain, _ := c.tool("search_keyword", map[string]any{"pattern": "refund(id)"})
+	same, _ := c.tool("search_keyword", map[string]any{"pattern": "refund(id)", "detail": "ids"})
+	if plain != same || strings.Contains(plain, "owner=") || strings.Contains(plain, "window=") {
+		t.Fatalf("detail=ids must be the unchanged default:\n%s\n---\n%s", plain, same)
+	}
+
+	full, isErr := c.tool("search_keyword", map[string]any{"pattern": "refund(id)", "detail": "full"})
+	if isErr {
+		t.Fatalf("search_keyword full: %s", full)
+	}
+	for _, want := range []string{
+		`detail="full"`, `context="2"`,
+		`owner="OrderService.Cancel"`, `kind="method"`,
+		`signature="func (s *OrderService) Cancel(id string) error"`, `owner_lines="6-9"`,
+		`window="5-9"`,
+	} {
+		if !strings.Contains(full, want) {
+			t.Fatalf("full keyword response lacks %s:\n%s", want, full)
+		}
+	}
+	// An explicit context wins over the full default.
+	if text, _ := c.tool("search_keyword", map[string]any{"pattern": "refund(id)", "detail": "full", "context": 0}); strings.Contains(text, "window=") {
+		t.Fatalf("context=0 must suppress the window:\n%s", text)
+	}
+}

@@ -255,3 +255,25 @@ func writeNeighbors(sb *strings.Builder, ws *workspace.Workspace, id string) {
 	}
 	sb.WriteString(nb.String())
 }
+
+// ownerAttrs describes the unit a keyword match sits in — name, kind,
+// signature and line range — so a string hit says which function it is in
+// without a read. A file owner (a line outside every unit) needs none: its
+// id is its path. Memoized per response: matches cluster in a few units.
+func ownerAttrs(ws *workspace.Workspace, id string, memo map[string]string) string {
+	if s, ok := memo[id]; ok {
+		return s
+	}
+	var s string
+	if kind := ws.NodeKind(id); kind != "" && kind != nodeid.KindFile {
+		s = fmt.Sprintf(` owner="%s" kind="%s"`, mcp.EscapeAttr(displayName(ws, id)), mcp.EscapeAttr(kind))
+		if sig := ws.Signature(id); sig != "" {
+			s += fmt.Sprintf(` signature="%s"`, mcp.EscapeAttr(sig))
+		}
+		if from, to, ok := ws.NodeLines(id); ok {
+			s += fmt.Sprintf(` owner_lines="%d-%d"`, from, to)
+		}
+	}
+	memo[id] = s
+	return s
+}
