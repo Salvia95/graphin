@@ -73,7 +73,7 @@ Use it when you know which unit you need and want its body: to confirm behavior,
 Prefer it over reading the file: it returns just that unit with its file and line range, and re-reads the file if it changed since indexing.
 Do not use it to find where something is (search first), or to read a whole code file top to bottom (use a file read).
 
-Input: symbol = a name (cancelOrder), a qualified name (OrderService.cancel), a file path, or path:line for the unit enclosing that line; symbols = up to 20 of those, read in order. lines = "120-180" reads only that stretch of a long unit (at most 200 lines; the file's own line numbers). A name shared by several units returns them as candidates instead of guessing.
+Input: symbol = a name (cancelOrder), a qualified name (OrderService.cancel), a file path, path:line for the unit enclosing that line, or path:start-end to read exactly those lines of the file; symbols = up to 20 of those, read in order. lines = "120-180" reads only that stretch of a long unit (at most 200 lines; the file's own line numbers). A name shared by several units returns them as candidates instead of guessing.
 
 Returns: the source with its file and line range. Several units come back whole, in the order asked; any that did not fit are listed with the reason, to request again. detail="full" on a single read adds up to 5 callers and 5 dependencies, each with its location and the line where the reference is written, so you can continue from the unit.`
 

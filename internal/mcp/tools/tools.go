@@ -786,6 +786,14 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		}
 		full := detail == detailFull
 		a.NodeID = one
+		// "path:120-180" names a stretch of a file, not a unit: read it from
+		// the file. An explicit lines still says which stretch.
+		if path, lines, ok := splitPathRange(ws, a.NodeID); ok {
+			a.NodeID = path
+			if a.Lines == "" {
+				a.Lines = lines
+			}
+		}
 		if len(a.Symbols) > 0 && len(a.NodeIDs) > 0 {
 			return mcp.ErrorXML(mcp.ErrInternal, "pass symbols or node_ids, not both", &st), true
 		}
@@ -1029,7 +1037,7 @@ func omitLineLen(id, reason string) int {
 
 // refParamDesc is the shared description of a ref parameter.
 const refParamDesc = "The unit to use: a name (cancelOrder), a qualified name (OrderService.cancel), " +
-	"a file path, path:line for the unit enclosing that line, or an exact id from a previous result. " +
+	"a file path, path:line for the unit enclosing that line (path:start-end for a range), or an exact id from a previous result. " +
 	"A name shared by several units returns them as candidates instead of guessing."
 
 // pickRef merges the ref parameter with its compatibility alias.

@@ -454,3 +454,49 @@ func TestDefaultDetailFull(t *testing.T) {
 		t.Fatalf("an explicit detail=code must still win:\n%s", code)
 	}
 }
+
+// A bare table name means the table, not the RLS policy bundle or trigger
+// that shares its name; the response says it chose.
+func TestTableNameResolvesToTheTable(t *testing.T) {
+	root := t.TempDir()
+	copyTree(t, dbFixtures, root)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("explore_graph", map[string]any{"symbol": "resume", "direction": "used_by"})
+	if isErr {
+		t.Fatalf("explore_graph(resume): %s", text)
+	}
+	if !strings.Contains(text, `id="db.main.public.resume"`) || !strings.Contains(text, `chose="table"`) {
+		t.Fatalf("want the resume table, marked as chosen:\n%s", text)
+	}
+	// The policy bundle is still reachable by its own id.
+	if text, isErr := c.tool("read_code", map[string]any{"symbol": "db.main.public.resume.rls"}); isErr {
+		t.Fatalf("the policy bundle by id: %s", text)
+	}
+}
+
+// "path:start-end" reads that stretch of the file in read_code, and resolves
+// to the unit enclosing its first line in explore_graph.
+func TestPathRangeRef(t *testing.T) {
+	root := mkRefWorkspace(t)
+	c := newClient(t, root)
+	c.bootstrapAndWait(root)
+
+	text, isErr := c.tool("read_code", map[string]any{"symbol": "order/order.go:7-8"})
+	if isErr {
+		t.Fatalf("read_code(path:range): %s", text)
+	}
+	if !strings.Contains(text, `lines="7-8"`) || !strings.Contains(text, `kind="range"`) ||
+		!strings.Contains(text, "refund(id)") || strings.Contains(text, "func refund(id string) {}") {
+		t.Fatalf("want exactly lines 7-8 as a range:\n%s", text)
+	}
+	g, isErr := c.tool("explore_graph", map[string]any{"symbol": "order/order.go:7-8", "direction": "uses"})
+	if isErr || !strings.Contains(g, `id="order.OrderService.Cancel"`) || !strings.Contains(g, "refund") {
+		t.Fatalf("explore_graph(path:range) must resolve to Cancel:\n%s", g)
+	}
+	// An explicit lines wins over a range in the ref.
+	if text, _ := c.tool("read_code", map[string]any{"symbol": "order/order.go:7-8", "lines": "11"}); !strings.Contains(text, `lines="11-11"`) {
+		t.Fatalf("explicit lines must win:\n%s", text)
+	}
+}

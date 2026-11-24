@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Salvia95/graphin/internal/mcp"
+	"github.com/Salvia95/graphin/internal/nodeid"
 	"github.com/Salvia95/graphin/internal/workspace"
 )
 
@@ -21,9 +22,11 @@ import (
 // maxCandidates bounds the list an ambiguous or unknown ref comes back with.
 const maxCandidates = 10
 
-// pathLineRef is "path:line". The path must hold a slash or a dot so a
-// Kotlin-style "Type:3" never reads as a file.
-var pathLineRef = regexp.MustCompile(`^(.*[/.].*?):(\d+)$`)
+// pathLineRef is "path:line" or "path:start-end". The path must hold a slash
+// or a dot so a Kotlin-style "Type:3" never reads as a file. A range resolves
+// to the unit enclosing its first line; read_code reads the range itself
+// (splitPathRange).
+var pathLineRef = regexp.MustCompile(`^(.*[/.].*?):(\d+)(?:-(\d+))?$`)
 
 // resolution is the outcome of one ref. Exactly one of id and candidates is
 // meaningful: a single id when the ref named one unit, candidates when it
@@ -32,9 +35,11 @@ type resolution struct {
 	id         string
 	candidates []string
 	unresolved bool
-	// narrowed is set when several units shared the name and all but one
-	// were tests: the one non-test unit is taken, and the response says so.
+	// narrowed is set when several units shared the name and one was
+	// taken anyway, for the reason in chose: "non-test" when all others were
+	// tests, "table" when all others were objects attached to that table.
 	narrowed int
+	chose    string
 }
 
 func resolveRef(ws *workspace.Workspace, ref string) resolution {
@@ -75,9 +80,54 @@ func resolveRef(ws *workspace.Workspace, ref string) resolution {
 	}
 	ids = orderCandidates(ws, ids)
 	if nonTest := nonTestOnly(ws, ids); nonTest != "" {
-		return resolution{id: nonTest, narrowed: len(ids)}
+		return resolution{id: nonTest, narrowed: len(ids), chose: "non-test"}
+	}
+	if table := tableOverAttachments(ws, ids); table != "" {
+		return resolution{id: table, narrowed: len(ids), chose: "table"}
 	}
 	return resolution{candidates: ids}
+}
+
+// tableOverAttachments returns the one table or view among ids when every
+// other id is an object attached to it — an RLS policy bundle or a trigger,
+// whose id extends the table's. They share the table's name so a search for
+// the table finds them too; asking which one was meant by "resume" only costs
+// a call, since the table is what the name names.
+func tableOverAttachments(ws *workspace.Workspace, ids []string) string {
+	table := ""
+	for _, id := range ids {
+		if k := ws.NodeKind(id); k == nodeid.KindTable || k == nodeid.KindView {
+			if table != "" {
+				return ""
+			}
+			table = id
+		}
+	}
+	if table == "" {
+		return ""
+	}
+	for _, id := range ids {
+		if id != table && !strings.HasPrefix(id, table+".") {
+			return ""
+		}
+	}
+	return table
+}
+
+// splitPathRange recognises "path:start-end" for an indexed file and returns
+// the file's id and the range. read_code then reads exactly those lines —
+// what an agent quoting a location from a search result or a stack trace
+// wants — rather than the whole unit enclosing the first one.
+func splitPathRange(ws *workspace.Workspace, ref string) (path, lines string, ok bool) {
+	m := pathLineRef.FindStringSubmatch(strings.TrimSpace(ref))
+	if m == nil || m[3] == "" {
+		return "", "", false
+	}
+	path = strings.TrimPrefix(m[1], "./")
+	if !ws.HasNode(path) {
+		return "", "", false
+	}
+	return path, m[2] + "-" + m[3], true
 }
 
 func normalizeQualified(ref string) string {
@@ -226,7 +276,7 @@ func resolvedNote(ref string, r resolution) string {
 	}
 	s := fmt.Sprintf(`<resolved ref="%s" id="%s"`, mcp.EscapeAttr(ref), mcp.EscapeAttr(r.id))
 	if r.narrowed > 0 {
-		s += fmt.Sprintf(` candidates="%d" chose="non-test"`, r.narrowed)
+		s += fmt.Sprintf(` candidates="%d" chose="%s"`, r.narrowed, r.chose)
 	}
 	return s + " />\n"
 }
