@@ -1,0 +1,17 @@
+== r3-A: 108 runs, $6.76
+  calls/run median 6.0  bytes/run median 13147
+  graphin nav calls 183  host calls 481  runs with no graphin call 32
+  hybrid keyword-list 24/49 (49%)  keyword prose 0/106 (0%)
+  NODE_NOT_FOUND 0  AMBIGUOUS_REF 0  symbol inputs 0  detail=full asked 0
+  after a search with results: graphin follow-up 19%  host tool 73%  nothing 8%  (n=147)
+  by tool: {'Read': 228, 'Grep': 177, 'mcp__graphin__search_keyword': 106, 'Bash': 56, 'mcp__graphin__search_hybrid': 49, 'mcp__graphin__read_code': 28, 'Glob': 20, 'ToolSearch': 3, 'mcp__graphin__bootstrap_workspace': 2, 'mcp__graphin__diagnose_index': 2}
+  e.g. keyword-list: ['file watcher detects file change and triggers reindex', 'file watcher detects file change and triggers reindex', 'file watcher detects change and reindexes file']
+== r3-B: 108 runs, $6.96
+  calls/run median 6.0  bytes/run median 14756
+  graphin nav calls 285  host calls 389  runs with no graphin call 9
+  hybrid keyword-list 18/76 (24%)  keyword prose 1/145 (1%)
+  NODE_NOT_FOUND 1  AMBIGUOUS_REF 1  symbol inputs 64  detail=full asked 70
+  after a search with results: graphin follow-up 20%  host tool 66%  nothing 14%  (n=197)
+  by tool: {'Read': 196, 'mcp__graphin__search_keyword': 145, 'Grep': 133, 'mcp__graphin__search_hybrid': 76, 'mcp__graphin__read_code': 47, 'Bash': 45, 'mcp__graphin__explore_graph': 17, 'Glob': 15, 'ToolSearch': 3, 'mcp__graphin__bootstrap_workspace': 1, 'mcp__graphin__diagnose_index': 1}
+  e.g. keyword-list: ['file watcher detects file change and triggers reindexing', 'file watcher detects file change and triggers reindexing', 'file watcher detects changed file and triggers reindexing']
+  e.g. prose: ['The response is a PREFIX']
