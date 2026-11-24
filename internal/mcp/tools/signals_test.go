@@ -153,3 +153,44 @@ func TestHintsNeverDependOnAnotherGraphinTool(t *testing.T) {
 		}
 	}
 }
+
+// The navigation tools' descriptions are often all a subagent has. None may
+// name another graphin tool (it may not have been given one), and each must
+// say when not to use it and show the input shape.
+func TestDescriptionsStandAlone(t *testing.T) {
+	descs := map[string]string{
+		"search_hybrid":  descSearchHybrid,
+		"search_keyword": descSearchKeyword,
+		"explore_graph":  descExploreGraph,
+		"read_code":      descReadCode,
+	}
+	params := []string{descSearchHybridQuery, descSearchHybridTarget, descSearchKeywordPattern,
+		descSearchKeywordContext, descExploreDirection, descExploreMinConfidence, refParamDesc}
+	for name, d := range descs {
+		for other := range descs {
+			if other != name && strings.Contains(d, other) {
+				t.Errorf("%s description names %s", name, other)
+			}
+		}
+		for _, must := range []string{"Use it", "Do not use it", "Returns:"} {
+			if !strings.Contains(d, must) {
+				t.Errorf("%s description lacks %q", name, must)
+			}
+		}
+	}
+	for _, p := range params {
+		for other := range descs {
+			if strings.Contains(p, other) {
+				t.Errorf("parameter description names %s: %q", other, p)
+			}
+		}
+	}
+	// The two searches are told apart by their input shape; each shows a bad
+	// example of the other's.
+	if !strings.Contains(descSearchHybrid, "bad:") || !strings.Contains(descSearchKeyword, "bad:") {
+		t.Error("search descriptions must show bad inputs")
+	}
+	if !strings.Contains(descSearchKeyword, "grep instead") {
+		t.Error("search_keyword must say when grep is the better tool")
+	}
+}

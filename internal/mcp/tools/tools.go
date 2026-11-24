@@ -40,51 +40,34 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 
 	reg.Register(&mcp.Tool{
 		Name:        "search_hybrid",
-		Description: "Hybrid (exact/lexical/semantic) symbol search. Returns entry-point node IDs with the file and line each one starts at — enough to answer \"where is X\" without a second call — but no code bodies. When the match is deep in a long markdown section, hit_line is the line where it is; read_code with lines around it reads that part alone.",
+		Description: descSearchHybrid,
 		InputSchema: objSchema(map[string]any{
-			"query": map[string]any{"type": "string", "description": "Natural language or symbol query."},
-			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results."},
+			"query": map[string]any{"type": "string", "description": descSearchHybridQuery},
+			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max results (default 5, max 20)."},
 			"target": map[string]any{
 				"type": "string", "enum": []string{"code", "docs", "db"},
-				"description": "Restrict results to one population. Omit to search everything. " +
-					"Use \"code\" for a sentence-shaped question about implementation (\"how does X invalidate Y\") — " +
-					"prose queries otherwise rank long markdown files above the functions they describe, because a whole " +
-					"document is one node and matches prose better than code does. \"docs\" is markdown files and sections, " +
-					"\"db\" is schema snapshot nodes. Symbol-shaped queries rarely need this.",
+				"description": descSearchHybridTarget,
 			},
 		}, []string{"query"}),
 		Handler: searchHandler(ws),
 	})
 
 	reg.Register(&mcp.Tool{
-		Name: "search_keyword",
-		Description: "Literal or regex file search over the same tree the index walks, ranked by match count. " +
-			"Returns the matching lines with the node id that owns each one, so a string hit flows straight into " +
-			"explore_graph and read_code. The owner is the narrowest symbol on the line — a declaration line " +
-			"resolves to the symbol it declares; a line outside every symbol (an import, a test block, a " +
-			"top-level statement) resolves to the file itself, whose id is its path: read_code on it reads the " +
-			"file, and it has no graph edges. Reach for it when you know the exact text — an error message, a config " +
-			"key, a magic constant, a string built at runtime that no parser can see as a call — and when a symbol " +
-			"you are certain exists did not come back from search_hybrid. It also works before the index is warm, " +
-			"which is when the ranked retrievers are least useful. Pass context=N to get the N lines around each " +
-			"match in the same call — the grep -C shape, still tied to a node id — instead of reading the file. " +
-			"Data files (json, jsonl, lock, sum, csv) rank after source and prose and come back folded=\"data\" " +
-			"with only their path and match count; pass path= to open one.",
+		Name:        "search_keyword",
+		Description: descSearchKeyword,
 		InputSchema: objSchema(map[string]any{
-			"pattern": map[string]any{"type": "string", "description": "Text to find. Case-insensitive."},
+			"pattern": map[string]any{"type": "string", "description": descSearchKeywordPattern},
 			"regex": map[string]any{
 				"type": "boolean", "default": false,
-				"description": "Treat pattern as a regular expression (RE2). Off by default so that dots and " +
-					"brackets in a name are not silently reinterpreted.",
+				"description": "Treat pattern as an RE2 regular expression. Off by default so dots and brackets in a name match literally.",
 			},
 			"path": map[string]any{
-				"type": "string", "description": "Only search files whose path contains this substring.",
+				"type": "string", "description": "Only files whose path contains this substring, e.g. \"internal/auth\" or \".yaml\".",
 			},
-			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max files."},
+			"top_k": map[string]any{"type": "integer", "default": 5, "maximum": 20, "description": "Max files (default 5, max 20)."},
 			"context": map[string]any{
 				"type": "integer", "default": 0, "minimum": 0, "maximum": keywordMaxContext,
-				"description": "Lines of context around each matched line (0–5). Files that would push the " +
-					"response past its budget come back as one omitted line; narrow with path to read them.",
+				"description": descSearchKeywordContext,
 			},
 		}, []string{"pattern"}),
 		Handler: keywordHandler(ws),
@@ -92,45 +75,43 @@ func Register(reg *mcp.Registry, ws *workspace.Workspace) {
 
 	reg.Register(&mcp.Tool{
 		Name:        "explore_graph",
-		Description: "Explore uses/used_by edges of a node with confidence scores. Paginated, 20 edges per page.",
+		Description: descExploreGraph,
 		InputSchema: objSchema(map[string]any{
-			"symbol":    map[string]any{"type": "string", "description": refParamDesc},
-			"node_id":   map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
-			"direction": map[string]any{"type": "string", "enum": []string{"uses", "used_by", "both"}, "default": "both"},
-			"cursor":    map[string]any{"type": "string", "description": "Pagination cursor from a previous page."},
+			"symbol":  map[string]any{"type": "string", "description": refParamDesc},
+			"node_id": map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
+			"direction": map[string]any{
+				"type": "string", "enum": []string{"uses", "used_by", "both"}, "default": "both",
+				"description": descExploreDirection,
+			},
+			"cursor": map[string]any{"type": "string", "description": "next_cursor from the previous page."},
 			"min_confidence": map[string]any{
-				"type": "number", "default": 0.85, "description": "Exclude edges below this confidence. Default 0.85 drops the 0.80 heuristic tier (higher precision, ~17% fewer lines, <2%p recall cost per docs/eval); lower to 0.75 for max recall.",
+				"type": "number", "default": 0.85, "description": descExploreMinConfidence,
 			},
 		}, nil),
 		Handler: exploreHandler(ws),
 	})
 
 	reg.Register(&mcp.Tool{
-		Name: "read_code",
-		Description: "Read the exact source slice of one node, or of several at once with node_ids. " +
-			"A multi-node read never cuts inside a node: whole nodes come back in the order requested " +
-			"until the response budget runs out, and every node left out is listed with its reason. " +
-			"To read only part of a long node, add lines with node_id: the lines are the file's own line numbers " +
-			"(a search hit's hit_line, a keyword hit's line), clipped to the node. A file's path is its node id, " +
-			"so node_id=<path> with lines reads a stretch of any indexed file.",
+		Name:        "read_code",
+		Description: descReadCode,
 		InputSchema: objSchema(map[string]any{
 			"symbol": map[string]any{"type": "string", "description": refParamDesc},
 			"symbols": map[string]any{
 				"type":        "array",
 				"items":       map[string]any{"type": "string"},
 				"maxItems":    maxReadNodes,
-				"description": "Read several units in one call, in this order; each is a symbol as above. Use instead of symbol, not with it.",
+				"description": "Up to 20 units, each as symbol above, read in this order. Use instead of symbol, not with it.",
 			},
 			"node_id": map[string]any{"type": "string", "description": "Same as symbol; kept for compatibility."},
 			"node_ids": map[string]any{
 				"type":        "array",
 				"items":       map[string]any{"type": "string"},
 				"maxItems":    maxReadNodes,
-				"description": "Read several nodes in one call, in this order. Use instead of node_id, not with it.",
+				"description": "Same as symbols; kept for compatibility.",
 			},
 			"lines": map[string]any{
 				"type":        "string",
-				"description": fmt.Sprintf("Only with node_id: read lines \"start-end\" (or one line \"N\") of the node's file, at most %d lines, clipped to the node.", workspace.MaxRangeLines),
+				"description": fmt.Sprintf("Only with symbol: read lines \"start-end\" (or one line \"N\") — the file's own line numbers, at most %d, clipped to the unit.", workspace.MaxRangeLines),
 			},
 		}, nil),
 		Handler: readCodeHandler(ws),
@@ -794,14 +775,14 @@ func readCodeHandler(ws *workspace.Workspace) mcp.ToolHandler {
 		case a.NodeID != "" && len(a.NodeIDs) > 0:
 			// Guessing which one the caller meant is exactly the kind of
 			// silent choice this tool exists to avoid.
-			return mcp.ErrorXML(mcp.ErrInternal, "pass node_id or node_ids, not both", &st), true
+			return mcp.ErrorXML(mcp.ErrInternal, "pass one unit (symbol) or a list (symbols), not both", &st), true
 		case a.NodeID == "" && len(a.NodeIDs) == 0:
-			return mcp.ErrorXML(mcp.ErrInternal, "node_id or node_ids is required", &st), true
+			return mcp.ErrorXML(mcp.ErrInternal, "symbol or symbols is required", &st), true
 		case len(a.NodeIDs) > maxReadNodes:
 			return mcp.ErrorXML(mcp.ErrInternal,
-				fmt.Sprintf("node_ids holds %d ids, at most %d per call", len(a.NodeIDs), maxReadNodes), &st), true
+				fmt.Sprintf("symbols holds %d units, at most %d per call", len(a.NodeIDs), maxReadNodes), &st), true
 		case a.Lines != "" && a.NodeID == "":
-			return mcp.ErrorXML(mcp.ErrInternal, "lines reads part of one node: pass it with node_id, not node_ids", &st), true
+			return mcp.ErrorXML(mcp.ErrInternal, "lines reads part of one unit: pass it with symbol, not symbols", &st), true
 		}
 
 		if a.Lines != "" {
