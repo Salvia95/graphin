@@ -1,0 +1,362 @@
+{
+ "apache__lucene-12022": {
+  "recall": 0.006890215893431328,
+  "precision": 0.003727634194831014,
+  "hit_file_rate": 0.6,
+  "recall_at_300": 0.006890215893431328,
+  "ndcg_at_300": 0.3792613137381861,
+  "first_useful_hit": 0.97,
+  "lines": 4177
+ },
+ "apache__lucene-12196": {
+  "recall": 0.8953488372093024,
+  "precision": 0.0930401159980667,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.6976744186046512,
+  "ndcg_at_300": 1.0,
+  "first_useful_hit": 1.0,
+  "lines": 4605
+ },
+ "apache__lucene-12212": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 5790
+ },
+ "apache__lucene-12626": {
+  "recall": 0.04769874476987448,
+  "precision": 0.015163607342378291,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.029288702928870293,
+  "ndcg_at_300": 0.7309932727688171,
+  "first_useful_hit": 1.0,
+  "lines": 3908
+ },
+ "apache__lucene-13301": {
+  "recall": 0.330188679245283,
+  "precision": 0.13583441138421734,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.07232704402515723,
+  "ndcg_at_300": 0.1535336735188316,
+  "first_useful_hit": 0.676923076923077,
+  "lines": 773
+ },
+ "apache__lucene-13494": {
+  "recall": 0.273015873015873,
+  "precision": 0.028883291351805205,
+  "hit_file_rate": 0.75,
+  "recall_at_300": 0.09523809523809523,
+  "ndcg_at_300": 0.3092173543277291,
+  "first_useful_hit": 1.0,
+  "lines": 6011
+ },
+ "apache__lucene-13704": {
+  "recall": 0.564066852367688,
+  "precision": 0.06810156381368758,
+  "hit_file_rate": 0.4,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.96,
+  "lines": 6115
+ },
+ "django__django-10097": {
+  "recall": 0.25678119349005424,
+  "precision": 0.12588652482269502,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.13743218806509946,
+  "ndcg_at_300": 0.685031510410927,
+  "first_useful_hit": 1.0,
+  "lines": 1172
+ },
+ "django__django-11119": {
+  "recall": 0.16,
+  "precision": 0.07645875251509054,
+  "hit_file_rate": 0.6,
+  "recall_at_300": 0.031578947368421054,
+  "ndcg_at_300": 0.1357551493038567,
+  "first_useful_hit": 0.9122807017543859,
+  "lines": 1086
+ },
+ "django__django-11276": {
+  "recall": 0.46835443037974683,
+  "precision": 0.2215568862275449,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.4,
+  "ndcg_at_300": 0.6995447401646938,
+  "first_useful_hit": 1.0,
+  "lines": 845
+ },
+ "django__django-11551": {
+  "recall": 0.03818827708703375,
+  "precision": 0.02052505966587112,
+  "hit_file_rate": 0.6666666666666666,
+  "recall_at_300": 0.03818827708703375,
+  "ndcg_at_300": 0.4762468438354453,
+  "first_useful_hit": 0.9789473684210527,
+  "lines": 2112
+ },
+ "django__django-11880": {
+  "recall": 0.2619834710743802,
+  "precision": 0.1871310507674144,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.10909090909090909,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.8275862068965517,
+  "lines": 1725
+ },
+ "django__django-12209": {
+  "recall": 0.06618030224075039,
+  "precision": 0.04986258343148803,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.04585721730067743,
+  "ndcg_at_300": 0.5196024839988044,
+  "first_useful_hit": 0.99,
+  "lines": 2574
+ },
+ "django__django-12713": {
+  "recall": 0.10300820419325434,
+  "precision": 0.24672489082969432,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.06153144940747493,
+  "ndcg_at_300": 0.6130577979480791,
+  "first_useful_hit": 1.0,
+  "lines": 947
+ },
+ "django__django-13112": {
+  "recall": 0.3804849884526559,
+  "precision": 0.33846944016435543,
+  "hit_file_rate": 0.25,
+  "recall_at_300": 0.14665127020785218,
+  "ndcg_at_300": 1.0,
+  "first_useful_hit": 1.0,
+  "lines": 1987
+ },
+ "django__django-13363": {
+  "recall": 0.10006414368184734,
+  "precision": 0.07547169811320754,
+  "hit_file_rate": 0.6666666666666666,
+  "recall_at_300": 0.09300833867864015,
+  "ndcg_at_300": 0.8182368790979588,
+  "first_useful_hit": 1.0,
+  "lines": 2075
+ },
+ "django__django-13569": {
+  "recall": 0.1117908787541713,
+  "precision": 0.07550713749060857,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.07007786429365963,
+  "ndcg_at_300": 0.27980986533729824,
+  "first_useful_hit": 0.95,
+  "lines": 2725
+ },
+ "django__django-13821": {
+  "recall": 0.025871766029246346,
+  "precision": 0.011241446725317693,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.01687289088863892,
+  "ndcg_at_300": 0.2703506627554537,
+  "first_useful_hit": 0.935483870967742,
+  "lines": 2085
+ },
+ "django__django-14089": {
+  "recall": 0.5207715133531158,
+  "precision": 0.13780918727915195,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.1083086053412463,
+  "ndcg_at_300": 0.6510208438530386,
+  "first_useful_hit": 1.0,
+  "lines": 2595
+ },
+ "django__django-14376": {
+  "recall": 0.02195121951219512,
+  "precision": 0.01139240506329114,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.02195121951219512,
+  "ndcg_at_300": 0.3333333333333333,
+  "first_useful_hit": 0.9032258064516129,
+  "lines": 790
+ },
+ "django__django-14672": {
+  "recall": 0.7940298507462686,
+  "precision": 0.2073265783320343,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.20298507462686566,
+  "ndcg_at_300": 0.3910037641574519,
+  "first_useful_hit": 1.0,
+  "lines": 1376
+ },
+ "django__django-15037": {
+  "recall": 0.5748031496062992,
+  "precision": 0.16276477146042365,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.27755905511811024,
+  "ndcg_at_300": 0.2758964851406018,
+  "first_useful_hit": 1.0,
+  "lines": 1813
+ },
+ "django__django-15368": {
+  "recall": 0.23529411764705882,
+  "precision": 0.3047895500725689,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.10756302521008404,
+  "ndcg_at_300": 0.4668560534659843,
+  "first_useful_hit": 0.9833333333333333,
+  "lines": 1389
+ },
+ "django__django-15569": {
+  "recall": 0.4326647564469914,
+  "precision": 0.07767489711934156,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.25501432664756446,
+  "ndcg_at_300": 0.5898915096739816,
+  "first_useful_hit": 1.0,
+  "lines": 1993
+ },
+ "django__django-15930": {
+  "recall": 0.16187870497036025,
+  "precision": 0.2030892448512586,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.0898312813497492,
+  "ndcg_at_300": 0.6439565579101331,
+  "first_useful_hit": 1.0,
+  "lines": 1785
+ },
+ "django__django-16255": {
+  "recall": 0.75,
+  "precision": 0.08973214285714286,
+  "hit_file_rate": 0.6666666666666666,
+  "recall_at_300": 0.4216417910447761,
+  "ndcg_at_300": 0.14702128314861845,
+  "first_useful_hit": 0.9830508474576272,
+  "lines": 2289
+ },
+ "django__django-16569": {
+  "recall": 0.1826086956521739,
+  "precision": 0.0554968287526427,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.04173913043478261,
+  "ndcg_at_300": 0.2797762956884082,
+  "first_useful_hit": 0.9880952380952381,
+  "lines": 1899
+ },
+ "django__django-16899": {
+  "recall": 0.12357173085061363,
+  "precision": 0.1639528354856822,
+  "hit_file_rate": 1.0,
+  "recall_at_300": 0.06347862886161659,
+  "ndcg_at_300": 0.4249400993165109,
+  "first_useful_hit": 0.9893617021276596,
+  "lines": 1797
+ },
+ "element-hq__element-web-18c03daa865d3c5b10e52b669cd50be34c67b2e5-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 3204
+ },
+ "element-hq__element-web-33e8edb3d508d6eefb354819ca693b7accc695e7": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.25,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 868
+ },
+ "element-hq__element-web-494d9de6f0a94ffb491e74744d2735bce02dc0ab-vnan": {
+  "recall": 0.016602809706257982,
+  "precision": 0.06243996157540826,
+  "hit_file_rate": 0.6,
+  "recall_at_300": 0.001277139208173691,
+  "ndcg_at_300": 0.059787903331768685,
+  "first_useful_hit": 0.8787878787878788,
+  "lines": 1041
+ },
+ "element-hq__element-web-53a9b6447bd7e6110ee4a63e2ec0322c250f08d1-vnan": {
+  "recall": 0.26486013986013984,
+  "precision": 0.17264957264957265,
+  "hit_file_rate": 0.36363636363636365,
+  "recall_at_300": 0.06993006993006994,
+  "ndcg_at_300": 0.4197328491695713,
+  "first_useful_hit": 1.0,
+  "lines": 1755
+ },
+ "element-hq__element-web-53b42e321777a598aaf2bb3eab22d710569f83a8-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 1699
+ },
+ "element-hq__element-web-880428ab94c6ea98d3d18dcaeb17e8767adcb461-vnan": {
+  "recall": 0.16792738275340394,
+  "precision": 0.05089408528198074,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.05597579425113464,
+  "ndcg_at_300": 0.527018161344119,
+  "first_useful_hit": 1.0,
+  "lines": 2181
+ },
+ "element-hq__element-web-923ad4323b2006b2b180544429455ffe7d4a6cc3-vnan": {
+  "recall": 0.3828125,
+  "precision": 0.033137962128043284,
+  "hit_file_rate": 0.5714285714285714,
+  "recall_at_300": 0.234375,
+  "ndcg_at_300": 0.31550498455805215,
+  "first_useful_hit": 0.95,
+  "lines": 4451
+ },
+ "element-hq__element-web-b007ea81b2ccd001b00f332bee65070aa7fc00f9-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 341
+ },
+ "element-hq__element-web-ca8b1b04effb4fec0e1dd3de8e3198eeb364d50e-vnan": {
+  "recall": 0.050980392156862744,
+  "precision": 0.020651310563939634,
+  "hit_file_rate": 0.2857142857142857,
+  "recall_at_300": 0.011764705882352941,
+  "ndcg_at_300": 0.11204717181408376,
+  "first_useful_hit": 0.9873417721518988,
+  "lines": 1332
+ },
+ "element-hq__element-web-ce554276db97b9969073369fefa4950ca8e54f84-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 647
+ },
+ "element-hq__element-web-ee13e23b156fbad9369d6a656c827b6444343d4f-vnan": {
+  "recall": 0.65807962529274,
+  "precision": 0.15414152495885902,
+  "hit_file_rate": 0.46153846153846156,
+  "recall_at_300": 0.48243559718969553,
+  "ndcg_at_300": 1.0,
+  "first_useful_hit": 1.0,
+  "lines": 2004
+ },
+ "element-hq__element-web-f14374a51c153f64f313243f2df6ea4971db4e15": {
+  "recall": 0.31065759637188206,
+  "precision": 0.04233621755253399,
+  "hit_file_rate": 0.25,
+  "recall_at_300": 0.23356009070294784,
+  "ndcg_at_300": 0.832050476934413,
+  "first_useful_hit": 0.9864864864864865,
+  "lines": 3373
+ }
+}

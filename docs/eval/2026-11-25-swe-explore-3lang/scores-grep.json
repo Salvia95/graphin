@@ -1,0 +1,362 @@
+{
+ "apache__lucene-12022": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 14801
+ },
+ "apache__lucene-12196": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 126261
+ },
+ "apache__lucene-12212": {
+  "recall": 0.006157635467980296,
+  "precision": 8.94518391298125e-05,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.16000000000000003,
+  "lines": 55896
+ },
+ "apache__lucene-12626": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 25052
+ },
+ "apache__lucene-13301": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 184302
+ },
+ "apache__lucene-13494": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 179143
+ },
+ "apache__lucene-13704": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 149894
+ },
+ "django__django-10097": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 164731
+ },
+ "django__django-11119": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 76999
+ },
+ "django__django-11276": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 153457
+ },
+ "django__django-11551": {
+  "recall": 0.9955595026642984,
+  "precision": 0.007189077220052459,
+  "hit_file_rate": 0.6666666666666666,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.64,
+  "lines": 155931
+ },
+ "django__django-11880": {
+  "recall": 0.004132231404958678,
+  "precision": 7.773994433819985e-05,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.004132231404958678,
+  "ndcg_at_300": 1.0,
+  "first_useful_hit": 1.0,
+  "lines": 64317
+ },
+ "django__django-12209": {
+  "recall": 0.9958311620635748,
+  "precision": 0.010705942330209132,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.75,
+  "lines": 178499
+ },
+ "django__django-12713": {
+  "recall": 0.9954421148587056,
+  "precision": 0.015366862739579523,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.65,
+  "lines": 142124
+ },
+ "django__django-13112": {
+  "recall": 0.9797921478060047,
+  "precision": 0.02117200853367934,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.42000000000000004,
+  "lines": 80153
+ },
+ "django__django-13363": {
+  "recall": 0.7876844130853111,
+  "precision": 0.010891449148107744,
+  "hit_file_rate": 0.3333333333333333,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.6699999999999999,
+  "lines": 112749
+ },
+ "django__django-13569": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 29524
+ },
+ "django__django-13821": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 24286
+ },
+ "django__django-14089": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 154319
+ },
+ "django__django-14376": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 17006
+ },
+ "django__django-14672": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 179800
+ },
+ "django__django-15037": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 186655
+ },
+ "django__django-15368": {
+  "recall": 0.8420168067226891,
+  "precision": 0.01578549372991367,
+  "hit_file_rate": 0.6666666666666666,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.85,
+  "lines": 95214
+ },
+ "django__django-15569": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 45101
+ },
+ "django__django-15930": {
+  "recall": 0.002279981760145919,
+  "precision": 4.436006174920596e-05,
+  "hit_file_rate": 0.25,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.040000000000000036,
+  "lines": 112714
+ },
+ "django__django-16255": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 124339
+ },
+ "django__django-16569": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 188175
+ },
+ "django__django-16899": {
+  "recall": 0.5725772323317816,
+  "precision": 0.009558527435728971,
+  "hit_file_rate": 0.5,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.06000000000000005,
+  "lines": 141549
+ },
+ "element-hq__element-web-18c03daa865d3c5b10e52b669cd50be34c67b2e5-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 134721
+ },
+ "element-hq__element-web-33e8edb3d508d6eefb354819ca693b7accc695e7": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 30605
+ },
+ "element-hq__element-web-494d9de6f0a94ffb491e74744d2735bce02dc0ab-vnan": {
+  "recall": 0.8955300127713921,
+  "precision": 0.024125734575632045,
+  "hit_file_rate": 0.2,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.43000000000000005,
+  "lines": 145322
+ },
+ "element-hq__element-web-53a9b6447bd7e6110ee4a63e2ec0322c250f08d1-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 133586
+ },
+ "element-hq__element-web-53b42e321777a598aaf2bb3eab22d710569f83a8-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 127439
+ },
+ "element-hq__element-web-880428ab94c6ea98d3d18dcaeb17e8767adcb461-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 104384
+ },
+ "element-hq__element-web-923ad4323b2006b2b180544429455ffe7d4a6cc3-vnan": {
+  "recall": 0.013020833333333334,
+  "precision": 0.0001108278842956888,
+  "hit_file_rate": 0.14285714285714285,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.98,
+  "lines": 45115
+ },
+ "element-hq__element-web-b007ea81b2ccd001b00f332bee65070aa7fc00f9-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 6452
+ },
+ "element-hq__element-web-ca8b1b04effb4fec0e1dd3de8e3198eeb364d50e-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 172595
+ },
+ "element-hq__element-web-ce554276db97b9969073369fefa4950ca8e54f84-vnan": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 7367
+ },
+ "element-hq__element-web-ee13e23b156fbad9369d6a656c827b6444343d4f-vnan": {
+  "recall": 0.00468384074941452,
+  "precision": 1.152505258305241e-05,
+  "hit_file_rate": 0.15384615384615385,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.62,
+  "lines": 173535
+ },
+ "element-hq__element-web-f14374a51c153f64f313243f2df6ea4971db4e15": {
+  "recall": 0.0,
+  "precision": 0.0,
+  "hit_file_rate": 0.0,
+  "recall_at_300": 0.0,
+  "ndcg_at_300": 0.0,
+  "first_useful_hit": 0.0,
+  "lines": 54605
+ }
+}
