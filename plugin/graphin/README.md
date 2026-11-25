@@ -16,9 +16,9 @@
 
 | 구성 | 내용 |
 |---|---|
-| MCP 서버 | `search_hybrid` · `explore_graph` · `read_code` · `bootstrap_workspace` · `diagnose_index` · `run_local_benchmark` |
+| MCP 서버 | 탐색 `search_hybrid` · `search_keyword` · `explore_graph` · `read_code`, 인덱스 `bootstrap_workspace` · `diagnose_index` · `index_scope` · `run_local_benchmark`, 지식 계층 `wiki_*` 5종 — 전체 파라미터는 [도구 레퍼런스](../../docs/tools.md) |
 | 명령 | `/graphin:doctor` · `/graphin:setup` · `/graphin:report` |
-| 훅 | SessionStart(설치 예열) · PostToolUse(채택 계측) |
+| 훅 | SessionStart(설치 예열) · PreToolUse(위키 게이트 — `docs/wiki`가 있는 저장소에서만) · SubagentStart·PostToolUse(채택 계측, 위키 읽음 표시) |
 
 도구 이름은 `mcp__plugin_graphin_graphin__*`이다 — 플러그인이 제공하는 MCP 서버는
 Claude Code가 `plugin:<플러그인>:<서버>`로 네임스페이싱하기 때문이다.

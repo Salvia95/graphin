@@ -1,284 +1,270 @@
 # graphin
 
-AI 코딩 에이전트를 위한 로컬 코드베이스 탐색 MCP 서버.
+**Let your coding agent find, trace and read code by symbol — instead of grepping file after file.**
 
-`grep` 기반 선형 탐색 대신 **점진적 정보 공개(Progressive Disclosure)** 3단계로
-에이전트의 토큰 소모를 최소화한다:
+graphin is a local MCP server and Claude Code plugin. It indexes a repository
+into a graph of functions, classes, doc sections and database tables, so an
+agent can ask *where is this*, *what calls it* and *show me just that function*
+and get an exact answer in one call.
 
-```
-1. search_hybrid("결제 취소 로직")   → 진입점 노드 ID + file:line (본문 없음)
-2. explore_graph(노드 ID)           → uses / used_by 관계 + confidence
-3. read_code(노드 ID)               → 해당 노드의 원본 코드만 정확히 슬라이싱
-```
+- **Local.** Indexing, search and the optional embedding model run on your machine. No API key, no account, no telemetry.
+- **Symbol-sized reads.** `read_code` returns one function, method, section or table — or `path:120-180` — not the whole file.
+- **Follows references, not strings.** Callers and dependencies are resolved through imports and scopes, so same-named strangers stay out.
+- **Code ↔ database.** Committed schema snapshots become graph nodes, linked to the code that reads and writes each table.
 
-지원 언어: **Java, Kotlin, Python, JavaScript, TypeScript, Go**(JSX/TSX 포함,
-tree-sitter).
+[English](README.md) · [한국어](README.ko.md)
 
-| 플랫폼 | 릴리스 바이너리 | 의미 검색 |
-|---|---|---|
-| linux/amd64 · linux/arm64 | 제공 | 가능 |
-| darwin/arm64 (Apple Silicon) | 없음 — `go install` 폴백 | 가능 |
-| darwin/amd64 | 없음 | **불가** (onnxruntime 1.26.0 빌드 자체가 없다) |
-| windows | 범위 밖 | `--ort-lib` 수동 지정 필요 |
+## Quick start
 
-의미 검색이 불가한 조합에서도 lexical 검색은 정상 동작한다. 지금 실행 중인
-바이너리가 어느 쪽인지는 `graphin version --json`의 `semantic_supported`가
-한 줄로 알려 준다.
-
-JS/TS는 파일 경로 기반 모듈 ID(`src/order/service.ts` →
-`src.order.service.OrderService`)를 사용하며, 상대 경로 import·re-export·
-`require()`는 파싱 시점에 같은 dotted 모듈 공간으로 정규화되어 스코프 랭킹에
-반영된다. tsconfig `paths`·`baseUrl` 별칭(`@/features/order`)은 파일에서 가장
-가까운 `tsconfig.json`/`jsconfig.json`(상대 경로 `extends` 포함)을 읽어 같은
-공간으로 옮기고, 설정이 바뀌면 JS/TS import를 다시 해석한다. JSX로 렌더하는
-컴포넌트(`<OrderList />`)는 호출 엣지가 된다.
-`.d.ts`는 선언 시그니처를 인덱싱하고, TS 오버로드 시그니처는 구현부 하나로
-접힌다. `.min.js`·`dist/`·`.next/`·`coverage/`·`node_modules/`는 기본 제외.
-
-**탐색 커버리지**: 심볼 노드 외에도 ① 메서드/클래스 **본문 토큰**(문자열
-리터럴·주석·필드)이 lexical 인덱스에 포함되고, ② YAML/properties/SQL/MD/
-Gradle/Dockerfile 등 **앵커 없는 텍스트 파일은 파일 단위 노드**(ID = 상대
-경로)로 승격되어 검색·`read_code`가 가능하다. 파일 노드는 그래프 엣지를
-만들지 않으며, 락파일(package-lock.json 등)은 기본 제외된다.
-
-**RDB 스키마 스냅샷**: `<name>[.<section>].graphindb.json` 규약의 스냅샷
-파일을 저장소에 커밋하면 테이블·뷰·함수·프로시저가 개별 노드로, FK가
-`ForeignKey` 엣지로 인덱싱된다(컬럼·인덱스·제약은 테이블 노드에 접힘,
-RLS·트리거는 사이드카 파일로 분리). graphin은 라이브 DB에 접속하지 않는다 —
-스냅샷은 tbls/Atlas 출력을 `graphin dbimport`로 변환하거나 수기로 작성한다.
-데이터소스(파일 단위) N개 공존, 크로스 데이터소스 참조(`db.<ds>.` 프리픽스),
-supabase `auth.users` 같은 스냅샷 밖 대상(dangling 엣지)을 지원한다.
-전체 명세: [`schema/graphindb.md`](schema/graphindb.md).
-
-```sh
-# Postgres/MySQL/SQLite: tbls 이트로스펙션 → 스냅샷 변환
-tbls out -t json --dsn "postgres://..." | graphin dbimport --from tbls --datasource main -
-graphin dbimport --init main            # 수기 작성용 빈 뼈대
-```
-
-프로젝트에 스키마 SSOT가 이미 있으면 변환 없이 **매니페스트로 직접 라우팅**할
-수 있다: 베이스네임 `graphindb.json` 매니페스트가 데이터소스별 SSOT 파일을
-`sql`(상태형 DDL 덤프) · `schema`(prisma 서브셋) · `json`(tbls 프리셋 또는
-셀렉터 매핑) 포맷으로 선언하면 SSOT 파일 자체가 파스 타깃이 되어
-`read_code`가 실제 CREATE TABLE·model 블록을 반환한다. 매니페스트 오류는
-`db_manifest_errors` 속성으로 에이전트에게 피드백된다.
-
-**코드↔DB 크로스 도메인 엣지**: JPA `@Table(name=)`/`@Entity`, SQLAlchemy
-`__tablename__`, Django `Meta.db_table`, TypeORM `@Entity("x")`, Prisma
-client 멤버 접근(`prisma.<model>.`), 그리고 SQL 문맥이 확실한 문자열 리터럴
-(`SELECT…FROM`/`JOIN`/`INSERT INTO`/`UPDATE…SET`, `@Query` 포함)이 감지되면
-코드 노드 → 테이블 노드 `reference` 엣지가 생성된다(명시 물리명 1.0 /
-client·SQL 0.9 / 클래스명 관례 0.8, 레지스트리 실존 대상 한정 — 명시
-매핑만 단일 데이터소스에서 dangling 허용). 테이블 노드의 `used_by` 한 번으로
-"이 테이블을 건드리는 코드"에 도달한다. 부트스트랩 이후 스냅샷이 추가·삭제
-되면 영향받는 코드 파일만 재해석되어 엣지가 따라 움직인다(재임베딩 없음).
-설계: [`docs/phase7-spec.md`](docs/phase7-spec.md).
-
-부트스트랩 시 DB 흔적(마이그레이션 디렉터리·prisma·docker-compose 등)은
-있는데 스냅샷도 매니페스트도 없으면 `bootstrap_workspace` 응답에
-`db_sources_detected`/`db_snapshots` 속성과 안내 `<hint>`가 동봉된다.
-Supabase의 RLS·트리거 사이드카와 Oracle(Atlas inspect 참고)은 수기 작성한다.
-tbls의 virtual relation은 `enforced:false` 논리 참조로 변환된다.
-
-## 설치
-
-Claude Code 플러그인 하나면 된다. 저장소를 클론할 필요도, 바이너리 경로를 손으로
-배선할 필요도 없다 — 플러그인이 자기 바이너리를 받아 SHA256으로 검증하고 실행한다.
+In Claude Code (2.1.83 or later):
 
 ```
 /plugin marketplace add Salvia95/graphin
 /plugin install graphin@graphin
 ```
 
-**요구사항: Claude Code 2.1.83 이상.** 설치 후 `/graphin:doctor`가 설치 상태·플랫폼
-지원·인덱스를 한 번에 점검한다. 옵션(관리자 페이지 주소, 모델, 폐쇄망 등)은
-`/plugin` → Manage → graphin → Configure. 자세한 내용:
-[`plugin/graphin/README.md`](plugin/graphin/README.md).
+Restart the session, open a project and ask something you would normally
+grep for:
 
-탐색 유도(스킬 + 읽기 전용 서브에이전트)는 **별도 플러그인**이다. 계측 베이스라인을
-보존하려는 의도적 분리다:
+> Where is order cancellation handled, and what calls it?
+
+On a project graphin has never seen, the agent first calls
+`bootstrap_workspace` (the other tools tell it to); indexing runs in the
+background, lexical search is ready within seconds and the semantic model
+warms up after it. Later sessions reopen the index on their own. Run
+`/graphin:doctor` to check the install, platform support and index state.
+
+Add `.graphin/*` to your `.gitignore` — the index lives in `<project>/.graphin/`.
+
+> Already registered graphin by hand (`claude mcp add graphin`)? Remove it
+> (`claude mcp remove graphin -s local|user|project`). Two registrations fight
+> over the same index; `/graphin:doctor` detects this.
+
+## Why
+
+Without an index, an agent explores by guessing: grep a word, open a file,
+follow an import, back out, try again. Every file it opens is paid for in
+context, and every guess that misses is paid for twice.
+
+| | grep + read | graphin |
+|---|---|---|
+| "Where is X?" | grep, then open candidates to check | one search: ranked units with `file:line` |
+| "What calls X?" | grep the name, filter out same-named strangers by reading | `explore_graph` → resolved callers with the line of each call |
+| "Show me X" | read the file (or a guessed range) | `read_code` → exactly that unit |
+| "Which code touches the `orders` table?" | grep table names and SQL strings | the table's `used_by` edges |
+
+## What to ask
+
+graphin does not change how you talk to the agent. These are the questions it
+answers well, and the tool the agent reaches for:
+
+| Situation | Ask | Tool |
+|---|---|---|
+| You know what it does, not what it is called | "How does the watcher decide a file changed?" | `search_hybrid` |
+| You have an error message or config key | "Where does 'failed to acquire lock' come from?" | `search_keyword` |
+| Before changing a function | "What calls `applyFileResult`, and what would break?" | `explore_graph` (used_by) |
+| Reading one unit | "Show me `OrderService.cancel`." | `read_code` |
+| Schema questions | "Which code writes to `job_posting`?" | `explore_graph` on the table |
+
+## See it in action
+
+Django, lexical index only (no embedding model). The agent asks:
+
+> How are related objects collected for cascade deletion?
+
+It calls `search_hybrid` with `target="code"` and `detail="full"`; the first
+result already names the function, its location, its body and who calls it
+(response trimmed):
+
+```xml
+<results semantic_ready="false" target="code" candidates="16164" detail="full">
+  <node id="django.db.models.deletion.Collector.collect" rank="1" kind="method"
+        file="django/db/models/deletion.py" line="247"
+        signature="def collect( self, objs, source=None, nullable=False, …">
+    <body lines="247-307" partial="true" unit_lines="247-401">def collect(…): …</body>
+    <callers shown="3" more="true">
+      <node name="CASCADE" file="django/db/models/deletion.py" line="22" ref_line="23" />
+      <node name="Model.delete" file="django/db/models/base.py" line="1125" ref_line="1133" />
+      <node name="QuerySet.delete" file="django/db/models/query.py" line="1133" ref_line="1156" />
+    </callers>
+  </node>
+  <node id="django.db.models.deletion.CASCADE" rank="2" … />
+  …
+</results>
+```
+
+One call, and the next step — "what would changing it break?" — is
+`explore_graph` on `Collector.collect` with `direction="used_by"`.
+
+## Tools
+
+| Tool | What it is for |
+|---|---|
+| `search_hybrid` | Find code by meaning or a half-remembered name (exact match + BM25 + embeddings, fused). |
+| `search_keyword` | Find exact text — messages, keys, constants — and the unit each match is in. |
+| `explore_graph` | Who calls or references a unit, and what it depends on, with confidence scores. |
+| `read_code` | Read one unit, several in one call, or a line range — never a whole file by accident. |
+| `bootstrap_workspace` · `diagnose_index` · `index_scope` | Start the index, check its health, see and change what it covers. |
+| `wiki_*` | The optional knowledge layer over `docs/wiki` (see [graphin-guide](#optional-graphin-guide)). |
+
+Navigation tools accept plain names (`cancelOrder`, `OrderService.cancel`,
+`src/order.py:120`) as well as ids, and take `detail="full"` to return
+signatures, call sites and callers in the same response.
+Every parameter is in the generated **[tool reference](docs/tools.md)**.
+
+## How it works
+
+```
+source files ──tree-sitter──▶ symbols + references ──▶ ┌ BM25 index (symbols, bodies, doc chunks)
+                                                       ├ vector index (optional, local ONNX model)
+schema snapshots ─────────────▶ tables, views, FKs ──▶ └ graph shards (calls, imports, inheritance,
+                                                          table access, doc sections) + reverse index
+file watcher ──▶ merkle diff ──▶ re-parse only what changed
+```
+
+- Search fuses an exact-name tier, BM25 and vector results (RRF); responses
+  carry locations, not raw scores.
+- Edges carry a confidence: 1.00 when certain from syntax, 0.95 same package,
+  0.90 through an import, 0.80 a same-name guess (hidden by default).
+- Edits are picked up by a file watcher; a node whose file changed is re-parsed
+  on read, so `read_code` never returns stale offsets.
+- Several sessions on one project share one index: the first server holds it,
+  the others forward their calls to it.
+
+## Evidence
+
+Measured on public benchmarks and this repository's own task sets. Methods and
+raw results are in [`docs/eval/`](docs/eval/README.md).
+
+| Measurement | Result | Scope |
+|---|---|---|
+| [SWE-Explore](https://github.com/Qiushao-E/SWE-Explore-Bench), 3 languages — 40 tasks from lucene (Java), element-web (TypeScript), django (Python) | recall@300 **0.118 vs 0.000** for grep ±20, with **2.1%** of the lines; graphin ahead on 33 tasks, behind on none | deterministic explorers, same derived queries, lexical index · [details](docs/eval/2026-11-25-swe-explore-3lang/findings.md) |
+| SWE-Explore, 451 Python tasks (SWE-bench Verified) | recall@300 **0.109 vs 0.004**, with 2.6% of the lines | same · [details](docs/eval/2026-07-25-h1-reverify/findings.md) |
+| Agent benchmark on this repository — 36 questions × 3 runs, graphin agent vs a grep-only agent | **same accuracy** (98/108 each) | [details](docs/eval/2026-09-08-36-grep/findings.md) |
+| Same, sub-agent with no guidance beyond the tool descriptions | same accuracy and **same token cost** as the grep-only agent | [details](docs/eval/2026-11-24-rag-hard/findings.md) |
+
+Per language on SWE-Explore, recall@300 was 0.129 (Java), 0.130 (Python) and
+0.091 (TypeScript) — TypeScript is the weakest so far.
+
+What this does and does not show: under a fixed reading budget, graphin puts
+the right code first where grep cannot. An agent that greps patiently reaches
+the same answers; on a repository the size of this one (a few hundred files),
+it does so at about the same token cost. graphin is not a token-saver by
+default — it is a way to land on the right code with less searching, and that
+gap widens with repository size.
+
+## Supported languages and content
+
+| Content | Symbols | References (graph edges) |
+|---|---|---|
+| Java, Kotlin, Python | ✓ | calls, imports, inheritance |
+| Go | ✓ | calls, imports, interface embedding |
+| JavaScript, TypeScript (JSX/TSX) | ✓ | calls, imports (incl. `tsconfig` path aliases), JSX components |
+| Markdown | one node per heading | section hierarchy |
+| Database schema snapshots | tables, views, functions, procedures | foreign keys, code → table access (JPA, SQLAlchemy, Django, TypeORM, Prisma, SQL strings) |
+| Other text (YAML, SQL, Dockerfile, …) | one node per file | — |
+
+Database support reads committed snapshots only — graphin never connects to a
+live database. Generate one from `tbls`/Atlas with `graphin dbimport`, or point a
+manifest at an existing Prisma schema or SQL dump: [`schema/graphindb.md`](schema/graphindb.md).
+
+## Optional: graphin-guide
+
+A second plugin teaches the agent to use graphin well and adds a read-only
+research subagent:
 
 ```
 /plugin install graphin-guide@graphin
 ```
 
-> 이미 `claude mcp add graphin`으로 수동 등록해 뒀다면 **지워야 한다.** Claude Code는
-> 커맨드가 다르면 중복으로 보지 않아 둘 다 뜨고, 같은 워크스페이스 락을 두고 다투다
-> 뒤에 뜬 쪽이 반쪽으로 죽는다. `claude mcp remove graphin -s {local,user,project}`.
-> `/graphin:doctor`가 이 상태를 감지한다.
-
-### 버전 읽는 법
-
-0.x 동안 **가운데 자리가 "당신이 손볼 게 생겼다"는 신호**다.
-
-- **0.X.0** — 도구 이름, 옵션 키, CLI 플래그, 최소 Claude Code 버전 중 하나가
-  바뀌었다. 릴리스 노트를 읽어야 한다.
-- **0.x.Y** — 버그 수정·새 기능·새 플랫폼. 그냥 업데이트하면 된다.
-
-인덱스 포맷이 바뀌는 경우가 있는데, 그건 고장이 아니라 **재인덱싱 한 번**이다
-(옛 인덱스는 스스로 지워지고 다시 만들어진다). 비용이 드는 업그레이드는 릴리스
-노트 맨 위에 적는다. 플러그인 버전과 바이너리 버전은 **항상 같은 숫자**다 —
-`/plugin`과 `/graphin:doctor`가 다른 값을 말하면 그게 곧 버그 리포트감이다.
-규칙 전문: [§13 버저닝](docs/plugin-distribution.md#13-버저닝).
-
-### 직접 빌드 (개발자)
-
-```sh
-make build                    # → bin/graphin, version/commit 스탬프 포함
-./bin/graphin version --json  # 버전·플랫폼·의미 검색 가능 여부
-```
-
-빌드한 바이너리를 플러그인에 물리려면 `binary_path` 옵션을 그 경로로 지정한다.
-플러그인이 단일 등록 지점으로 남으면서 바이너리만 자기 빌드가 된다 — `claude mcp add`로
-절대경로를 등록하면 **다른 프로젝트가 이 체크아웃을 직접 참조**하게 되어,
-`make build` 한 번에 실행 중이던 다른 세션의 바이너리가 교체된다.
-
-배포 설계 전문: [`docs/plugin-distribution.md`](docs/plugin-distribution.md).
-
-에이전트가 `bootstrap_workspace`를 호출하면 인덱싱과 File Watcher가 시작된다.
-`initialize`는 인덱싱과 무관하게 즉시 응답하며, 준비 전 응답에는
-`<system_status state="indexing" lexical_ready=... semantic_ready=... />`가 동봉된다.
-lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직후 도착 순서대로
-재생된다 — 초기 스캔이 읽어둔 (낡은) 파일 내용이 동시 편집을 덮어쓰지 못하게
-하는 순서 보장이다. 임베딩은 유계 큐 대신 백로그로 처리되어 대형 저장소의 콜드
-부트스트랩에서도 벡터가 유실되지 않으며, 워밍업 중 `bootstrap_workspace`를
-재호출하면 응답에 `embed_pending`(남은 임베딩 수)이 동봉되어 진행 상황을
-확인할 수 있다(lexical 검색은 그 사이에도 사용 가능).
-
-## 도구 (MCP tools)
-
-| 도구 | 역할 |
+| Part | What it does |
 |---|---|
-| `bootstrap_workspace` | 최초 인덱싱 + watcher 기동 (`model_type`: `english_optimal` \| `multilingual_cjk`) |
-| `search_hybrid` | Tier-0 정확 일치 → BM25 ∥ 벡터 RRF(k=60) 병합. 원시 점수 비노출. 결과마다 시작 `file`·`line`을 함께 준다 — "어디 있나"는 한 콜로 끝난다. `detail="full"`이면 시그니처·매칭 주변 줄, 1위의 본문과 호출자까지 |
-| `explore_graph` | 결정론 정렬(confidence↓ → 동일 패키지 → FQN), 20엣지/페이지 seek-key 커서. 입력은 node id 외에 이름·`Type.method`·경로·`path:line`(`symbol`). `detail="full"`이면 이웃마다 시그니처와 참조가 적힌 줄 |
-| `read_code` | 바이트 오프셋 슬라이싱. 파일 해시 불일치 시 인라인 재파싱(`reparsed="true"`). 입력은 `explore_graph`와 같고, `detail="full"`이면 호출자·피호출자 5개씩 |
-| `diagnose_index` | 인덱스 자체의 건강 — 노드/엣지/샤드 카운트, 끊어진 엣지(코드/DB 분리), partial 노드, 역인덱스 통계, 의미 검색 상태와 `vectors.bin` 모델 불일치, 유효 기동 플래그, `.graphin` 용량. 조치가 필요한 것만 `<hint>`으로 낸다 |
-| `run_local_benchmark` | Grep Full / Grep -C20 / graphin 3-시나리오 바이트·토큰 절감 리포트 |
+| `graphin` skill | When to search, explore or read — and when to stop. |
+| `graphin-rag` subagent | Takes a whole codebase question, works to a context budget, and returns the answer with citations and what it did not verify. |
+| `knowledge` skill · `wiki-maintainer` | A knowledge layer over `docs/wiki`: curated sets of doc sections, a glossary, and a pre-flight gate before edits. |
 
-## 실행 플래그
+It is a separate plugin on purpose: graphin records (locally) whether agents
+adopt it on their own, and mixing in guidance would erase that baseline.
+Details: [`plugin/graphin-guide/README.md`](plugin/graphin-guide/README.md).
 
-`--workspace <path>`(필수) · `--model-type` · `--offline` · `--model-dir` ·
-`--ort-lib` · `--workers <n>` · `--semantic-max-nodes <n>` · `--verbose`
+## Configuration
 
-서브커맨드: `dbimport` · `usage` · `eval` · `version`. `graphin version --json`은
-버전·커밋·`os`/`arch`·ORT 버전과 **이 플랫폼에서 의미 검색이 가능한지**
-(`semantic_supported`)를 한 줄로 낸다.
+All optional, under `/plugin` → Manage → graphin → Configure:
 
-시멘틱 모델(e5 계열 INT8 ONNX)과 onnxruntime 1.26.0은 최초 부트스트랩 시
-SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts` 캐시).
-폐쇄망은 `--offline` + `--model-dir`/`--ort-lib`를 사용한다.
+| Option | Purpose |
+|---|---|
+| `model_type` | Embedding model: `multilingual_cjk` (default) or `english_optimal` |
+| `semantic_max_nodes` | Turn semantic search off above this many nodes (default 40,000; lexical stays on) |
+| `workspace_subdir` | Index a subdirectory instead of the project root |
+| `offline` · `model_dir` | Never download; use a local model directory (air-gapped setups) |
+| `binary_path` | Use your own build instead of the released binary |
 
-## 데이터 레이아웃
+Exclude paths with `.graphin/ignore` (gitignore syntax) or ask the agent to
+use `index_scope`. Plugin options are global (user settings), not per project.
 
-```
-<workspace>/.graphin/
-├── search/{vectors.bin, lexical.idx}   # 벡터(머클 헤더) + BM25 스냅샷
-├── graph/{chunk_<pkg>.fb, reverse_base.bin, reverse_delta.log}
-├── merkle.json                         # BLAKE3 파일/서브트리 해시
-├── runtime/                            # 검증 완료된 모델 + ORT
-├── lockfile                            # PID + 3s heartbeat
-├── leader.addr                         # 락 보유 서버가 listen 중인 유닉스 소켓 경로
-├── agent-nav.log                       # JSONL 구조화 로그
-├── binpath                             # 서버 바이너리 절대경로 (usage 훅의 해석용)
-└── usage/events.jsonl                  # 계측 훅의 툴콜 이벤트 (32MiB 회전)
-```
+**Platforms:** release binaries for linux/amd64 and linux/arm64. macOS
+(Apple Silicon) builds from source automatically via `go install` (needs Go and
+clang); Intel macOS builds the same way but without semantic search. Windows is
+not supported.
 
-## 한 워크스페이스, 여러 세션
+## Privacy
 
-인덱스는 워크스페이스당 하나이고 쓰는 프로세스도 하나다(`lockfile`). 같은
-디렉터리에 세션을 둘 열면 서버도 둘 뜨지만, 락을 쥔 쪽(**리더**)만 인덱스를 열고
-나머지(**팔로워**)는 도구 호출을 리더의 유닉스 소켓으로 넘긴다. 인덱스도 임베딩
-스택도 하나라서 어느 세션에서 물어도 같은 답이 나오고, 세션을 더 열어도 메모리는
-거의 늘지 않는다. 서로 다른 워크스페이스는 애초에 락이 달라 무관하다.
+Everything stays in `<project>/.graphin/` and `~/.cache/graphin/`. The only
+network access is downloading the release binary and, on first bootstrap, the
+embedding model and ONNX runtime (SHA256-verified; skip with `offline`).
 
-- 소켓은 `.graphin/leader.sock`, 경로가 길면 `$XDG_RUNTIME_DIR/graphin/` 아래.
-  실제 경로는 `leader.addr`에 적힌다.
-- 리더 세션이 끝나면 남은 세션 중 하나가 락을 이어받아 리더가 된다. 도구 호출이
-  없어도 넘어가고, 그 순간 걸려 있던 읽기 호출은 내부에서 다시 실행된다. 쓰기
-  호출(`index_scope`, `wiki_edit_set` 등)만 `LEADER_CHANGED`로 돌아온다 — 반영됐는지
-  확인하고 다시 부르라는 뜻이다.
-- 첫 메시지는 버전 핸드셰이크다. major.minor가 다르면 중계하지 않고
-  `LOCK_HELD`로 어느 세션(pid·버전)을 재시작할지 말한다. 한 버전의 도구 스키마에
-  다른 버전의 핸들러가 답하면 원인을 찾을 길이 없다.
-- 디스크를 따로 읽는 읽기 전용 팔로워가 아닌 이유: `graph.Open`이 델타 로그를
-  truncate하므로 두 번째 엔진은 독자가 아니라 두 번째 작성자다.
+The plugin keeps a local log of tool calls (`.graphin/usage/events.jsonl`) to
+measure adoption — tool names, graphin queries, grep patterns and file paths;
+never file contents, tool output or full shell commands. `/graphin:report`
+summarizes it; nothing is sent anywhere. [What is recorded](plugin/graphin/README.md#계측-무엇을-기록하나).
 
-## 인덱스 진단
+## Limits
 
-에이전트는 인덱스의 건강을 보고하지 않는다 — 그냥 잘 답하거나 못 답할 뿐이고,
-낡거나 부분적인 인덱스는 조용히 품질만 떨어뜨린다. `diagnose_index`가 그 구멍을
-메운다. 검색이 있어야 할 심볼을 못 찾거나 `explore_graph`가 아는 엣지를 빠뜨릴 때,
-"인덱스가 틀렸다"와 "코드가 생각과 다르다"를 가른다.
+- **Small repositories:** in a repository of a few hundred files, a grep-based
+  agent finds the same answers at about the same token cost. graphin's
+  advantage grows with size and with questions that span files.
+- **Static analysis only:** dynamic dispatch, reflection and string-built
+  calls are invisible. A missing edge is not proof of no relationship.
+- **Schema is as committed:** snapshots, not your live database.
+- **Platforms:** see above; semantic search is unavailable on Intel macOS.
 
-셸에서 도는 별도 프로세스로는 만들 수 없다: `graph.Open`이 델타 로그를 truncate
-하고 손상 샤드를 지우므로 라이브 워크스페이스에 붙는 순간 위험하다. 그래서 진단은
-서버와 **같은 프로세스**에서 도는 MCP 도구다.
+## Troubleshooting
 
-조치가 필요한 것만 `<hint>`으로 나온다 — 모델 불일치(`vectors.bin`이 지금 설정과
-다른 모델로 쓰였다), 코드 dangling, partial 노드. **DB dangling은 별도로 세고
-경고로 취급하지 않는다**: 스냅샷 밖 참조(예: `auth.users`)는 대개 의도된 것이다.
-사람이 읽는 요약은 `/graphin:doctor`가 설치·버전·등록 점검과 묶어서 낸다.
+| Symptom | Fix |
+|---|---|
+| Anything odd | `/graphin:doctor` checks binary, platform, index and duplicate registrations |
+| First session times out starting the server | the 25 MB binary is downloading; reconnect in `/mcp` or raise `MCP_TIMEOUT` (e.g. `60000`) |
+| A symbol you know exists is not found | ask the agent to run `diagnose_index`, or use exact-text search |
+| Too many nodes / irrelevant files indexed | `index_scope` shows what is indexed and previews exclusions |
 
-## 평가 (SWE-Explore 하니스)
+## Update and uninstall
 
-탐색 품질을 반증 가능하게 재는 결정론(LLM 불개입) 하니스.
-[SWE-Explore-Bench](https://github.com/Qiushao-E/SWE-Explore-Bench)의 벤치
-JSONL과 저장소 스냅샷을 준비한 뒤:
+Releases reach you only after refreshing the marketplace:
 
 ```sh
-graphin eval swe-explore --bench bench.jsonl --repos ./repos --out eval-out
-graphin eval swe-explore ... --sweep          # top_k × RRF k × min_confidence 27점 매트릭스
-graphin eval swe-explore ... --policy grep    # Grep -C20 베이스라인 (같은 질의 유도)
-graphin eval swe-explore ... --semantic       # 하이브리드 모드 (모델 워밍업 대기)
+claude plugin marketplace update graphin
+claude plugin update graphin@graphin
 ```
 
-이슈 텍스트에서 질의를 결정론적으로 유도(제목 → 백틱 스팬 → 식별자 빈도)해
-search → explore 1-hop → read_code 스팬을 ranked `(path,start,end)` JSONL로
-출력한다. 태스크당 인덱싱 1회, 스윕 설정은 영속 인덱스를 재사용한다. 채점은
-벤치 공식 스코어러(`eval.py`) 몫이며, 하니스는 제출 파일과 `summary.md`만
-만든다. 설계·가설: [`docs/phase7-spec.md`](docs/phase7-spec.md) §3.
+Then restart the session — that is what swaps the binary. To remove:
+`/plugin uninstall graphin@graphin`, and delete `<project>/.graphin/`.
 
-## 채택 계측
+Version numbers: in 0.x, a **minor** bump (0.X.0) means you may have to change
+something (a tool, option or flag was renamed); a **patch** needs nothing.
+The plugin and binary versions are always the same number.
 
-실세션에서 graphin이 채택되는지/어디서 폴백하는지 잰다. `graphin` 플러그인의
-PostToolUse 훅이 인덱싱된 프로젝트의 툴콜을 `.graphin/usage/events.jsonl`에 쌓고,
-인접 시퀀스에서 헤드라인 4종 — 채택(`graphin → Read/Edit`), 폴백(`graphin → Grep`,
-same-intent 쌍은 인덱스 개선의 실측 재현 케이스), 늦은 전환, 발견 실패 — 을 집계한다.
+## Development
 
 ```sh
-graphin usage report [--since 72h] [--json]   # 세션 안에서는 /graphin:report
-graphin usage prune --before 2026-01-01 [--dry-run]   # 오래된 이벤트 삭제
+make build        # bin/graphin
+make test         # go vet + go test ./...
+./bin/graphin version --json
 ```
 
-리포트는 코드 질의와 DB 스키마 질의(`db.` 노드)의 채택률을 따로도 낸다 — DB
-스냅샷이 있는 프로젝트에서만 나오는 절이다.
+Design and internals: [internals](docs/internals.md) ·
+[distribution](docs/plugin-distribution.md) · [evaluation](docs/eval/README.md) ·
+[schema snapshots](schema/graphindb.md) · [tool reference](docs/tools.md).
 
-로컬 전용이고 외부로 나가지 않는다. Bash 전체 커맨드라인·파일 내용·툴 응답 본문은
-기록하지 않는다 — 기록 항목 전체와 트러블슈팅은
-[`plugin/graphin/README.md`](plugin/graphin/README.md), 설계는
-[`docs/usage-spec.md`](docs/usage-spec.md).
+## License
 
-유도(스킬·서브에이전트)를 [`graphin-guide`](plugin/graphin-guide/README.md)로 떼어
-둔 것은 **이 지표 때문이다.** 한 플러그인에 섞으면 "유도 없이 얼마나 쓰이는가"라는
-베이스라인이 사라지고, 그건 한번 섞이면 복구되지 않는다.
-
-> 계측은 한때 `graphin-usage`라는 별도 플러그인이었다. `graphin`으로 합쳐졌고
-> 옛 플러그인은 제거됐다 — 쌓인 이벤트는 같은 파일이라 그대로 남는다.
-
-## 개발
-
-```sh
-make test        # go vet + go test ./...
-make test-race   # 동시성 패키지 race 검사
-make fbs         # schema/graph.fbs 재생성 (flatc 25.12.19, scripts/fetch-flatc.sh)
-
-# 실제 ONNX 추론 스모크 (모델 다운로드/캐시 필요)
-GRAPHIN_ORT_SMOKE=1 go test ./internal/semantic/onnx/ -run TestRealONNX -v
-```
-
-- 토크나이저는 HF tokenizer.json 서브셋(WordPiece + Unigram)의 자체 구현이며,
-  `testdata/tokenizer/`의 HF 레퍼런스 토큰 ID와 완전 일치를 테스트로 강제한다.
-  픽스처 재생성: `scripts/gen_tokenizer_fixtures.py`.
-- 핵심 회귀: 파일 상단 import 추가 후에도 미변경 메서드의 `read_code`가
-  정확해야 한다(2-Track: 오프셋은 무조건 갱신, 임베딩·엣지 연산은 스킵).
+[Apache-2.0](LICENSE)

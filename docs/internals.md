@@ -1,0 +1,203 @@
+# graphin 내부 동작
+
+사용자용 소개와 설치는 [README](../README.md)에 있다. 이 문서는 README가 예전에 담고 있던
+구현 세부를 모은 것이다 — 언어별 해석 규칙, DB 스냅샷, 기동 순서, 데이터 레이아웃,
+여러 세션, 진단, 평가 하니스, 채택 계측.
+
+## 언어별 해석
+
+JS/TS는 파일 경로 기반 모듈 ID(`src/order/service.ts` →
+`src.order.service.OrderService`)를 사용하며, 상대 경로 import·re-export·
+`require()`는 파싱 시점에 같은 dotted 모듈 공간으로 정규화되어 스코프 랭킹에
+반영된다. tsconfig `paths`·`baseUrl` 별칭(`@/features/order`)은 파일에서 가장
+가까운 `tsconfig.json`/`jsconfig.json`(상대 경로 `extends` 포함)을 읽어 같은
+공간으로 옮기고, 설정이 바뀌면 JS/TS import를 다시 해석한다. JSX로 렌더하는
+컴포넌트(`<OrderList />`)는 호출 엣지가 된다.
+`.d.ts`는 선언 시그니처를 인덱싱하고, TS 오버로드 시그니처는 구현부 하나로
+접힌다. `.min.js`·`dist/`·`.next/`·`coverage/`·`node_modules/`는 기본 제외.
+
+**탐색 커버리지**: 심볼 노드 외에도 ① 메서드/클래스 **본문 토큰**(문자열
+리터럴·주석·필드)이 lexical 인덱스에 포함되고, ② YAML/properties/SQL/MD/
+Gradle/Dockerfile 등 **앵커 없는 텍스트 파일은 파일 단위 노드**(ID = 상대
+경로)로 승격되어 검색·`read_code`가 가능하다. 파일 노드는 그래프 엣지를
+만들지 않으며, 락파일(package-lock.json 등)은 기본 제외된다.
+
+## RDB 스키마 스냅샷
+
+**RDB 스키마 스냅샷**: `<name>[.<section>].graphindb.json` 규약의 스냅샷
+파일을 저장소에 커밋하면 테이블·뷰·함수·프로시저가 개별 노드로, FK가
+`ForeignKey` 엣지로 인덱싱된다(컬럼·인덱스·제약은 테이블 노드에 접힘,
+RLS·트리거는 사이드카 파일로 분리). graphin은 라이브 DB에 접속하지 않는다 —
+스냅샷은 tbls/Atlas 출력을 `graphin dbimport`로 변환하거나 수기로 작성한다.
+데이터소스(파일 단위) N개 공존, 크로스 데이터소스 참조(`db.<ds>.` 프리픽스),
+supabase `auth.users` 같은 스냅샷 밖 대상(dangling 엣지)을 지원한다.
+전체 명세: [`schema/graphindb.md`](../schema/graphindb.md).
+
+```sh
+# Postgres/MySQL/SQLite: tbls 이트로스펙션 → 스냅샷 변환
+tbls out -t json --dsn "postgres://..." | graphin dbimport --from tbls --datasource main -
+graphin dbimport --init main            # 수기 작성용 빈 뼈대
+```
+
+프로젝트에 스키마 SSOT가 이미 있으면 변환 없이 **매니페스트로 직접 라우팅**할
+수 있다: 베이스네임 `graphindb.json` 매니페스트가 데이터소스별 SSOT 파일을
+`sql`(상태형 DDL 덤프) · `schema`(prisma 서브셋) · `json`(tbls 프리셋 또는
+셀렉터 매핑) 포맷으로 선언하면 SSOT 파일 자체가 파스 타깃이 되어
+`read_code`가 실제 CREATE TABLE·model 블록을 반환한다. 매니페스트 오류는
+`db_manifest_errors` 속성으로 에이전트에게 피드백된다.
+
+**코드↔DB 크로스 도메인 엣지**: JPA `@Table(name=)`/`@Entity`, SQLAlchemy
+`__tablename__`, Django `Meta.db_table`, TypeORM `@Entity("x")`, Prisma
+client 멤버 접근(`prisma.<model>.`), 그리고 SQL 문맥이 확실한 문자열 리터럴
+(`SELECT…FROM`/`JOIN`/`INSERT INTO`/`UPDATE…SET`, `@Query` 포함)이 감지되면
+코드 노드 → 테이블 노드 `reference` 엣지가 생성된다(명시 물리명 1.0 /
+client·SQL 0.9 / 클래스명 관례 0.8, 레지스트리 실존 대상 한정 — 명시
+매핑만 단일 데이터소스에서 dangling 허용). 테이블 노드의 `used_by` 한 번으로
+"이 테이블을 건드리는 코드"에 도달한다. 부트스트랩 이후 스냅샷이 추가·삭제
+되면 영향받는 코드 파일만 재해석되어 엣지가 따라 움직인다(재임베딩 없음).
+설계: [`docs/phase7-spec.md`](phase7-spec.md).
+
+부트스트랩 시 DB 흔적(마이그레이션 디렉터리·prisma·docker-compose 등)은
+있는데 스냅샷도 매니페스트도 없으면 `bootstrap_workspace` 응답에
+`db_sources_detected`/`db_snapshots` 속성과 안내 `<hint>`가 동봉된다.
+Supabase의 RLS·트리거 사이드카와 Oracle(Atlas inspect 참고)은 수기 작성한다.
+tbls의 virtual relation은 `enforced:false` 논리 참조로 변환된다.
+
+## 기동과 인덱싱 순서
+
+에이전트가 `bootstrap_workspace`를 호출하면 인덱싱과 File Watcher가 시작된다.
+`initialize`는 인덱싱과 무관하게 즉시 응답하며, 준비 전 응답에는
+`<system_status state="indexing" lexical_ready=... semantic_ready=... />`가 동봉된다.
+lexical이 준비되기 전 워처 이벤트는 버퍼링되었다가 준비 직후 도착 순서대로
+재생된다 — 초기 스캔이 읽어둔 (낡은) 파일 내용이 동시 편집을 덮어쓰지 못하게
+하는 순서 보장이다. 임베딩은 유계 큐 대신 백로그로 처리되어 대형 저장소의 콜드
+부트스트랩에서도 벡터가 유실되지 않으며, 워밍업 중 `bootstrap_workspace`를
+재호출하면 응답에 `embed_pending`(남은 임베딩 수)이 동봉되어 진행 상황을
+확인할 수 있다(lexical 검색은 그 사이에도 사용 가능).
+
+## 실행 플래그
+
+`--workspace <path>`(필수) · `--model-type` · `--offline` · `--model-dir` ·
+`--ort-lib` · `--workers <n>` · `--semantic-max-nodes <n>` · `--verbose`
+
+서브커맨드: `dbimport` · `usage` · `eval` · `version`. `graphin version --json`은
+버전·커밋·`os`/`arch`·ORT 버전과 **이 플랫폼에서 의미 검색이 가능한지**
+(`semantic_supported`)를 한 줄로 낸다.
+
+시멘틱 모델(e5 계열 INT8 ONNX)과 onnxruntime 1.26.0은 최초 부트스트랩 시
+SHA256 검증과 함께 자동 프로비저닝된다(`~/.cache/graphin/artifacts` 캐시).
+폐쇄망은 `--offline` + `--model-dir`/`--ort-lib`를 사용한다.
+
+## 데이터 레이아웃
+
+```
+<workspace>/.graphin/
+├── search/{vectors.bin, lexical.idx}   # 벡터(머클 헤더) + BM25 스냅샷
+├── graph/{chunk_<pkg>.fb, reverse_base.bin, reverse_delta.log}
+├── merkle.json                         # BLAKE3 파일/서브트리 해시
+├── runtime/                            # 검증 완료된 모델 + ORT
+├── lockfile                            # PID + 3s heartbeat
+├── leader.addr                         # 락 보유 서버가 listen 중인 유닉스 소켓 경로
+├── agent-nav.log                       # JSONL 구조화 로그
+├── binpath                             # 서버 바이너리 절대경로 (usage 훅의 해석용)
+└── usage/events.jsonl                  # 계측 훅의 툴콜 이벤트 (32MiB 회전)
+```
+
+## 한 워크스페이스, 여러 세션
+
+인덱스는 워크스페이스당 하나이고 쓰는 프로세스도 하나다(`lockfile`). 같은
+디렉터리에 세션을 둘 열면 서버도 둘 뜨지만, 락을 쥔 쪽(**리더**)만 인덱스를 열고
+나머지(**팔로워**)는 도구 호출을 리더의 유닉스 소켓으로 넘긴다. 인덱스도 임베딩
+스택도 하나라서 어느 세션에서 물어도 같은 답이 나오고, 세션을 더 열어도 메모리는
+거의 늘지 않는다. 서로 다른 워크스페이스는 애초에 락이 달라 무관하다.
+
+- 소켓은 `.graphin/leader.sock`, 경로가 길면 `$XDG_RUNTIME_DIR/graphin/` 아래.
+  실제 경로는 `leader.addr`에 적힌다.
+- 리더 세션이 끝나면 남은 세션 중 하나가 락을 이어받아 리더가 된다. 도구 호출이
+  없어도 넘어가고, 그 순간 걸려 있던 읽기 호출은 내부에서 다시 실행된다. 쓰기
+  호출(`index_scope`, `wiki_edit_set` 등)만 `LEADER_CHANGED`로 돌아온다 — 반영됐는지
+  확인하고 다시 부르라는 뜻이다.
+- 첫 메시지는 버전 핸드셰이크다. major.minor가 다르면 중계하지 않고
+  `LOCK_HELD`로 어느 세션(pid·버전)을 재시작할지 말한다. 한 버전의 도구 스키마에
+  다른 버전의 핸들러가 답하면 원인을 찾을 길이 없다.
+- 디스크를 따로 읽는 읽기 전용 팔로워가 아닌 이유: `graph.Open`이 델타 로그를
+  truncate하므로 두 번째 엔진은 독자가 아니라 두 번째 작성자다.
+
+## 인덱스 진단
+
+에이전트는 인덱스의 건강을 보고하지 않는다 — 그냥 잘 답하거나 못 답할 뿐이고,
+낡거나 부분적인 인덱스는 조용히 품질만 떨어뜨린다. `diagnose_index`가 그 구멍을
+메운다. 검색이 있어야 할 심볼을 못 찾거나 `explore_graph`가 아는 엣지를 빠뜨릴 때,
+"인덱스가 틀렸다"와 "코드가 생각과 다르다"를 가른다.
+
+셸에서 도는 별도 프로세스로는 만들 수 없다: `graph.Open`이 델타 로그를 truncate
+하고 손상 샤드를 지우므로 라이브 워크스페이스에 붙는 순간 위험하다. 그래서 진단은
+서버와 **같은 프로세스**에서 도는 MCP 도구다.
+
+조치가 필요한 것만 `<hint>`으로 나온다 — 모델 불일치(`vectors.bin`이 지금 설정과
+다른 모델로 쓰였다), 코드 dangling, partial 노드. **DB dangling은 별도로 세고
+경고로 취급하지 않는다**: 스냅샷 밖 참조(예: `auth.users`)는 대개 의도된 것이다.
+사람이 읽는 요약은 `/graphin:doctor`가 설치·버전·등록 점검과 묶어서 낸다.
+
+## 평가 (SWE-Explore 하니스)
+
+탐색 품질을 반증 가능하게 재는 결정론(LLM 불개입) 하니스.
+[SWE-Explore-Bench](https://github.com/Qiushao-E/SWE-Explore-Bench)의 벤치
+JSONL과 저장소 스냅샷을 준비한 뒤:
+
+```sh
+graphin eval swe-explore --bench bench.jsonl --repos ./repos --out eval-out
+graphin eval swe-explore ... --sweep          # top_k × RRF k × min_confidence 27점 매트릭스
+graphin eval swe-explore ... --policy grep    # Grep -C20 베이스라인 (같은 질의 유도)
+graphin eval swe-explore ... --semantic       # 하이브리드 모드 (모델 워밍업 대기)
+```
+
+이슈 텍스트에서 질의를 결정론적으로 유도(제목 → 백틱 스팬 → 식별자 빈도)해
+search → explore 1-hop → read_code 스팬을 ranked `(path,start,end)` JSONL로
+출력한다. 태스크당 인덱싱 1회, 스윕 설정은 영속 인덱스를 재사용한다. 채점은
+벤치 공식 스코어러(`eval.py`) 몫이며, 하니스는 제출 파일과 `summary.md`만
+만든다. 설계·가설: [`docs/phase7-spec.md`](phase7-spec.md) §3.
+
+## 채택 계측
+
+실세션에서 graphin이 채택되는지/어디서 폴백하는지 잰다. `graphin` 플러그인의
+PostToolUse 훅이 인덱싱된 프로젝트의 툴콜을 `.graphin/usage/events.jsonl`에 쌓고,
+인접 시퀀스에서 헤드라인 4종 — 채택(`graphin → Read/Edit`), 폴백(`graphin → Grep`,
+same-intent 쌍은 인덱스 개선의 실측 재현 케이스), 늦은 전환, 발견 실패 — 을 집계한다.
+
+```sh
+graphin usage report [--since 72h] [--json]   # 세션 안에서는 /graphin:report
+graphin usage prune --before 2026-01-01 [--dry-run]   # 오래된 이벤트 삭제
+```
+
+리포트는 코드 질의와 DB 스키마 질의(`db.` 노드)의 채택률을 따로도 낸다 — DB
+스냅샷이 있는 프로젝트에서만 나오는 절이다.
+
+로컬 전용이고 외부로 나가지 않는다. Bash 전체 커맨드라인·파일 내용·툴 응답 본문은
+기록하지 않는다 — 기록 항목 전체와 트러블슈팅은
+[`plugin/graphin/README.md`](../plugin/graphin/README.md), 설계는
+[`docs/usage-spec.md`](usage-spec.md).
+
+유도(스킬·서브에이전트)를 [`graphin-guide`](../plugin/graphin-guide/README.md)로 떼어
+둔 것은 **이 지표 때문이다.** 한 플러그인에 섞으면 "유도 없이 얼마나 쓰이는가"라는
+베이스라인이 사라지고, 그건 한번 섞이면 복구되지 않는다.
+
+> 계측은 한때 `graphin-usage`라는 별도 플러그인이었다. `graphin`으로 합쳐졌고
+> 옛 플러그인은 제거됐다 — 쌓인 이벤트는 같은 파일이라 그대로 남는다.
+
+## 개발 메모
+
+```sh
+make test        # go vet + go test ./...
+make test-race   # 동시성 패키지 race 검사
+make fbs         # schema/graph.fbs 재생성 (flatc 25.12.19, scripts/fetch-flatc.sh)
+
+# 실제 ONNX 추론 스모크 (모델 다운로드/캐시 필요)
+GRAPHIN_ORT_SMOKE=1 go test ./internal/semantic/onnx/ -run TestRealONNX -v
+```
+
+- 토크나이저는 HF tokenizer.json 서브셋(WordPiece + Unigram)의 자체 구현이며,
+  `testdata/tokenizer/`의 HF 레퍼런스 토큰 ID와 완전 일치를 테스트로 강제한다.
+  픽스처 재생성: `scripts/gen_tokenizer_fixtures.py`.
+- 핵심 회귀: 파일 상단 import 추가 후에도 미변경 메서드의 `read_code`가
+  정확해야 한다(2-Track: 오프셋은 무조건 갱신, 임베딩·엣지 연산은 스킵).
